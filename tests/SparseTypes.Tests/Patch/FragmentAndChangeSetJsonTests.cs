@@ -109,7 +109,8 @@ public sealed class FragmentAndChangeSetJsonTests
         var omitted = Should.Throw<InvalidOperationException>(() => ignoredOnly.ToPayload());
         omitted.Message.ShouldContain("Plain");
 
-        // A mixed ignored/non-ignored edit fails too rather than partially exporting.
+        // A mixed ignored/non-ignored edit fails too rather than partially
+        // exporting.
         var mixed = NamingWidget.ChangeSet.Between(
             before,
             State(

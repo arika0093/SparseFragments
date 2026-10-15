@@ -10,14 +10,7 @@ public static class SparseEntityIncludeExtensions
     /// Adds the Include paths required to apply <paramref name="changes"/> with
     /// <paramref name="mapper"/>.
     /// </summary>
-    /// <remarks>
-    /// The query is not executed. Membership or order changes include complete
-    /// collections; edit-only keyed transitions may use filtered Include when
-    /// their entity key selector is a mapped scalar property. Other key shapes
-    /// use an unfiltered Include. Owned navigations are omitted because EF loads
-    /// them with their owner. Call the query provider's <c>AsSplitQuery</c>
-    /// after this method when a split query is appropriate.
-    /// </remarks>
+    /// <remarks>The query is not executed.</remarks>
     /// <param name="source">The root EF Core query.</param>
     /// <param name="mapper">The validated entity mapper for this query's model.</param>
     /// <param name="changes">The typed change set to apply.</param>

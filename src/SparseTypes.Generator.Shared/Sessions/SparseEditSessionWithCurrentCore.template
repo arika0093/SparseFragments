@@ -56,11 +56,7 @@ namespace __SESSION_NAMESPACE__
         public Func<TModel, TCurrent> ToCurrent { get; init; } = null!;
 
         /// <summary>Materializes a retained fragment as an ordinary model.</summary>
-        /// <remarks>
-        /// Used to recover the retained baseline when the live model is temporarily
-        /// invalid (such as duplicate keyed keys) and therefore cannot be diffed.
-        /// Null when the session was built without in-place recovery support.
-        /// </remarks>
+        /// <remarks>Recovers the baseline when the live model is temporarily invalid.</remarks>
         public Func<TFragment, TModel>? BaselineToModel { get; init; }
 
         /// <summary>Attempts to apply a change set and returns its updated model or conflicts.</summary>
@@ -121,7 +117,8 @@ namespace __SESSION_NAMESPACE__
         where TObservable : class
         where TCurrent : class
     {
-        // Public surface first; protected/internal constructors follow, private state last.
+        // Public surface first; protected/internal constructors follow, private
+        // state last.
         /// <summary>Creates a session using one model as the baseline and live editable value.</summary>
         public static EditSessionCore<
             TModel,
@@ -209,13 +206,9 @@ namespace __SESSION_NAMESPACE__
             (EditSessionCore<TModel, TFragment, TPatch, TChangeSet, TObservable, TCurrent>)
                 base.Fork();
 
-        /// <summary>
-        /// Attempts to merge the changes of a fork into this session without modifying either session.
-        /// </summary>
+        /// <summary>Attempts to merge the changes of a fork into this session without modifying either session.</summary>
         /// <param name="fork">A session created by <see cref="Fork"/> in the same lineage.</param>
-        /// <param name="merged">
-        /// The new session with this session's baseline and the merged model, or null on failure.
-        /// </param>
+        /// <param name="merged">The new session with this session's baseline and the merged model, or null on failure.</param>
         /// <param name="conflicts">Structured rebase conflicts on failure; otherwise null.</param>
         /// <returns><see langword="true"/> when the fork merged cleanly; otherwise <see langword="false"/>.</returns>
         public bool TryMergeFrom(

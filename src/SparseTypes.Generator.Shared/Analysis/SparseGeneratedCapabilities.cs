@@ -6,11 +6,7 @@ using System.Threading;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Model-independent helper families emitted once per compilation.</summary>
-/// <remarks>
-/// Each flag names one reusable helper family that does not depend on a
-/// single model shape. Per-model callers reference these helpers instead of
-/// re-emitting them, so a compilation holds exactly one definition.
-/// </remarks>
+/// <remarks>Each flag names one reusable helper family that does not depend on a single model shape.</remarks>
 [Flags]
 internal enum SparseGeneratedCapability
 {
@@ -31,11 +27,7 @@ internal enum SparseGeneratedCapability
 }
 
 /// <summary>Aggregated compilation-scoped emission plan.</summary>
-/// <remarks>
-/// Value equality keeps incremental output stable: unrelated model edits
-/// that leave the plan unchanged reuse the cached helper sources, while a
-/// changed capability set updates only the affected helper families.
-/// </remarks>
+/// <remarks>Value equality keeps incremental output stable.</remarks>
 internal sealed record SparseGeneratedOncePlan
 {
     public SparseGeneratedOncePlan(
@@ -70,12 +62,7 @@ internal sealed record SparseGeneratedOncePlan
 }
 
 /// <summary>Derives compilation-scoped helper requirements from analyzed models.</summary>
-/// <remarks>
-/// Requirements combine the product feature selection, the analyzed model
-/// shape, the applicable collection families, and the target-framework
-/// facts. Feature prerequisites are expanded and validated so a missing
-/// prerequisite surfaces as an actionable diagnostic instead of missing code.
-/// </remarks>
+/// <remarks>Requirements combine the product feature selection.</remarks>
 internal static class SparseGeneratedCapabilityPlanner
 {
     /// <summary>Derives the helper families one analyzed root requires.</summary>

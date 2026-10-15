@@ -1,6 +1,6 @@
 namespace SparseTypes.Tests;
 
-/// <summary>Session descriptor graphs are cached without going stale (#134).</summary>
+/// <summary>Session descriptor graphs are cached without going stale.</summary>
 public sealed class DescriptorCacheTests
 {
     [Test]
@@ -80,7 +80,8 @@ public sealed class DescriptorCacheTests
         };
         session.Reload(server).HasConflicts.ShouldBeFalse();
 
-        // Nested descriptors re-resolve through the cached root against live state.
+        // Nested descriptors re-resolve through the cached root against live
+        // state.
         var live = model.Children;
         live.Count.ShouldBe(2);
         for (var index = 0; index < live.Count; index++)
@@ -115,7 +116,8 @@ public sealed class DescriptorCacheTests
         }
 
         var perRead = (GC.GetAllocatedBytesForCurrentThread() - before) / (double)reads;
-        // A cached lookup allocates nothing; allow a small margin for test noise.
+        // A cached lookup allocates nothing; allow a small margin for test
+        // noise.
         perRead.ShouldBeLessThan(64);
     }
 }

@@ -4,13 +4,7 @@ using SparseTypes.Generator;
 
 namespace SparseTypes.Tests.Generation;
 
-/// <summary>
-/// Source-placement regression tests for the Fragment operations relocation
-/// (issue #193, stages 3-4). Conversion, projection, merge, diff, and
-/// deep-clone bodies plus POCO helpers must live in the per-model operations
-/// class; the annotated model keeps <c>Fragment</c>/<c>FragmentBuilder</c>
-/// facades with narrow CLR-mandated bridges.
-/// </summary>
+/// <summary>Source-placement regression tests for the Fragment operations relocation (, stages 3-4).</summary>
 public sealed class FragmentOperationsSplitTests
 {
     private static Dictionary<string, string> Files() =>
@@ -157,7 +151,7 @@ public sealed class FragmentOperationsSplitTests
             key.Contains("OpsParent", StringComparison.Ordinal)
             && key.EndsWith(".SparseTypes.g.cs", StringComparison.Ordinal)
         );
-        // Driver compilations default to the latest stable language (C# 11+),
+        // Driver compilations default to the latest stable language,
         // so the same-file-only operations class narrows to file-scoped.
         sources[mergedHint].ShouldContain("file static class ");
     }

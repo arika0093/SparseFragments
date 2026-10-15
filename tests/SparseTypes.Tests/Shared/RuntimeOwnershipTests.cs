@@ -8,10 +8,7 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Shared;
 
-// Ownership tests for the generated-to-runtime seam (#186). The facade
-// surface is pinned by name so relocations (#178, #181-#183) change it
-// deliberately, and emission tests prove every remaining helper flows
-// through injected dialect contracts with no fixed product reference.
+// Ownership tests for the generated-to-runtime seam.
 public sealed class RuntimeOwnershipTests
 {
     private static readonly ImmutableArray<string> ExpectedFacadeMembers = ImmutableArray.Create(
@@ -99,11 +96,8 @@ public sealed class RuntimeOwnershipTests
             PayloadImplementationContainerPrefix: "DownstreamInternal"
         );
 
-    // Every facade member has a documented layer owner in
-    // docs/architecture/runtime-ownership-audit.md. Pin the surface so
-    // relocations change it deliberately instead of silently.
-    // 42 = 25 audited methods, 12 comparison specializations, 3 origin
-    // helpers, and the optional clone-context and key-validation scope factories.
+    // Pin the audited facade surface so ownership changes are deliberate.
+    // The expected count includes comparison, origin, clone, and key helpers.
     [Test]
     public void FacadeSurfaceMatchesTheAuditedContract()
     {

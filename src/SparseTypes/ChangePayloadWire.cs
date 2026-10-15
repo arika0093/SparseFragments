@@ -3,15 +3,7 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>Serializer-agnostic ChangePayload version-1 wire tokens.</summary>
-/// <remarks>
-/// The base runtime carries no <c>System.Text.Json</c> reference (issue #242).
-/// These constants own the v1 contract — envelope field names, endpoint state
-/// tokens, item kind tokens, and the polymorphic discriminator — so generated
-/// JSON bridges and hand-written codecs map identical strings without
-/// duplicating literals. JSON integration itself lives in optional generated
-/// serialization artifacts that are only emitted when the consuming
-/// compilation references a compatible <c>System.Text.Json</c> API set.
-/// </remarks>
+/// <remarks>The base runtime carries no <c>System.Text.Json</c> reference.</remarks>
 [EditorBrowsable(EditorBrowsableState.Never)]
 public static class ChangePayloadWire
 {

@@ -260,11 +260,8 @@
         await _submitDialog.ShowAsync();
     }
 
-    // Audit (#256): this preview intentionally stays a live-model diff instead
-    // of projecting ChangeSet records. It renders bespoke task summaries and
-    // groups operations (Add, Remove, Edit, Order) with unquoted key targets
-    // such as Tasks[t1].Title, which differ from the wire PathText the shared
-    // projection reports. Keep the duplication; do not "unify" it.
+    // Keep this preview as a live-model diff: it groups task operations and
+    // shows unquoted key targets, unlike the shared wire projection.
     private List<(string Target, string Operation, string Before, string After)> BuildSubmitChanges()
     {
         var changes = new List<(string Target, string Operation, string Before, string After)>();

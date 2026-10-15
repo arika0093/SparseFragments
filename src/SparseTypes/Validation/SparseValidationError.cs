@@ -3,11 +3,7 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>One stored validation error with its typed path and origin.</summary>
-/// <remarks>
-/// Snapshot plain data returned by
-/// <see cref="SparseValidationStore{TModel}.GetAllErrors"/>; mutating the
-/// store never mutates previously returned entries.
-/// </remarks>
+/// <remarks>Snapshot plain data returned by <see cref="SparseValidationStore{TModel}.GetAllErrors"/>.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public readonly record struct SparseValidationError
 {

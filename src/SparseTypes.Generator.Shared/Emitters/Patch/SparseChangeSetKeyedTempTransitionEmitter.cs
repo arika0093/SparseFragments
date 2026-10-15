@@ -1,12 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Temporary-identity fragments for keyed-sequence transitions.</summary>
-/// <remarks>
-/// Hosts the Guid identity surface of keyed transition items
-/// (<c>TemporaryKey</c>, lookup, extractors, whole-path capture) used by
-/// <see cref="SparseChangeSetKeyedTransitionEmitter"/>. Assigned-key behavior
-/// stays in the owning emitter.
-/// </remarks>
+/// <remarks>Hosts the Guid identity surface of keyed transition items (<c>TemporaryKey</c>.</remarks>
 internal static class SparseChangeSetKeyedTempTransitionEmitter
 {
     /// <summary>Emits the TemporaryKey property of a keyed transition item.</summary>
@@ -160,9 +155,7 @@ internal static class SparseChangeSetKeyedTempTransitionEmitter
         SparseMemberModel member
     )
     {
-        // Whole-transition snapshots may carry temporary identities as
-        // data; at most one side is populated, so positional temp capture
-        // here is exact and later stages stamp it onto items.
+        // Whole-transition snapshots may carry temporary identities as data.
         code.AppendLineAt(
             4,
             "if ("

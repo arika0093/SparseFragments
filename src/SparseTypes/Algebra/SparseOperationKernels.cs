@@ -3,16 +3,7 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>Model-independent Patch and ChangeSet operation kernels.</summary>
-/// <remarks>
-/// Pure generic calculations over keys, operation kinds, orders and comparers:
-/// presence composition, keyed add/remove inversion and composition, order-only
-/// transitions, empty-operation identities and canonical conflict-path
-/// reporting. No model CLR types, no reflection; all dispatch is
-/// type-safe generic code so NativeAOT trimming stays clean. Model-specific
-/// emitters keep typed nested fragments, sparse canonical storage, member
-/// policies and ownership boundaries; they invoke these kernels for the
-/// reusable subset (see the Shared kernel plan for the inventory).
-/// </remarks>
+/// <remarks>Pure generic calculations over keys, operation kinds, orders and comparers.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public static class SparseOperationKernels
 {
@@ -96,12 +87,7 @@ public static class SparseOperationKernels
     ) => (comparer ?? EqualityComparer<TKey>.Default).Equals(key, unassigned);
 
     /// <summary>Composes keyed add/remove sets across two sequential transitions.</summary>
-    /// <remarks>
-    /// Pure set algebra: a key added then removed vanishes; removed then added
-    /// becomes a retained (possibly moved) key. Order-only changes are reported
-    /// separately through <paramref name="orderChanged"/>. Pre-sizes outputs;
-    /// no LINQ, no boxing for value keys.
-    /// </remarks>
+    /// <remarks>Pure set algebra: a key added then removed vanishes; removed then added becomes a retained (possibly moved) key.</remarks>
     /// <param name="firstAdded">Keys added by the first transition.</param>
     /// <param name="firstRemoved">Keys removed by the first transition.</param>
     /// <param name="secondAdded">Keys added by the second transition.</param>
@@ -132,8 +118,8 @@ public static class SparseOperationKernels
         added = new List<TKey>(firstAdded.Count + secondAdded.Count);
         removed = new List<TKey>(firstRemoved.Count + secondRemoved.Count);
 
-        // Retained first-adds survive unless the second transition removes them.
-        // Index loops (not LINQ) keep this allocation-free on the hot path.
+        // Retained first-adds survive unless the second transition removes
+        // them. Index loops (not LINQ) keep this allocation-free on the hot
         for (var i = 0; i < firstAdded.Count; i++)
         {
             var key = firstAdded[i];
@@ -143,9 +129,7 @@ public static class SparseOperationKernels
             }
         }
 
-        // Second-adds survive unless they merely re-add a first-removed key
-        // that the first side had already removed (then both cancel when the
-        // key was absent at baseline); otherwise a remove+add is a retain.
+        // Keep second-side additions unless they re-add a first-side removal.
         for (var i = 0; i < secondAdded.Count; i++)
         {
             var key = secondAdded[i];
@@ -178,9 +162,7 @@ public static class SparseOperationKernels
             }
         }
 
-        // Order follows the post-cancellation net adds: cancelled add-then-remove
-        // leaves no keys behind (scalar TryComposePresence identity), while
-        // surviving net-new or re-added retained keys still affect order.
+        // Order follows the post-cancellation net adds.
         orderChanged = added.Count != 0;
     }
 
@@ -235,12 +217,7 @@ public static class SparseOperationKernels
     }
 
     /// <summary>Whether either path is a strict segment ancestor of the other.</summary>
-    /// <remarks>
-    /// Canonical subset of the mixed-operation path algebra: segments split on
-    /// '.' with bracket suffixes kept on their element, so <c>A</c> is not an
-    /// ancestor of <c>AB</c> while <c>Nested</c> is an ancestor of
-    /// <c>Nested.Host</c>.
-    /// </remarks>
+    /// <remarks>Canonical subset of the mixed-operation path algebra.</remarks>
     public static bool IsAncestorOrDescendant(string first, string second) =>
         IsStrictAncestor(first, second) || IsStrictAncestor(second, first);
 

@@ -130,8 +130,8 @@ public sealed class UnassignedKeyLifecycleTests
         var patch = AssignedServerHolder.Patch.Between(valid, F(Item(1, "ok"), Item(2, "new")));
         Should.Throw<InvalidOperationException>(() => patch.Apply(invalid));
 
-        // Composing through an unassigned intermediate is unsupported: the second
-        // diff cannot even be built because its baseline would carry sentinels.
+        // The second diff cannot even be built because its baseline would carry
+        // sentinels.
         var first = AssignedServerHolder.ChangeSet.Between(valid, F(Item(0, "new"), Item(1, "ok")));
         Should.Throw<InvalidOperationException>(() =>
             AssignedServerHolder.ChangeSet.Between(F(Item(0, "new"), Item(1, "ok")), valid)

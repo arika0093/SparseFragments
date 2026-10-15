@@ -29,7 +29,7 @@ public partial class StreamingSessionModel
     public System.Collections.Generic.IEnumerable<string> Items { get; set; } = [];
 }
 
-/// <summary>Counting enumerable that pins view enumeration costs (issue #172).</summary>
+/// <summary>Counting enumerable that pins view enumeration costs.</summary>
 public sealed class CountingEnumerable : System.Collections.Generic.IEnumerable<string>
 {
     private readonly string[] _values;
@@ -75,7 +75,7 @@ public partial class PureReadOnlyDictionarySessionModel
         new System.Collections.Generic.Dictionary<string, int>();
 }
 
-/// <summary>Pure <see cref="IReadOnlyDictionary{TKey, TValue}"/> backing (issue #123).</summary>
+/// <summary>Pure <see cref="IReadOnlyDictionary{TKey, TValue}"/> backing.</summary>
 /// <remarks>Implements only <c>IReadOnlyDictionary</c>, never <c>IDictionary</c>.</remarks>
 public sealed class PureReadOnlyDictionary
     : System.Collections.Generic.IReadOnlyDictionary<string, int>
@@ -452,7 +452,8 @@ public sealed class NeutralEditSessionTests
         model.Version = 2;
         session.AcceptChanges(submitted);
 
-        // Live model and proxy identities are untouched; only the baseline moves.
+        // Live model and proxy identities are untouched; only the baseline
+        // moves.
         ReferenceEquals(Raw(session), model).ShouldBeTrue();
         ReferenceEquals(session.Observable, observable).ShouldBeTrue();
         ReferenceEquals(model.Tags, tags).ShouldBeTrue();
@@ -1026,7 +1027,8 @@ public sealed class NeutralEditSessionTests
 
         session.AcceptChanges(submitted);
 
-        // Snapshot-only sessions advance the retained baseline with no in-place write.
+        // Snapshot-only sessions advance the retained baseline with no in-place
+        // write.
         session.HasChanges.ShouldBeFalse();
         session.CreateChangeSet().IsEmpty.ShouldBeTrue();
         ReferenceEquals(Raw(session), current).ShouldBeTrue();

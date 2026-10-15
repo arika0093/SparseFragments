@@ -3,10 +3,7 @@ using System.Runtime.CompilerServices;
 namespace SparseTypes;
 
 /// <summary>Pair-identity comparer used by generated diff cycle scopes.</summary>
-/// <remarks>
-/// Two pairs are equal only when both keys and both values are reference-identical.
-/// Hash codes combine the identity hash codes so path membership checks stay O(1) expected.
-/// </remarks>
+/// <remarks>Two pairs are equal only when both keys and both values are reference-identical.</remarks>
 internal sealed class SparseDiffPairEqualityComparer
     : IEqualityComparer<KeyValuePair<object, object>>
 {

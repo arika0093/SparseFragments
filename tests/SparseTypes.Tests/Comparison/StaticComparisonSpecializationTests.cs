@@ -16,10 +16,7 @@ public partial class StaticSpecCollections
     public Dictionary<string, int> Lookup { get; set; } = new(StringComparer.Ordinal);
 }
 
-/// <summary>
-/// Static specialization tests (issue #187): concrete collection overloads match the
-/// dynamic fallback semantics while binding comparer access at compile time.
-/// </summary>
+/// <summary>Concrete collection overloads match the dynamic fallback semantics while binding comparer access at compile time.</summary>
 public sealed class StaticComparisonSpecializationTests
 {
     private sealed class ReversedIntList : List<int>, IList
@@ -111,8 +108,7 @@ public sealed class StaticComparisonSpecializationTests
         var reversed = new List<int> { 3, 2, 1 };
         var storageOrder = new List<int> { 1, 2, 3 };
 
-        // The non-generic view reads storage reversed, so the derived list equals
-        // the reversed plain list and differs from storage order on both paths.
+        // The non-generic view reads storage reversed.
         SparseFragmentRuntime.AreSequenceEqual(stored, reversed).ShouldBeTrue();
         SparseFragmentRuntime.AreSequenceEqual(reversed, stored).ShouldBeTrue();
         SparseFragmentRuntime.AreSequenceEqual(stored, storageOrder).ShouldBeFalse();

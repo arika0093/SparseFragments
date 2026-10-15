@@ -6,14 +6,7 @@ namespace SparseTypes;
 /// <summary>
 /// Path-addressed typed editing facade for one keyed session collection member.
 /// </summary>
-/// <remarks>
-/// Adds stable-identity operations over <see cref="SparseCollectionEditor{TElement}"/>:
-/// every keyed operation resolves the current index through <see cref="IArrayDescriptor.IndexOfKey"/>
-/// (or <c>IndexOfTemporaryKey</c>) on each call, so keyed rows survive
-/// reordering and no positional index is ever treated as durable identity.
-/// Unassigned sentinels never match: keyed lookups report <c>UnassignedKey</c>
-/// instead of resolving the first sentinel row.
-/// </remarks>
+/// <remarks>Adds stable-identity operations over <see cref="SparseCollectionEditor{TElement}"/>.</remarks>
 /// <typeparam name="TElement">The collection element model type.</typeparam>
 /// <typeparam name="TKey">The assigned key type declared by <c>[SparseKey]</c>.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
@@ -265,7 +258,7 @@ public sealed class SparseKeyedCollectionEditor<TElement, TKey> : SparseCollecti
     /// <param name="item">The replacement element model.</param>
     /// <param name="error">The failure reason, or <c>None</c> on success.</param>
     /// <returns>True when the row was replaced.</returns>
-    /// <remarks>Changing identity is remove plus add: a replacement carrying a different assigned key reports <c>DuplicateKey</c> when taken and succeeds only when the key matches its own row.</remarks>
+    /// <remarks>Changing the key is remove plus add.</remarks>
     public bool TryReplaceByKey(TKey? key, TElement? item, out SparseCollectionEditError error)
     {
         if (!TryResolveArray(out var array, out error))

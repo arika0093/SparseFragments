@@ -2,7 +2,7 @@ using SparseTypes.Generated;
 
 namespace SparseTypes.Tests;
 
-/// <summary>Regression tests for AcceptChanges preserving the HasChanges cache (#122).</summary>
+/// <summary>Regression tests for AcceptChanges preserving the HasChanges cache.</summary>
 public sealed class AcceptChangesCacheTests
 {
     // Raw live-model access now hides behind ISparseEditSession<TModel>.

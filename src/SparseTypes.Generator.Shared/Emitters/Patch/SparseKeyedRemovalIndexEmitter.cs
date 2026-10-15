@@ -9,10 +9,8 @@ internal static class SparseKeyedRemovalIndexEmitter
         string? implementationNamespace = null
     )
     {
-        // Generated-Once (#183): the keyed patch drops its IndexedRemovals
-        // subclass and shares the plain list-plus-slots storage with
-        // dictionary patches; only the lookup field and the internal reserve
-        // entry point stay per patch.
+        // Generated-Once: the keyed patch drops its IndexedRemovals subclass
+        // and shares the plain list-plus-slots storage with dictionary patches.
         if (!string.IsNullOrEmpty(implementationNamespace))
         {
             // Relocated member operations reach the lookup through the facade

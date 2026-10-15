@@ -18,11 +18,7 @@ internal sealed record SparseIncompatiblePromotedEntry(string Key, string Displa
         unchecked((Key.GetHashCode() * 31) + DisplayName.GetHashCode(StringComparison.Ordinal));
 }
 
-/// <summary>
-/// Keyed aggregation result for promoted models: distinct emit candidates plus
-/// incompatible keys. Sorted by fully-qualified type name so hint names and
-/// incompatibility diagnostics stay deterministic regardless of root declaration order.
-/// </summary>
+/// <summary>Keyed aggregation result for promoted models: distinct emit candidates plus incompatible keys.</summary>
 internal sealed record SparsePromotedDedupResult(
     ImmutableArray<SparsePromotedModel> Distinct,
     ImmutableArray<SparseIncompatiblePromotedEntry> Incompatible
@@ -37,23 +33,11 @@ internal sealed record SparsePromotedDedupResult(
         unchecked((SparseSequence.Hash(Distinct) * 31) + SparseSequence.Hash(Incompatible));
 }
 
-/// <summary>
-/// Keyed aggregation for promoted models. Deduplicates per promoted type key so
-/// downstream per-model emit stages stay cached when unrelated roots change.
-/// </summary>
+/// <summary>Keyed aggregation for promoted models.</summary>
 internal static class SparsePromotedAggregation
 {
-    /// <summary>
-    /// Collects promoted contributions from analyzed roots and resolves them into
-    /// distinct emit candidates plus incompatible keys in one product-neutral step.
-    /// </summary>
-    /// <remarks>
-    /// Source rendering remains generator-specific; this helper owns only the
-    /// collect/dedupe/incompatibility-resolution mechanics so downstream
-    /// generators compose with the shared model instead of duplicating it.
-    /// Explicit roots (types that are themselves fragment models) never count as
-    /// promoted contributions.
-    /// </remarks>
+    /// <summary>Collects promoted contributions and resolves candidates and incompatible keys in one step.</summary>
+    /// <remarks>Source rendering remains generator-specific.</remarks>
     internal static SparsePromotedDedupResult Aggregate(
         ImmutableArray<SparseGenerationAnalysis> analyses,
         CancellationToken cancellationToken

@@ -4,11 +4,7 @@ using System.Collections.Immutable;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Emits typed standalone mutations without source routing or ownership.</summary>
-/// <remarks>
-/// This type owns the shared patch vocabulary (dialect, naming, whole-operation
-/// helpers) and orchestrates the patch stages. Member emission, patch algebra
-/// and rebase each live in their own focused emitter.
-/// </remarks>
+/// <remarks>This type owns the shared patch vocabulary (dialect, naming, whole-operation helpers) and orchestrates the patch stages.</remarks>
 internal static class SparseFragmentPatchEmitter
 {
     internal static string Field(SparseMemberModel member) => "__sparse_patch_member_" + member.Id;
@@ -85,11 +81,7 @@ internal static class SparseFragmentPatchEmitter
     }
 
     /// <summary>Writes this fragment into a separately owned write command.</summary>
-    /// <remarks>
-    /// The write model is never assumed to be the read model: only the
-    /// contract's type and mapped member names are used. Assignability stays
-    /// downstream and is checked by the consuming compilation.
-    /// </remarks>
+    /// <remarks>The write model is never assumed to be the read model: only the contract's type and mapped member names are used.</remarks>
     internal static void AppendWriteToContract(
         SharedIndentedBuilder code,
         string modelType,
@@ -209,15 +201,8 @@ internal static class SparseFragmentPatchEmitter
     }
 
     /// <summary>Small dialect for shared patch-core emission (whole, empty, ctor, apply).</summary>
-    /// <remarks>
-    /// Product generators configure member transport, rebase behavior and the
-    /// write contract here; standalone defaults keep full disclosure with no
-    /// write model. Anything product-specific stays in this configuration.
-    /// </remarks>
-    /// <param name="InPlaceWriteUnavailableKindMemberName">
-    /// Conflict-kind member used for immutable in-place writes, or null to omit
-    /// ChangeSet in-place APIs for models with immutable members.
-    /// </param>
+    /// <remarks>Product generators configure member transport.</remarks>
+    /// <param name="InPlaceWriteUnavailableKindMemberName">Conflict-kind member used for immutable writes, or null to omit the hook.</param>
     /// <param name="PayloadImplementationContainerPrefix">
     /// Product-owned prefix for the nested payload implementation container.
     /// </param>
@@ -257,36 +242,25 @@ internal static class SparseFragmentPatchEmitter
         SparseStjCapabilities? StjCapabilities = null
     )
     {
-        /// <summary>Optional generic factory taking capacity and a set constructor for an exclusive disposable key-validation scope.</summary>
+        /// <summary>Optional factory for a validation scope.</summary>
         /// <remarks>The scope exposes an empty HashSet&lt;TKey&gt; Keys using default key equality.</remarks>
         public string? KeyValidationScopeFactory { get; init; }
 
         /// <summary>Probed System.Text.Json surface, or null for the historical full surface.</summary>
-        /// <remarks>
-        /// Null keeps unconditional JSON emission so products that never probe
-        /// the compilation keep byte-identical output. The owning generator sets
-        /// this per compilation from <see cref="SparseStjCapabilityDetector"/>.
-        /// </remarks>
-        // NOTE: positional record property; declared implicitly by the ctor parameter.
+        /// <remarks>Null keeps unconditional JSON emission so products that never probe the compilation keep byte-identical output.</remarks>
+        // NOTE: positional record property; declared implicitly by the ctor
+        // parameter.
 
         /// <summary>Effective JSON surface, defaulting to the full historical set.</summary>
         public SparseStjCapabilities EffectiveStjCapabilities =>
             StjCapabilities ?? SparseStjCapabilities.All;
 
         /// <summary>Whether v1 JSON artifacts may be emitted under the probed surface.</summary>
-        /// <remarks>
-        /// False suppresses every <c>System.Text.Json</c> token (attributes,
-        /// converters, bridge types) so compilations without a compatible API
-        /// set still build the serializer-independent core.
-        /// </remarks>
+        /// <remarks>False suppresses every <c>System.Text.Json</c> token (attributes.</remarks>
         public bool EmitJson => EffectiveStjCapabilities.SupportsV1Wire;
 
         /// <summary>Product-owned semantic field/collection state types, or null to disable the state surface.</summary>
-        /// <remarks>
-        /// Null keeps products without the runtime state types byte-identical.
-        /// Shared never substitutes a SparseTypes type; every state name
-        /// arrives through this record.
-        /// </remarks>
+        /// <remarks>Null keeps products without the runtime state types byte-identical.</remarks>
         public SparseStateContracts? StateContracts { get; init; }
 
         /// <summary>Configured member policies, or empty for full disclosure.</summary>
@@ -329,8 +303,7 @@ internal static class SparseFragmentPatchEmitter
         ?? SparseWellKnownNames.MergeStrategyFieldPrefix + member.Id;
 
     /// <summary>Resolves the caller-owned per-rebase options type for generated signatures.</summary>
-    /// <remarks>Null falls back to the runtime namespace so downstream products
-    /// keep owning the type; Shared never substitutes a SparseTypes type.</remarks>
+    /// <remarks>Null falls back to the runtime namespace so downstream products keep owning the type.</remarks>
     internal static string GetRebaseOptionsType(SparsePatchDialect dialect) =>
         dialect.RebaseOptionsType ?? dialect.RuntimeNamespace + "ChangePayloadRebaseOptions";
 
@@ -353,8 +326,7 @@ internal static class SparseFragmentPatchEmitter
         dialect.RuntimeNamespace + "FragmentOperationKind";
 
     /// <summary>Resolves the caller-owned path type for generated signatures.</summary>
-    /// <remarks>Null falls back to the runtime namespace so downstream products
-    /// keep owning the type; Shared never substitutes a SparseTypes type.</remarks>
+    /// <remarks>Null falls back to the runtime namespace so downstream products keep owning the type.</remarks>
     internal static string GetPathType(SparsePatchDialect dialect) =>
         dialect.PathType ?? dialect.RuntimeNamespace + "SparsePath";
 
@@ -430,9 +402,7 @@ internal static class SparseFragmentPatchEmitter
         code.AppendLineAt(1, accessibility + " sealed partial class Patch");
         code.AppendLineAt(1, "{");
         // State-bound bodies live in the private nested __Core, which reads
-        // private facade state directly. When split emission is active the
-        // facades delegate to __Core instead of an external operation
-        // container; pure/shared kernels stay detached in Generated-Once.
+        // private facade state directly.
         SparseOperationTarget? patchTarget = target;
         SharedIndentedBuilder? patchCore = null;
         if (target is not null)
@@ -453,7 +423,8 @@ internal static class SparseFragmentPatchEmitter
             implementationNamespace,
             patchTarget
         );
-        // Constructors lead the public group (public -> internal -> private order).
+        // Constructors lead the public group (public -> internal -> private
+        // order).
         SparseFragmentPatchCoreEmitter.AppendPatchConstructor(code, members, dialect);
         SparseFragmentPatchCoreEmitter.AppendPatchMembers(code, members, dialect);
         SparseFragmentPatchCoreEmitter.AppendPatchWholeOperations(
@@ -503,8 +474,6 @@ internal static class SparseFragmentPatchEmitter
             );
         }
         // Public-first order: internal bridges precede private storage.
-        // ApplyMembers facade (internal) and whole bridges (internal) lead,
-        // then private backing fields and storage, then the private __Core.
         SparseFragmentPatchCoreEmitter.AppendPatchApplyMembers(code, members, dialect, patchTarget);
         SparseFragmentPatchCoreEmitter.AppendPatchWholeStorage(code, modelType, members, dialect);
         SparseFragmentPatchCoreEmitter.AppendPatchMemberFields(code, members, dialect);
@@ -517,8 +486,7 @@ internal static class SparseFragmentPatchEmitter
             code.AppendLineAt(2, "private static class __Core");
             code.AppendLineAt(2, "{");
             // Many emitters interleave internal entry points and private
-            // helpers; reorder internal-first so public-first ordering holds
-            // inside the nested core with bodies untouched.
+            // helpers.
             SparseOperationOrdering.AppendInternalFirst(code, patchCore.ToString());
             code.AppendLineAt(2, "}");
             patchCore.Dispose();
@@ -526,9 +494,7 @@ internal static class SparseFragmentPatchEmitter
         code.AppendLineAt(1, "}");
         if (plan.EmitChangeSet)
         {
-            // Single-file emission keeps the historical in-place derivation;
-            // relocated emission receives the hoisted flags so surface stubs
-            // and implementation aliases agree.
+            // Single-file emission keeps the historical in-place derivation.
             var changeSetInPlace = target is null
                 ? canApplyInPlace
                     && (

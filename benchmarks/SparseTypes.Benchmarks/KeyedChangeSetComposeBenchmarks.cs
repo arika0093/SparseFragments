@@ -35,8 +35,8 @@ public class KeyedChangeSetComposeBenchmarks
             throw new InvalidOperationException(
                 "Inverting composed additions must restore the baseline."
             );
-        // Disjoint transitions may start from different unrelated collection states.
-        // The second order lacks the first additions, which must be appended once.
+        // Disjoint transitions may start from different unrelated collection
+        // states.
         var secondIndices = Enumerable
             .Range(1, Size - 1)
             .Concat(Enumerable.Range(Size + added, added));

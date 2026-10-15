@@ -1,21 +1,5 @@
 #!/usr/bin/env bash
-# Verifies the C# 9.0 minimum language version for generated-code consumers (#116).
-#
-# Builds tests/fixtures/consumers/package-sparse-langversion against the freshly
-# packed SparseTypes package from a local feed (no ProjectReference fallback)
-# with an isolated global-packages directory (no stale cache). The fixture pins
-# <LangVersion>9.0</LangVersion> explicitly instead of inheriting preview from
-# tests/Directory.Build.props, covers ordinary and nested partial models,
-# nullable members, init handling, keyed/dictionary transitions and ChangeSet
-# JSON payloads, and targets netstandard2.0 (build-only), net48, net8.0 and
-# net10.0. Runnable frameworks must reach the success marker (the net48 .exe
-# runs on Windows; elsewhere net48 is a compile-only gate).
-#
-# A negative probe then rebuilds with LangVersion=8.0 and requires an
-# understandable failure that names language version 9.0, proving C# 8.0 is not
-# silently supported.
-#
-# Usage: verify-package-langversion-consumer.sh <package-directory>
+# Verifies the C# 9.0 minimum language version for generated-code consumers.
 set -euo pipefail
 
 package_directory="${1:-}"
@@ -33,8 +17,7 @@ if [[ ! -f "${fixture_csproj}" ]]; then
 fi
 
 # The gate proves nothing if the fixture inherits preview from
-# tests/Directory.Build.props, so the explicit pin is asserted here rather
-# than assumed from the csproj contents alone.
+# tests/Directory.Build.props.
 if ! grep -F -q "<LangVersion>9.0</LangVersion>" "${fixture_csproj}"; then
     echo "Language-version fixture does not pin '<LangVersion>9.0</LangVersion>' explicitly." >&2
     exit 1
@@ -47,7 +30,7 @@ fi
 echo "Language-version fixture pins LangVersion=9.0 (effective: ${effective_langversion})."
 
 # The core glob pins the version digit so the Blazor package
-# (SparseTypes.Blazor.*.nupkg, #46) never resolves here.
+# (SparseTypes.Blazor.*.nupkg, ) never resolves here.
 package="$(ls "${package_directory}"/SparseTypes.[0-9]*.nupkg 2>/dev/null | head -n 1 || true)"
 if [[ -z "${package}" ]]; then
     echo "No SparseTypes package found in '${package_directory}'." >&2
@@ -60,10 +43,7 @@ if [[ -z "${version}" ]]; then
 fi
 feed="$(realpath "${package_directory}")"
 
-# Isolated restore (#79): restore into a fresh global-packages directory so a
-# stale same-version entry in ~/.nuget/packages cannot satisfy restore without
-# proving the fresh nupkg is consumable. External feeds stay available; the
-# local feed is appended via RestoreAdditionalProjectSources.
+# Use a fresh cache to avoid stale packages with the same version.
 isolated_packages="$(mktemp -d)"
 trap 'rm -rf "${isolated_packages}"' EXIT
 if command -v cygpath >/dev/null 2>&1; then
@@ -106,7 +86,7 @@ for framework in net8.0 net10.0; do
     fi
 done
 
-# The net48 .exe only executes on Windows; elsewhere the successful net48
+# The net48.exe only executes on Windows; elsewhere the successful net48
 # compile above is the C# 9.0 gate for that TFM.
 case "$(uname -s 2>/dev/null || echo unknown)" in
     MINGW* | MSYS* | CYGWIN* | Windows_NT)
@@ -123,9 +103,7 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
 esac
 
 # Negative probe: C# 8.0 must fail with an understandable diagnostic naming
-# language version 9.0. The packed package path matters here: with a
-# ProjectReference fallback, -p:LangVersion would also flow into the generator
-# build itself, so this probe only runs against the packed nupkg.
+# language version 9.0.
 set +e
 negative_output="$(dotnet build "${fixture_csproj}" \
     --configuration Release --framework net8.0 \

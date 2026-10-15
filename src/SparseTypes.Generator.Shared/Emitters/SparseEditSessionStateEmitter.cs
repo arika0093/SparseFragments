@@ -2,17 +2,8 @@ using System.Collections.Immutable;
 
 namespace SparseTypes.Generator.Shared;
 
-/// <summary>Path-first semantic state surface for generated edit sessions (issue #250).</summary>
-/// <remarks>
-/// Emits live <c>FieldState</c> and <c>CollectionState</c> members on each
-/// model session. Field queries accept any generated typed path and project
-/// the canonical flattened change records; collection views wrap the member's
-/// typed keyed/dictionary transition, so row states reuse the canonical
-/// semantics instead of rederiving them. State inspection only: no mutation,
-/// no baseline retention beyond the session's own, and no UI references.
-/// Distinct from the sibling path-addressed collection editing facade, which
-/// keeps the <c>Collection</c> name.
-/// </remarks>
+/// <summary>Path-first semantic state surface for generated edit sessions.</summary>
+/// <remarks>Emits live <c>FieldState</c> and <c>CollectionState</c> members on each model session.</remarks>
 internal static class SparseEditSessionStateEmitter
 {
     internal static bool HasStateSurface(SparseFragmentPatchEmitter.SparsePatchDialect dialect) =>

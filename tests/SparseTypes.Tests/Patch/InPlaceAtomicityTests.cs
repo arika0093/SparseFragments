@@ -2,7 +2,7 @@ using SparseTypes.Generated;
 
 namespace SparseTypes.Tests;
 
-/// <summary>In-place writes prevalidate atomically but do not roll back (#169).</summary>
+/// <summary>In-place writes prevalidate atomically but do not roll back.</summary>
 public sealed class InPlaceAtomicityTests
 {
     private static EditSessionCore<
@@ -93,7 +93,8 @@ public sealed class InPlaceAtomicityTests
             .Throw<InvalidOperationException>(() => session.TryApplyInPlace(changes, out _))
             .Message.ShouldBe("Version setter failed.");
 
-        // The failure is not atomic over external setters, but the session heals.
+        // The failure is not atomic over external setters, but the session
+        // heals.
         model.Name.ShouldBe("after");
         model.Version.ShouldBe(1);
         session.HasChanges.ShouldBeTrue();

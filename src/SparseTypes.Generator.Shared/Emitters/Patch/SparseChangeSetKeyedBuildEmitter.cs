@@ -42,7 +42,8 @@ internal static class SparseChangeSetKeyedBuildEmitter
         var elementFrag = ElementFragmentOf(member);
         var optionalElementFragment = runtime + "Optional<" + elementFrag + "?>";
         var facade = dialect.RuntimeFacade;
-        // Build helper (semantic before/after projection over sparse storage; never reads patch ops).
+        // Build helper (semantic before/after projection over sparse storage;
+        // never reads patch ops).
         code.AppendLineAt(
             2,
             (target is null ? "private " : "internal static ")
@@ -258,7 +259,8 @@ internal static class SparseChangeSetKeyedBuildEmitter
             3,
             "bool __empty = __added.Count == 0 && __removed.Count == 0 && __edited.Count == 0 && !__orderChanged;"
         );
-        // Surviving-rank reorder set (relative order, not absolute index shifts).
+        // Surviving-rank reorder set (relative order, not absolute index
+        // shifts).
         code.AppendLineAt(
             3,
             "var __beforeRank = new global::System.Collections.Generic.Dictionary<"

@@ -5,12 +5,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace SparseTypes.Generator;
 
-// Emits the partial-mapper bridge: the IEntityModelMapping implementation,
-// the lock-guarded Map scope usable only during synchronous Configure, and
-// the trimming root for the defaults companion. Overlapping Create calls on
-// one (singleton) instance serialize on the lock with try/finally isolation:
-// exceptions clear the scope so later builds recover, and nothing is retained
-// after the build.
+// Emit the mapper bridge and synchronous Configure scope.
+// Lock each instance during Create and clear the scope in finally.
 internal static class SparseEntityMapperBridgeEmitter
 {
     internal static void AppendBridge(

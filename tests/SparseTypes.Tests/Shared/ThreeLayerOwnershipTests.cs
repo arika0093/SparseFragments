@@ -3,11 +3,8 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Shared;
 
-// Decision-criteria tests for the three-layer ownership design (#177).
-// Each test pins one testable placement criterion from
-// docs/architecture/three-layer-ownership.md so later migrations (#178,
-// #179, #181-#188) cannot silently shift the Runtime, Generated-Once,
-// and Per-Model boundaries.
+// Pin the documented placement criteria for Runtime, Generated-Once,
+// and Per-Model responsibilities.
 public sealed class ThreeLayerOwnershipTests
 {
     private static SparseTypeModel ScalarType(string name) =>
@@ -112,8 +109,6 @@ public sealed class ThreeLayerOwnershipTests
         );
 
     // C3: shared helpers stay parameterizable by dialect-supplied contracts.
-    // Equality emission must name only the injected comparer and optional
-    // types, never a fixed product namespace.
     [Test]
     public void EqualityUsesOnlyInjectedComparerContracts()
     {
@@ -148,8 +143,7 @@ public sealed class ThreeLayerOwnershipTests
     }
 
     // Visibility rule: the payload DTO container prefix is explicit with no
-    // Shared fallback. Missing configuration fails fast instead of falling
-    // back to a product namespace.
+    // Shared fallback.
     [Test]
     public void PayloadContainerPrefixHasNoImplicitFallback()
     {

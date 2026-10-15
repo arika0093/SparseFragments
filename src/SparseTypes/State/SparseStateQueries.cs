@@ -6,23 +6,7 @@ namespace SparseTypes;
 /// <summary>
 /// Path-first semantic state queries over retained change sets.
 /// </summary>
-/// <remarks>
-/// <para>
-/// All queries derive from the change set they are called on; no parallel
-/// baseline cache is kept and no UI touched/modified tracking is involved.
-/// Field queries project the canonical flattened change records, preserving
-/// <c>Missing</c> versus <c>Present(null)</c> exactly. Collection views wrap
-/// the member's typed transition, so row states reuse the canonical
-/// added/removed/edited/reordered semantics.
-/// </para>
-/// <para>
-/// Generated edit sessions forward their <c>FieldState</c> and
-/// <c>CollectionState</c> members to these queries with a freshly derived
-/// change set, which makes session queries live and change-set queries
-/// point-in-time. Snapshot one change set and reuse it for repeated lookups:
-/// one field query scans the flattened records once (O(R) for R records).
-/// </para>
-/// </remarks>
+/// <remarks>All queries derive from the change set they are called on.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public static class SparseStateQueries
 {
@@ -34,13 +18,7 @@ public static class SparseStateQueries
     /// <typeparam name="TModel">The root model type.</typeparam>
     /// <typeparam name="TValue">The addressed value type.</typeparam>
     /// <returns>The point-in-time field state.</returns>
-    /// <remarks>
-    /// Unknown paths report a clean state (no change, missing endpoints),
-    /// matching the exact-match <c>Find</c> contract that never matches
-    /// ancestors or descendants. A whole-root transition counts as an ancestor
-    /// change for every non-root path. The concrete path struct keeps overload
-    /// resolution unambiguous against the model-agnostic overload.
-    /// </remarks>
+    /// <remarks>Unknown paths report a clean state (no change.</remarks>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="changes"/> is null.
     /// </exception>
@@ -63,11 +41,7 @@ public static class SparseStateQueries
     /// <param name="changes">The change set to inspect.</param>
     /// <param name="path">The path to inspect.</param>
     /// <returns>The point-in-time field state with boxed endpoints.</returns>
-    /// <remarks>
-    /// Covers paths without a compile-time typed form, such as nested-model
-    /// builders and missing or deleted members. See the typed overload for
-    /// the exact/ancestor/descendant contract.
-    /// </remarks>
+    /// <remarks>Covers paths without a compile-time typed form, such as nested-model builders and missing or deleted members.</remarks>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="changes"/> is null.
     /// </exception>
@@ -88,7 +62,8 @@ public static class SparseStateQueries
     /// <typeparam name="TKey">The stable key type.</typeparam>
     /// <typeparam name="TElement">The element type.</typeparam>
     /// <typeparam name="TElementChange">The element change-set type.</typeparam>
-    /// <returns>A point-in-time view retaining <paramref name="change"/>.</returns>
+    /// <returns>A point-in-time view retaining
+    /// <paramref name="change"/>.</returns>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="change"/> is null.
     /// </exception>
@@ -117,7 +92,8 @@ public static class SparseStateQueries
     /// <typeparam name="TKey">The dictionary key type.</typeparam>
     /// <typeparam name="TValue">The dictionary value type.</typeparam>
     /// <typeparam name="TEdited">The edited-projection type.</typeparam>
-    /// <returns>A point-in-time view retaining <paramref name="change"/>.</returns>
+    /// <returns>A point-in-time view retaining
+    /// <paramref name="change"/>.</returns>
     /// <exception cref="ArgumentNullException">
     /// <paramref name="change"/> is null.
     /// </exception>

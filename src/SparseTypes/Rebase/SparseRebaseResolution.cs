@@ -65,38 +65,9 @@ public sealed class RebaseResolutionFailure
     public string Reason { get; }
 }
 
-/// <summary>
-/// Framework-neutral, mutable resolution state for one <see cref="RebaseResult{TChange}"/>.
-/// </summary>
+/// <summary>Framework-neutral, mutable resolution state for one <see cref="RebaseResult{TChange}"/>.</summary>
 /// <typeparam name="TChange">The generated change-set type.</typeparam>
-/// <remarks>
-/// <para>
-/// Owns the original rebase result (including the nonconflicting
-/// <see cref="RebaseResult{TChange}.Rebased"/> contributions) plus one explicit
-/// decision per canonical <see cref="SparsePath"/>. The read-only
-/// <see cref="RebaseResult{TChange}.Conflicts"/> snapshot stays untouched; the
-/// enumerators below are live views over the same conflicts filtered by the
-/// current decisions, each returned as a fresh snapshot array.
-/// </para>
-/// <para>
-/// Paths are the canonical #202 identity (root type plus member, typed-key, and
-/// index segments). Construct them with the generated <c>T.SparsePath</c> fluent
-/// (for example <c>Order.SparsePath.Items.Key(id).Price</c>) or with
-/// <see cref="SparsePath"/> factories; identity comparison is the path itself.
-/// </para>
-/// <para>
-/// Overlap is deterministic, never silent: a decision at an ancestor path covers
-/// every unresolved conflict below it (<c>UseIncoming</c>/<c>UseCurrent</c> fan out
-/// per conflict), while an exact decision always wins over an ancestor. Custom
-/// values must target an exact conflict path. Decisions on paths with no conflict
-/// at or under them are rejected immediately.
-/// </para>
-/// <para>
-/// Redaction safety: <see cref="SparseConflictKind.RedactedBefore"/> conflicts carry
-/// no plaintext, so only <c>UseCurrent</c> (keep, a no-op) is accepted for them;
-/// incoming and custom values are rejected rather than fabricated.
-/// </para>
-/// </remarks>
+/// <remarks>Owns the rebase result and its nonconflicting changes.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public abstract class SparseRebaseResolution<TChange>
 {
@@ -178,7 +149,8 @@ public abstract class SparseRebaseResolution<TChange>
         return FindExact(path.Path);
     }
 
-    /// <summary>Whether a conflict sits exactly at <paramref name="path"/>.</summary>
+    /// <summary>Whether a conflict sits exactly at
+    /// <paramref name="path"/>.</summary>
     /// <param name="path">The canonical path to test.</param>
     /// <returns><see langword="true"/> for an exact conflict match.</returns>
     public bool HasConflict(SparsePath path)
@@ -196,9 +168,11 @@ public abstract class SparseRebaseResolution<TChange>
         return FindExact(path.Path) is not null;
     }
 
-    /// <summary>Whether any conflict sits strictly below <paramref name="path"/>.</summary>
+    /// <summary>Whether any conflict sits strictly below
+    /// <paramref name="path"/>.</summary>
     /// <param name="path">The candidate ancestor path.</param>
-    /// <returns><see langword="true"/> when at least one conflict descends from <paramref name="path"/>.</returns>
+    /// <returns><see langword="true"/> when at least one conflict
+    /// descends from <paramref name="path"/>.</returns>
     public bool HasConflictsUnder(SparsePath path)
     {
         return Rebase.Conflicts.Any(conflict => path.IsAncestorOf(conflict.Path));
@@ -208,15 +182,18 @@ public abstract class SparseRebaseResolution<TChange>
     /// <typeparam name="TModel">The root model type tag.</typeparam>
     /// <typeparam name="TValue">The addressed value type tag.</typeparam>
     /// <param name="path">The candidate ancestor path.</param>
-    /// <returns><see langword="true"/> when at least one conflict descends from <paramref name="path"/>.</returns>
+    /// <returns><see langword="true"/> when at least one conflict
+    /// descends from <paramref name="path"/>.</returns>
     public bool HasConflictsUnder<TModel, TValue>(SparsePath<TModel, TValue> path)
     {
         return HasConflictsUnder(path.Path);
     }
 
-    /// <summary>Whether any conflict affects <paramref name="path"/> (exact, ancestor, or descendant).</summary>
+    /// <summary>Whether any conflict affects <paramref name="path"/> (exact,
+    /// ancestor, or descendant).</summary>
     /// <param name="path">The path whose value would change with a resolution.</param>
-    /// <returns><see langword="true"/> when a conflict sits at, above, or below <paramref name="path"/>.</returns>
+    /// <returns><see langword="true"/> when a conflict sits at,
+    /// above, or below <paramref name="path"/>.</returns>
     public bool HasConflictsAffecting(SparsePath path)
     {
         return Rebase.Conflicts.Any(conflict =>
@@ -230,7 +207,8 @@ public abstract class SparseRebaseResolution<TChange>
     /// <typeparam name="TModel">The root model type tag.</typeparam>
     /// <typeparam name="TValue">The addressed value type tag.</typeparam>
     /// <param name="path">The path whose value would change with a resolution.</param>
-    /// <returns><see langword="true"/> when a conflict sits at, above, or below <paramref name="path"/>.</returns>
+    /// <returns><see langword="true"/> when a conflict sits at,
+    /// above, or below <paramref name="path"/>.</returns>
     public bool HasConflictsAffecting<TModel, TValue>(SparsePath<TModel, TValue> path)
     {
         return HasConflictsAffecting(path.Path);
@@ -339,9 +317,7 @@ public abstract class SparseRebaseResolution<TChange>
         return _decisions.Remove(path);
     }
 
-    /// <summary>
-    /// Builds a baseline-aware change set holding every clean rebased edit plus the chosen resolutions.
-    /// </summary>
+    /// <summary>Builds a baseline-aware change set holding every clean rebased edit plus the chosen resolutions.</summary>
     /// <param name="resolved">The resolved change set, or <see langword="null"/> on failure.</param>
     /// <param name="failure">The failure details, or <see langword="null"/> on failure.</param>
     /// <returns><see langword="true"/> when every conflict resolved and the change set built.</returns>
@@ -361,8 +337,8 @@ public abstract class SparseRebaseResolution<TChange>
 
             if (conflict.Kind == SparseConflictKind.RedactedBefore)
             {
-                // Only UseCurrent survives validation for redacted conflicts, and it
-                // writes nothing: the member stays excluded, keeping current as-is.
+                // Only UseCurrent survives validation for redacted conflicts,
+                // and it writes nothing.
                 if (decision.Kind == DecisionKind.UseCurrent)
                 {
                     continue;

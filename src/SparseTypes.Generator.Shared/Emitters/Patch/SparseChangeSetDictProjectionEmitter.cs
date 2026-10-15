@@ -73,7 +73,8 @@ internal static class SparseChangeSetDictProjectionEmitter
                 + wholeAfter
                 + ");"
         );
-        // Granular: derive Added/Removed/Edited maps from stored items (no full snapshots).
+        // Granular: derive Added/Removed/Edited maps from stored items (no full
+        // snapshots).
         AppendGranularReturn(code, member, trans, comparer);
         code.AppendLineAt(2, "}");
         var projectCall = target is null
@@ -90,7 +91,8 @@ internal static class SparseChangeSetDictProjectionEmitter
         shell.AppendLineAt(2, "{");
         shell.AppendLineAt(3, "get");
         shell.AppendLineAt(3, "{");
-        // Whole endpoints expose mutable container snapshots and must stay independent.
+        // Whole endpoints expose mutable container snapshots and must stay
+        // independent.
         shell.AppendLineAt(
             4,
             "if (__sparse_hasWhole || " + KeyedWholeFlag(member) + ") return " + projectCall + ";"

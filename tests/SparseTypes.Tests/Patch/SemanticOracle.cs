@@ -5,30 +5,7 @@ namespace SparseTypes.Tests;
 /// <summary>
 /// Independent semantic-state comparison for patch algebra tests.
 /// </summary>
-/// <remarks>
-/// This oracle deliberately avoids <c>Patch.Between(...).IsEmpty</c>, fragment
-/// <c>Equals</c>, and the runtime <c>AreEqual</c> helpers: every root and member value
-/// is inspected directly, so a shared defect in <c>Between</c>/equality cannot make
-/// algebra-law assertions pass incorrectly.
-///
-/// Explicit comparer policy:
-/// - scalars compare with ordinal/value equality (<c>object.Equals</c>);
-/// - sequences (including duplicates) compare order-sensitively, element-wise;
-/// - sets compare order-independently in both directions using the supplied element
-///   comparer (default <c>OrdinalIgnoreCase</c>, matching the declared comparer of the
-///   <c>SetSettings</c> model);
-/// - dictionaries compare order-independently using the supplied key comparer
-///   (default <c>OrdinalIgnoreCase</c>, matching the declared comparer of the
-///   <c>DictionarySettings</c> model) with scalar value equality;
-/// - keyed collections compare order-sensitively (the final key sequence is
-///   significant) with per-element field equality;
-/// - plain-class list elements have no fragment identity and compare by structural
-///   value (<c>Name</c>/<c>Count</c>).
-///
-/// Every reported difference names the concrete state/member path (for example
-/// <c>root</c>, <c>RetryCount</c>, <c>Nested.Host</c> or <c>Plugins[1]</c>) instead of
-/// returning a bare boolean.
-/// </remarks>
+/// <remarks>The oracle compares sparse states without generated equality or diff helpers.</remarks>
 internal static class SemanticOracle
 {
     public static void AssertEqual(
@@ -689,7 +666,8 @@ internal static class SemanticOracle
 
         for (var index = 0; index < Math.Min(expected.Count, actual.Count); index++)
         {
-            // Plain-class elements carry no fragment identity, so compare by structural value.
+            // Plain-class elements carry no fragment identity, so compare by
+            // structural value.
             if (!Equals(expected[index].Name, actual[index].Name))
             {
                 differences.Add(

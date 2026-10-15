@@ -3,15 +3,7 @@ using Microsoft.CodeAnalysis;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Probes the consuming compilation for usable System.Text.Json APIs.</summary>
-/// <remarks>
-/// Symbol-based detection (issue #243): every answer comes from
-/// <see cref="Compilation.GetTypeByMetadataName"/> plus constructor, property,
-/// and enum-member checks against the consumer's referenced assemblies. The
-/// target-framework name and the generator host's dependencies are never
-/// consulted, and no assemblies are loaded. Ambiguous or broken resolution is
-/// treated as unavailable so generation degrades to omission plus a diagnostic
-/// instead of emitting uncompilable code.
-/// </remarks>
+/// <remarks>Symbol-based detection: every answer comes from <see cref="Compilation.GetTypeByMetadataName"/> plus constructor.</remarks>
 internal static class SparseStjCapabilityDetector
 {
     /// <summary>Probes one compilation for the JSON surface usable by generated code.</summary>
@@ -226,8 +218,7 @@ internal static class SparseStjCapabilityDetector
     private static bool HasReadWriteOverrides(INamedTypeSymbol converter)
     {
         // A usable JsonConverter<T> exposes overridable Read/Write seams for
-        // the generated endpoint and kind converters. Roslyn reports abstract
-        // seams with IsAbstract (not IsVirtual), so both count.
+        // the generated endpoint and kind converters.
         var foundRead = false;
         var foundWrite = false;
         foreach (var member in converter.GetMembers("Read"))
@@ -274,11 +265,7 @@ internal static class SparseStjCapabilityDetector
     }
 
     /// <summary>Whether trim-safe metadata lookup is available for endpoint values.</summary>
-    /// <remarks>
-    /// The generated endpoint bridge resolves declared-type metadata through
-    /// <c>JsonSerializerOptions.GetTypeInfo(Type)</c> so trimming and NativeAOT
-    /// builds stay free of reflection fallback warnings.
-    /// </remarks>
+    /// <remarks>Uses declared-type metadata when available.</remarks>
     private static bool HasJsonTypeInfo(Compilation compilation)
     {
         var generic = SafeGet(

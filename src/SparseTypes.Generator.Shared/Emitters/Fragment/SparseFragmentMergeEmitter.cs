@@ -43,10 +43,8 @@ internal sealed class SparseFragmentMergeEmitter
         string receiver = "this."
     )
     {
-        // Stage 4 (#193): with an operations target the surface keeps a
-        // one-line facade; the algorithm body moves to the operations class
-        // with an explicit receiver. Origin fallbacks follow separately via
-        // AppendOriginFallbackFacades so public facades precede internals.
+        // Stage 4: with an operations target the surface keeps a one-line
+        // facade.
         if (operationsType is not null)
         {
             code.AppendLineAt(
@@ -283,11 +281,8 @@ internal sealed class SparseFragmentMergeEmitter
 
         if (SparseMergeModes.IsDeepMerge(member.MergeMode, member.ChildModel is not null))
         {
-            // Default resolves shape-aware: nested models deep-merge,
-            // otherwise whole-value replacement below. Missing high
-            // preserves low; present null replaces; non-null merges.
-            // With origins, nested fragments inherit the enclosing default
-            // through the fallback seam unless explicitly originated.
+            // Default deep-merges nested models and replaces other values.
+            // Missing preserves the lower value; present null replaces it.
             var merge =
                 Origins is not null && SparseFragmentOriginEmitter.IsFragmentDeep(member)
                     ? $"{lower}.Value!.__SparseMergeWithFallback({higher}.Value!, {SparseFragmentOriginEmitter.MemberAttribution(receiver, position, "selfFallback")}, {SparseFragmentOriginEmitter.MemberAttribution("higherPriority.", position, "higherFallback")})"
@@ -507,10 +502,8 @@ internal sealed class SparseFragmentMergeEmitter
         string? operationsType = null
     )
     {
-        // Stage 4 (#193): facades delegate both Diff overloads; the core and
-        // per-member helpers move with no surface counterpart. Public-first
-        // order keeps the public facade with the public surface; the internal
-        // overload moves via AppendDiffInternalFacade.
+        // Stage 4: facades delegate both Diff overloads; the core and
+        // per-member helpers move with no surface counterpart.
         if (operationsType is not null)
         {
             code.AppendLineAt(
@@ -652,7 +645,8 @@ internal sealed class SparseFragmentMergeEmitter
         }
         else
         {
-            // Internal calls retain their ancestor guard even for leaf projections.
+            // Internal calls retain their ancestor guard even for leaf
+            // projections.
             AppendDiffBody(code, members, 3);
         }
         code.AppendLineAt(2, "}");

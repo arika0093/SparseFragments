@@ -1,10 +1,7 @@
 using SparseTypes;
 using SparseTypes.Generated;
 
-// Canonical compile-checked mirror of docs/ui-frameworks.md (#48).
-// Covers the shared UI editing model: bind the session's generated Observable
-// proxy, keep editing the underlying live model, and derive patches from the
-// session baseline.
+// Canonical compile-checked mirror of docs/ui-frameworks.md.
 public static class UiFrameworksSamples
 {
     public static void Run()

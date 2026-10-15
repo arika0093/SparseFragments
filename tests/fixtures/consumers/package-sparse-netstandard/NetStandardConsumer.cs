@@ -3,18 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using SparseTypes;
 
-// Lowest-shipped-TFM consumer (#27): a netstandard2.0 class library that
-// references the packed SparseTypes package and compiles generated
-// Fragment/Patch code. Build-only (netstandard2.0 has no runnable host), so
-// compilation success is the gate: it fails if generated code references APIs
-// unavailable to netstandard2.0.
-//
-// The models below are representative set/dictionary/clone/patch shapes that
-// exercise the target-dependent generator branches (notably whether the
-// capacity+comparer HashSet<T> constructor exists in the consumer
-// compilation): an Append list, a SetUnion hash set, a Replace dictionary,
-// a Deep nested model, plus typed patch algebra, builders, DeepClone, and
-// ChangeSet payload JSON transport.
+// Compile generated APIs against the lowest shipped TFM, netstandard2.0.
 public static class NetStandardConsumerCheck
 {
     public static string Run()
@@ -38,7 +27,8 @@ public static class NetStandardConsumerCheck
         Require(sparse.Label.IsPresent, "sparse construction marks members present");
         Require(!sparse.Child.IsPresent, "sparse construction leaves members missing");
 
-        // Layered merge: Append concatenates, SetUnion unions, Deep merges nested.
+        // Layered merge: Append concatenates, SetUnion unions, Deep merges
+        // nested.
         var higher = new NetStandardSettings.Fragment
         {
             Child = new NetStandardChild.Fragment { Count = 9 },
@@ -115,7 +105,8 @@ public static class NetStandardConsumerCheck
         );
         Require(!rebased.HasConflicts, "structured rebase");
 
-        // Builders and structural DeepClone (exercises set/dictionary clone helpers).
+        // Builders and structural DeepClone (exercises set/dictionary clone
+        // helpers).
         var builder = original.ToBuilder();
         builder.Label = Optional<string?>.Missing;
         Require(!builder.Build().Label.IsPresent, "builder copy without member");

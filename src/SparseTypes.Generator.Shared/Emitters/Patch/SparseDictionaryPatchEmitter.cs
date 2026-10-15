@@ -224,7 +224,7 @@ internal static class SparseDictionaryPatchEmitter
         SharedIndentedBuilder? surfaceDeferred = null
     )
     {
-        // Shared removal prefix (#183); null keeps the legacy private kernels.
+        // Shared removal prefix; null keeps the legacy private kernels.
         var sharedRemoval = string.IsNullOrEmpty(implementationNamespace)
             ? null
             : SparseDictionaryRemovalIndexEmitter.SharedPrefix(keyType, implementationNamespace!);
@@ -336,7 +336,8 @@ internal static class SparseDictionaryPatchEmitter
             implementationNamespace,
             split
         );
-        // Internal sparse setter for ChangeSet.ToPatch; installs an already-built value patch.
+        // Internal sparse setter for ChangeSet.ToPatch; installs an
+        // already-built value patch.
         if (hasPatch)
         {
             internalCode.AppendLineAt(

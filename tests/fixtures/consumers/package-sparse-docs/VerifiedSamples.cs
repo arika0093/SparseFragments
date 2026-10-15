@@ -1,11 +1,8 @@
 using System.Text.Json;
 using SparseTypes;
 
-// Compile-checked mirrors of annotated Markdown samples (#68).
-// Each `// sample: <id>` region matches the same-id fenced block in docs/*.md
-// exactly after normalization (using-lines, blank lines, and indentation are
-// ignored); verify-docs-samples.sh fails on drift. Regions execute as part of
-// Run() so documented results are verified, not just compiled.
+// Compile-checked mirrors of registered Markdown samples.
+// Run() verifies sample results; verification fails on source drift.
 public static class VerifiedSamples
 {
     public static void Run()

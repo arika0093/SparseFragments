@@ -54,8 +54,8 @@ internal sealed class SparseChangeSetStorageLayout
                 : valueType;
         _fields.Add(field, (names.Value, names.IsPresent, storageType));
         var optional = _runtime + "Optional<" + valueType + ">";
-        // Separate fields let the CLR pack presence flags instead of padding every Optional.
-        // Canonical storage is private; the nested ChangeSet.__Core reads it directly.
+        // Separate fields let the CLR pack presence flags instead of padding
+        // every Optional.
         code.AppendLineAt(
             2,
             "private "

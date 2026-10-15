@@ -318,11 +318,7 @@ internal sealed record SparseGenerationResult(
 }
 
 /// <summary>One additional emitted source beyond the model-facing surface file.</summary>
-/// <remarks>
-/// Carries a future implementation file (for example
-/// <c>*.Implementation.g.cs</c>) with a stable unique hint name. Per-model
-/// incremental isolation follows from value equality like the surface file.
-/// </remarks>
+/// <remarks>Carries a future implementation file (for example <c>*.Implementation.g.cs</c>) with a stable unique hint name.</remarks>
 internal readonly record struct SparseGeneratedSource(string HintName, string Source);
 
 internal static class SparseSequence

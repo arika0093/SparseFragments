@@ -3,7 +3,7 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-/// <summary>Framework-neutral validation error store (issue #261).</summary>
+/// <summary>Framework-neutral validation error store.</summary>
 [SparseModel]
 public partial class IntDictHolder
 {
@@ -92,7 +92,8 @@ public sealed class SparseValidationStoreTests
         store.SetErrors(leaf, SparseValidationOrigins.LocalValidation, ["host required"]);
         events.ShouldBe(["Nested.Host", "Nested", string.Empty]);
 
-        // Exact typed query, dotted property-name query, and the parent view agree.
+        // Exact typed query, dotted property-name query, and the parent view
+        // agree.
         store.GetPathErrors(leaf).ShouldBe(["host required"]);
         NameErrors(store, "Nested.Host").ShouldBe(["host required"]);
         NameErrors(store, "Nested").ShouldBe(["host required"]);
@@ -150,7 +151,8 @@ public sealed class SparseValidationStoreTests
             .Member(nameof(KeyedServer.Name));
         store.SetErrors(removed, SparseValidationOrigins.RebaseConflict, ["entry vanished"]);
 
-        // Unresolvable paths stay stored: exact, text, and aggregate queries find them.
+        // Unresolvable paths stay stored: exact, text, and aggregate queries
+        // find them.
         store.GetPathErrors(removed).ShouldBe(["entry vanished"]);
         NameErrors(store, "Items[\"gone\"].Name").ShouldBe(["entry vanished"]);
         NameErrors(store, null).ShouldBe(["entry vanished"]);
@@ -292,7 +294,8 @@ public sealed class SparseValidationStoreTests
         stored[0].ShouldBe("Label is required.");
         stored[1].ShouldBe(42);
 
-        // A genuine rebase produces conflicts that map into the store untouched.
+        // A genuine rebase produces conflicts that map into the store
+        // untouched.
         var baseModel = new Settings();
         var edited = new Settings { Label = "local" };
         var current = new Settings { Label = "server" };

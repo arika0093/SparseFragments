@@ -6,7 +6,7 @@
     <IsPackable>true</IsPackable>
     <PackageDescription>Blazor edit sessions for SparseTypes with semantic change tracking.</PackageDescription>
     <PackageTags>blazor;forms;patch;dotnet</PackageTags>
-    <!-- Dedicated package README (#52): concise first-use page, not the core README. -->
+    <!-- Dedicated package README: concise first-use page, not the core README. -->
     <PackageReadmeFile>README.Blazor.md</PackageReadmeFile>
   </PropertyGroup>
   <!-- Package (not Framework) reference so Blazor WebAssembly consumers can use

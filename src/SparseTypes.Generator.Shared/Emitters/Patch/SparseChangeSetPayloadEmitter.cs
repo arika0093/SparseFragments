@@ -228,13 +228,8 @@ internal static class SparseChangeSetPayloadEmitter
                     + modelType
                     + ".ChangeSet.FromPayload(this);"
             );
-            // Baseline-discarding projection is owned by the payload core (mixed
-            // partition) so ordinary transitions and redacted-before blind sets
-            // route identically; the envelope re-declares it to keep the
-            // conversion discoverable on the validated envelope type. When member
-            // transport policies apply the downstream projection owns ToPatch
-            // instead (strict-aware), so the mixed re-declaration is skipped to
-            // keep a single seam with no duplicate member.
+            // Keep baseline-discarding conversion discoverable on the validated
+            // envelope.
             if (!SparseDownstreamPolicy.HasOwnNonFullPolicy(members, dialect))
             {
                 code.AppendLineAt(
@@ -252,9 +247,8 @@ internal static class SparseChangeSetPayloadEmitter
                 code.AppendLineAt(3, "return base.ToPatch();");
                 code.AppendLineAt(2, "}");
             }
-            // The wire version lives on this envelope: every public
-            // interpretation path validates it before reaching the
-            // versionless core seam (issue #163).
+            // Every public interpretation path validates it before reaching the
+            // versionless core seam.
             SparseChangeSetMixedEmitter.AppendEnvelopeVersionOverrides(code, dialect, modelType);
             code.AppendLineAt(
                 2,
@@ -482,8 +476,7 @@ internal static class SparseChangeSetPayloadEmitter
         code.AppendLine();
 
         // XML docs precede serialization attributes so the compiler associates
-        // them with the member (CS1591). Polymorphic dispatch is JSON-only and
-        // omitted when the probed surface cannot support the v1 contract.
+        // them with the member (CS1591).
         code.AppendLineAt(
             1,
             "/// <summary>Base type for the per-member change variants.</summary>"
@@ -575,9 +568,8 @@ internal static class SparseChangeSetPayloadEmitter
             );
             code.AppendLine();
         }
-        // The endpoint/kind bridge preserves the v1 wire shape once the
-        // runtime stopped carrying serializer attributes (issue #242). It is
-        // JSON-only like every other System.Text.Json token in this file.
+        // The endpoint/kind bridge preserves the v1 wire shape once the runtime
+        // stopped carrying serializer attributes.
         if (dialect.EmitJson)
             SparseChangePayloadJsonBridgeEmitter.AppendBridgeConverters(code, dialect);
         code.IndentOffset--;
@@ -591,9 +583,7 @@ internal static class SparseChangeSetPayloadEmitter
         string? modelType,
         SparseOperationTarget? target = null
     ) =>
-        // Reloc-2 split: transfer bodies live in the dedicated TransferEmitter;
-        // this facade preserves the pre-split call site while reloc-3 routes
-        // through the same target-aware implementation.
+        // Reloc-2 split: transfer bodies live in the dedicated TransferEmitter.
         SparseChangeSetPayloadTransferEmitter.AppendToPayload(
             code,
             members,
@@ -664,9 +654,7 @@ internal static class SparseChangeSetPayloadEmitter
             );
 
     /// <summary>Resolves the child payload reference for split emission.</summary>
-    /// <remarks>Single-file emission keeps the legacy <c>ChildModel.Container.Payload</c>
-    /// nesting; split emission qualifies the same container under the
-    /// implementation namespace so wire discriminators stay unchanged.</remarks>
+    /// <remarks>Single-file emission keeps the legacy <c>ChildModel.Container.Payload</c> nesting.</remarks>
     /// <param name="dialect">Owning patch dialect.</param>
     /// <param name="childModelType">Child model type name.</param>
     /// <param name="suffix">Payload suffix.</param>

@@ -5,12 +5,7 @@ namespace SparseTypes;
 /// <summary>
 /// One effective value attributed to its contributing origin.
 /// </summary>
-/// <remarks>
-/// Provenance is explanatory metadata, not semantic state: entries describe the
-/// merged effective values for inspection (for example a configuration viewer),
-/// never the hidden overwritten layers. A <c>null</c> origin means
-/// <c>Unknown</c>.
-/// </remarks>
+/// <remarks>Provenance is explanatory metadata, not semantic state.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public readonly record struct FragmentOriginEntry
 {
@@ -24,11 +19,7 @@ public readonly record struct FragmentOriginEntry
 /// <summary>
 /// The read-only effective values attributed to one origin.
 /// </summary>
-/// <remarks>
-/// Grouping is intentionally lossy: a group exposes only the effective values
-/// attributed to its origin. Regrouping or remerging groups is not guaranteed
-/// to reconstruct the original layers or preserve collection ordering.
-/// </remarks>
+/// <remarks>Grouping is intentionally lossy: a group exposes only the effective values attributed to its origin.</remarks>
 /// <typeparam name="TFragment">The generated fragment type.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public readonly record struct FragmentOriginGroup<TFragment>

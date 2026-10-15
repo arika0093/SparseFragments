@@ -3,12 +3,7 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>Typed operations binding an observed field to one edit session.</summary>
-/// <remarks>
-/// The generated <c>ObserveField</c> factory supplies these delegates from the
-/// concrete session type, so no reflection is required. <c>Query</c> re-reads
-/// the live field state on every invalidation; <c>Subscribe</c> and
-/// <c>Unsubscribe</c> attach the session's <c>PropertyChanged</c> notification.
-/// </remarks>
+/// <remarks>The generated <c>ObserveField</c> factory supplies these delegates from the concrete session type, so no reflection is required.</remarks>
 /// <typeparam name="T">The addressed value type.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed class SparseObservedFieldHooks<T>
@@ -24,39 +19,7 @@ public sealed class SparseObservedFieldHooks<T>
 }
 
 /// <summary>Opt-in live field-state subscription for one path.</summary>
-/// <remarks>
-/// <para>
-/// Point-in-time <c>FieldState</c> reads stay separate: this object is the
-/// explicitly requested live subscription. It holds the last queried
-/// <see cref="SparseFieldState{T}"/> and refreshes it whenever the session
-/// raises <c>PropertyChanged</c>. The session raises that notification on
-/// every state-affecting path (observable edits, <c>BatchEdit</c>, in-place
-/// apply, undo/redo replay, <c>RevertChanges</c>, both <c>AcceptChanges</c>
-/// overloads, <c>Reload</c>, and <c>TryReconcile</c>), which also covers the
-/// baseline-only advances that never publish a <c>TransitionObserved</c>
-/// event. Queries re-resolve the stored path against the live model, so object
-/// replacement needs no re-registration; key segments keep identity across
-/// moves while index segments stay positional.
-/// </para>
-/// <para>
-/// Notifications carry only effective changes: when the refreshed state equals
-/// the retained one, nothing is raised. Changed properties raise in the order
-/// <c>IsChanged</c>, <c>Kind</c>, <c>HasAncestorChange</c>,
-/// <c>HasDescendantChange</c>, <c>HasChanges</c>, <c>Before</c>, <c>After</c>,
-/// <c>Current</c>. Events fire synchronously on the mutating thread; no UI
-/// thread marshaling is performed and no UI framework is referenced.
-/// <c>IsChanged</c> reports the semantic baseline diff, never a UI
-/// visited/modified flag.
-/// </para>
-/// <para>
-/// Without this object the session retains nothing per field. The watcher
-/// itself keeps only its last state; disposing unsubscribes and releases the
-/// session reference held by the event. Only session-observed transitions
-/// refresh the watcher: direct <c>Model</c> writes bypass notifications, the
-/// same caveat that applies to the session change cache. This type is not
-/// thread-safe. Use it on the same thread as the session.
-/// </para>
-/// </remarks>
+/// <remarks>Point-in-time <c>FieldState</c> reads stay separate: this object is the explicitly requested live subscription.</remarks>
 /// <typeparam name="T">The addressed value type.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed class SparseObservedField<T> : INotifyPropertyChanged, IDisposable
@@ -71,7 +34,8 @@ public sealed class SparseObservedField<T> : INotifyPropertyChanged, IDisposable
     /// <summary>Initializes a watcher and subscribes to session invalidations.</summary>
     /// <param name="path">The model-agnostic path to observe.</param>
     /// <param name="hooks">The live query and event wiring.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="hooks"/> is null.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="hooks"/> is
+    /// null.</exception>
     /// <exception cref="ArgumentException">A required hook delegate is missing.</exception>
     public SparseObservedField(SparsePath path, SparseObservedFieldHooks<T> hooks)
     {
@@ -190,11 +154,7 @@ public sealed class SparseObservedField<T> : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>Re-reads the live field state and notifies on effective changes.</summary>
-    /// <remarks>
-    /// Session invalidations call this automatically. Explicit calls help tests
-    /// assert the current state without mutating the session. No notification
-    /// fires when the refreshed state equals the retained one.
-    /// </remarks>
+    /// <remarks>Session invalidations call this automatically.</remarks>
     /// <exception cref="ObjectDisposedException">The watcher is disposed.</exception>
     public void Refresh()
     {
@@ -236,9 +196,7 @@ public sealed class SparseObservedField<T> : INotifyPropertyChanged, IDisposable
         catch (InvalidOperationException)
         {
             // Multi-step mutations pass through transiently invalid keyed
-            // states (duplicate keys mid-swap, unassigned sentinels) that the
-            // session itself tolerates; keep the last valid state until the
-            // next notification resyncs. Explicit Refresh still surfaces it.
+            // states (duplicate keys mid-swap.
         }
     }
 

@@ -13,30 +13,8 @@ public partial class BenchStructuralDictHolder
     public Dictionary<string, BenchKeyedServer> Servers { get; set; } = new();
 }
 
-/// <summary>
-/// Dictionary patch-algebra benchmarks (issue #56): scalar values
-/// (<see cref="BenchScalarDictHolder"/>) and structural values with nested
-/// patches (<see cref="BenchStructuralDictHolder"/>) at sizes 16 / 256 / 2048.
-/// Covers no-op, 1 edit, many edits, add, remove, mixed, plus
-/// <c>Between</c>, <c>Apply</c>, <c>Compose</c>, <c>Invert</c>, and clean /
-/// already-applied / conflicting <c>Rebase</c>.
-/// </summary>
-/// <remarks>
-/// Expected asymptotics (N = entry count, K = touched keys):
-/// <list type="bullet">
-/// <item><c>Between</c>: O(N) — snapshot copies of before/after plus one linear
-/// scan each for removals and additions/edits.</item>
-/// <item><c>Apply</c>: O(N + K) — one result copy plus O(1) dictionary updates
-/// per touched key.</item>
-/// <item><c>Compose</c>: O(K1 + K2) in the touched keys via dictionary-indexed
-/// set/edit maps.</item>
-/// <item><c>Invert</c>: same as <c>Between</c> (implemented as
-/// <c>Between(Apply(baseline), baseline)</c>).</item>
-/// <item><c>Rebase</c>: O(N + K) — base/current/desired snapshots plus O(1)
-/// per-key merge decisions; local touches are resolved with dictionary
-/// lookups, never linear scans of the removed list per key.</item>
-/// </list>
-/// </remarks>
+/// <summary>Dictionary patch-algebra benchmarks.</summary>
+/// <remarks>Expected asymptotics (N = entry count, K = touched keys).</remarks>
 [MemoryDiagnoser]
 public class DictionaryPatchBenchmarks
 {

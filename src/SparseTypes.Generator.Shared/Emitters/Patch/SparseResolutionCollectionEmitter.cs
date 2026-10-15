@@ -3,8 +3,8 @@ using static SparseTypes.Generator.Shared.SparseChangeSetBasicsEmitter;
 
 namespace SparseTypes.Generator.Shared;
 
-/// <summary>Collection branches of the resolution fragment applier (issue #203).</summary>
-/// <remarks>Keyed sequences, dictionaries, and set/whole-collection members. Scalar, nested, dispatch, and slot-check helpers stay on <see cref="SparseResolutionApplyEmitter"/>.</remarks>
+/// <summary>Collection branches of the resolution fragment applier.</summary>
+/// <remarks>Handles keyed sequences, dictionaries, and whole-collection members.</remarks>
 internal static class SparseResolutionCollectionEmitter
 {
     internal static void AppendKeyHelpers(
@@ -91,9 +91,7 @@ internal static class SparseResolutionCollectionEmitter
         var elementIsRef = member.Collection.ElementType.IsReferenceType;
 
         // Member-level paths address either the whole collection or, for keyed
-        // sequences, the order transition: both share the canonical member path
-        // (#202), so the desired runtime type selects the branch. Order carries
-        // a key list while wholesale carries the collection value.
+        // sequences, the order transition.
         body.AppendLineAt(4, "if (offset + 1 == path.Depth)");
         body.AppendLineAt(4, "{");
         body.AppendLineAt(
@@ -498,9 +496,7 @@ internal static class SparseResolutionCollectionEmitter
         _ = runtime;
         _ = valueType;
 
-        // Order resolutions carry the desired key list. When reached through the
-        // member-level branch the list is already matched as orderDesired; the
-        // legacy whole-member order path below is retained for direct calls.
+        // Order resolutions carry the desired key list.
         var orderValue = useDesiredVariable ? "orderDesired" + id : "order" + id;
         if (!useDesiredVariable)
         {

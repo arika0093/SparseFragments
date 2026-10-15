@@ -6,11 +6,7 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Shared;
 
-/// <summary>
-/// Parity tests for the product-neutral structural policy (issue #28).
-/// The shared analysis mechanics are identical; only the treatment of
-/// non-partial nested POCOs differs per explicit generator policy.
-/// </summary>
+/// <summary>Parity tests for the product-neutral structural policy.</summary>
 public sealed class StructuralPolicyTests
 {
     private const string ModelAttribute = "SparseTypes.SparseModelAttribute";

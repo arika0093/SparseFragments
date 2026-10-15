@@ -10,9 +10,8 @@ internal static class SparseDictionaryRemovalIndexEmitter
         string? implementationNamespace = null
     )
     {
-        // Generated-Once (#183): with an explicit namespace the kernels live
-        // once per compilation; per-patch output keeps only the internal
-        // reserve entry point used by ChangeSet/payload sync paths.
+        // Generated-Once: with an explicit namespace the kernels live once per
+        // compilation.
         if (!string.IsNullOrEmpty(implementationNamespace))
         {
             var prefix =
@@ -40,7 +39,7 @@ internal static class SparseDictionaryRemovalIndexEmitter
         string? implementationNamespace = null
     )
     {
-        // Shared kernels (#183) take the ordered add inline: dedup, indexed
+        // Shared kernels take the ordered add inline: dedup, indexed
         // insert and capacity growth live once per compilation.
         if (!string.IsNullOrEmpty(implementationNamespace) && keyType is not null)
         {

@@ -12,12 +12,7 @@ public partial class BenchStaticCollections
     public Dictionary<string, int> Scores { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
-/// <summary>
-/// Static specialization benchmarks (issue #187): statically bound concrete collection
-/// overloads versus the dynamic object/interface fallbacks, including custom comparers,
-/// nested collections, and small/large sizes. Allocations are measured: the static paths
-/// avoid shape classification, comparer/count reflection, and enumerator boxing.
-/// </summary>
+/// <summary>Static specialization benchmarks.</summary>
 [MemoryDiagnoser]
 public class StaticSpecializationBenchmarks
 {

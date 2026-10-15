@@ -3,14 +3,11 @@ namespace SparseTypes.EntityFrameworkCore;
 /// <summary>
 /// Decides how a changed-to-<c>Missing</c> after-state is applied to an entity.
 /// </summary>
-/// <remarks>
-/// <c>Missing</c> is never silently interpreted as null: the default
-/// <see cref="Throw" /> keeps the entity untouched and reports the path.
-/// </remarks>
+/// <remarks>The default <see cref="Throw" /> keeps the entity untouched and reports the path.</remarks>
 public enum SparseEntityMissingPolicy
 {
     /// <summary>
-    /// Fail with <see cref="SparseEntityMappingFailure.MissingNotHandled" /> and leave the entity untouched.
+    /// Fails with <see cref="SparseEntityMappingFailure.MissingNotHandled"/>.
     /// </summary>
     Throw = 0,
 

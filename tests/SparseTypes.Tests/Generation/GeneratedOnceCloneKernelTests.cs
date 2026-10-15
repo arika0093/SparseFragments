@@ -7,12 +7,7 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Generation;
 
-/// <summary>
-/// Generated-Once clone kernel regression tests (issue #182): two models
-/// using the same collection shape share one kernel definition, and
-/// per-model clone code calls the shared kernels instead of redefining
-/// the generic implementations.
-/// </summary>
+/// <summary>Generated-Once clone kernel regression tests.</summary>
 public sealed class GeneratedOnceCloneKernelTests
 {
     private static CSharpCompilation CreateCompilation(Dictionary<string, string> files)
@@ -132,9 +127,8 @@ public sealed class GeneratedOnceCloneKernelTests
     [Test]
     public void NullPlacementKeepsLegacyPerModelCloneHelpers()
     {
-        // Null placement keeps the legacy single-file contract for downstream
-        // dialects: per-model output redefines the private clone helpers
-        // instead of calling the compilation-scoped kernels.
+        // Per-model output redefines the private clone helpers instead of
+        // calling the compilation-scoped kernels.
         var configuration = (SparseGeneratorConfig)(
             typeof(SparseTypesGenerator)
                 .GetField("Configuration", BindingFlags.NonPublic | BindingFlags.Static)

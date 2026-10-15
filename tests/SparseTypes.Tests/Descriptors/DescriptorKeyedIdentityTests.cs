@@ -85,9 +85,8 @@ public sealed class DescriptorKeyedIdentityTests
     [Test]
     public void UnassignedSentinelsAreDiscoverableAndIndependent()
     {
-        // Unassigned entries are arranged without session notifications: live
-        // keyed transitions cannot represent them (session keyed validation
-        // rejects unassigned baselines, as for direct observable mutation).
+        // Live keyed transitions cannot represent them (session keyed
+        // validation rejects unassigned baselines, as for direct observable
         var model = new AssignedServerHolder
         {
             Items =
@@ -110,7 +109,8 @@ public sealed class DescriptorKeyedIdentityTests
         array.IsUnassignedKey(7).ShouldBeFalse();
         array.IsUnassignedKey("nope").ShouldBeFalse();
 
-        // Pure-equality lookup finds the first sentinel; callers exempt via IsUnassignedKey.
+        // Pure-equality lookup finds the first sentinel; callers exempt via
+        // IsUnassignedKey.
         array.GetItemKey(0).ShouldBe(7);
         array.GetItemKey(1).ShouldBe(0);
         array.GetItemKey(2).ShouldBe(0);

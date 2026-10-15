@@ -25,7 +25,8 @@ public static class OptionalExtensions
         target = source;
 
     /// <summary>Copies another member while converting its value, preserving presence exactly.</summary>
-    /// <remarks>Missing sources never invoke <paramref name="map"/>; present results stay present.</remarks>
+    /// <remarks>Missing sources never invoke <paramref name="map"/>; present
+    /// results stay present.</remarks>
     /// <param name="target">The member storage to mutate.</param>
     /// <param name="source">The member state to copy; missing stays missing.</param>
     /// <param name="map">Converts a present source value to the destination value.</param>

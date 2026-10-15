@@ -1,12 +1,8 @@
 using System.Text.Json;
 using SparseTypes;
 
-// Canonical .NET Framework 4.8 compatibility consumer (#49).
-// Consumes the packed SparseTypes release candidate (no ProjectReference
-// fallback when SparseTypesPackageVersion is set) and executes
-// representative generated/runtime behavior inside a real .NET Framework
-// process: fragments, nested patches, merge, deep clone, collections, and a
-// ChangeSet payload JSON round-trip (so System.Text.Json is loaded and exercised too).
+// Run representative generated APIs against the packed package on .NET
+// Framework 4.8, including ChangeSet JSON transport.
 var original = NetFxSettings.Fragment.From(
     new NetFxSettings
     {
@@ -58,7 +54,8 @@ Require(
     "ChangeSet payload JSON semantic round-trip"
 );
 
-// Patch algebra: composed patch matches sequential apply (nested + presence transition).
+// Patch algebra: composed patch matches sequential apply (nested + presence
+// transition).
 var first = new NetFxSettings.Patch { Label = "composed-first" };
 first.Child.Count = 11;
 var second = new NetFxSettings.Patch { Label = (string?)null };
@@ -77,7 +74,8 @@ Require(
     "compose presence transition"
 );
 
-// Structured rebase: disjoint local/nested edit merges cleanly onto upstream label edit.
+// Structured rebase: disjoint local/nested edit merges cleanly onto upstream
+// label edit.
 var upstream = original.ToBuilder();
 upstream.Label = Optional<string?>.Present("upstream");
 var current = Optional<NetFxSettings.Fragment?>.Present(upstream.Build());

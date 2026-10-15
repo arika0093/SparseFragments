@@ -13,7 +13,7 @@
     <PackageReference Remove="TUnit;Shouldly" />
     <Using Remove="Shouldly" />
   </ItemGroup>
-  <!-- Both packages ship from this repository at one shared version (#46), so a
+  <!-- Both packages ship from this repository at one shared version, so a
     single version property pins the whole candidate set under test. -->
   <ItemGroup Condition="'$(SparseTypesPackageVersion)' == ''">
     <ProjectReference Include="../../../../src/SparseTypes/SparseTypes.csproj" />

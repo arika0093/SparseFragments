@@ -94,8 +94,7 @@ internal static class SparseChangeSetPayloadItemEmitter
                     + "ChangePayloadItemKind.Reorder) throw new global::System.ArgumentException(\"Reorder is not supported for dictionary payload items.\");"
             );
         // Redacted item histories only support the baseline-discarding
-        // projection; check states before ToOptional so the error names the
-        // conversion rather than the endpoint read.
+        // projection.
         code.AppendLineAt(
             3,
             "if (item.Before is not null && item.Before.State == "
@@ -127,7 +126,8 @@ internal static class SparseChangeSetPayloadItemEmitter
         var added = "item.Kind == " + runtime + "ChangePayloadItemKind.Add";
         var removed = "item.Kind == " + runtime + "ChangePayloadItemKind.Remove";
         var edited = "item.Kind == " + runtime + "ChangePayloadItemKind.Edit";
-        // Kind/endpooint consistency: reject invalid payloads before producing an unsafe ChangeSet.
+        // Kind/endpooint consistency: reject invalid payloads before producing
+        // an unsafe ChangeSet.
         code.AppendLineAt(3, "if (" + added + ")");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(

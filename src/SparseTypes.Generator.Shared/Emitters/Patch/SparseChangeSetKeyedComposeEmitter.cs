@@ -352,8 +352,7 @@ internal static class SparseChangeSetKeyedComposeEmitter
                 + ");"
         );
         code.AppendLineAt(5, "__keys" + id + ".UnionWith(__map2" + id + ".Keys);");
-        // Keys occurring in only one input always survive composition. Their count
-        // is a safe capacity lower bound; fully overlapping cancellations reserve zero.
+        // Keys occurring in only one input always survive composition.
         code.AppendLineAt(
             5,
             "var __net"
@@ -375,8 +374,6 @@ internal static class SparseChangeSetKeyedComposeEmitter
                 + ");"
         );
         // Index only second-only keys that occur in the retained first order.
-        // Pure additions need no set allocation; small orders and a few queries
-        // keep linear scans, since indexing sixteen-item edit benchmarks cost more.
         var continuityDictionary =
             "global::System.Collections.Generic.Dictionary<" + keyType + ", " + trans + ".Item>";
         code.AppendLineAt(
@@ -478,10 +475,8 @@ internal static class SparseChangeSetKeyedComposeEmitter
                 + id
                 + ".TryGetValue(__k, out var __a2);"
         );
-        // Directional continuity: second's expected before must hold in
-        // first's after. First-only keys need no check (second adapts); second-only
-        // keys validate presence against first's retained key orders so disjoint
-        // edits compose while remove/edit of absent keys still fail.
+        // Directional continuity: second's expected before must hold in first's
+        // after.
         code.AppendLineAt(6, "if (!__has1)");
         code.AppendLineAt(6, "{");
         code.AppendLineAt(7, "var __o1aChk = " + KeyedAfterOrder(member) + ";");
@@ -589,7 +584,8 @@ internal static class SparseChangeSetKeyedComposeEmitter
             6,
             "{ throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\"); }"
         );
-        // Added then edited: compose the nested transitions and materialize only the final added value.
+        // Added then edited: compose the nested transitions and materialize
+        // only the final added value.
         code.AppendLineAt(6, "if (__a1!.IsAdded && __a2!.IsEdited)");
         code.AppendLineAt(6, "{");
         code.AppendLineAt(7, "var __edit2 = __a1.Edit.Compose(__a2.Edit);");
@@ -613,7 +609,8 @@ internal static class SparseChangeSetKeyedComposeEmitter
         );
         code.AppendLineAt(6, "continue;");
         code.AppendLineAt(6, "}");
-        // Edited then removed: invert the composed transition to recover only the required removed value.
+        // Edited then removed: invert the composed transition to recover only
+        // the required removed value.
         code.AppendLineAt(6, "if ((__a1!.IsEdited || __a1!.IsReordered) && __a2!.IsRemoved)");
         code.AppendLineAt(6, "{");
         code.AppendLineAt(
@@ -643,7 +640,8 @@ internal static class SparseChangeSetKeyedComposeEmitter
         );
         code.AppendLineAt(6, "continue;");
         code.AppendLineAt(6, "}");
-        // Edited/edited (or reorder-involved) continuity via nested compose; scalar fallback via equality.
+        // Edited/edited (or reorder-involved) continuity via nested compose;
+        // scalar fallback via equality.
         code.AppendLineAt(6, "if (__a1!.IsEdited && __a2!.IsEdited)");
         code.AppendLineAt(6, "{");
         code.AppendLineAt(7, "var __cc = __a1.Edit.Compose(__a2.Edit);");
@@ -681,7 +679,8 @@ internal static class SparseChangeSetKeyedComposeEmitter
             "throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
         );
         code.AppendLineAt(6, "}");
-        // Reorder-only on both or one side: continuity holds (same values); net keeps reorder flag.
+        // Reorder-only on both or one side: continuity holds (same values); net
+        // keeps reorder flag.
         code.AppendLineAt(
             6,
             "if (__a1!.IsReordered || __a2!.IsReordered) { var __keep = __a2!.IsReordered || __a1!.IsReordered; var __b = __a1.Before.IsPresent ? __a1.Before : __a2.Before; var __a = __a2.After.IsPresent ? __a2.After : __a1.After; var __bi = __a1.BeforeIndex >= 0 ? __a1.BeforeIndex : __a2.BeforeIndex; var __ai = __a2.AfterIndex >= 0 ? __a2.AfterIndex : __a1.AfterIndex; __net"

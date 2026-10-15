@@ -11,11 +11,7 @@ public partial class PayloadChild
 }
 
 /// <summary>Enum member shape for the source-generated endpoint codec.</summary>
-/// <remarks>
-/// Endpoint values travel through <c>JsonSerializerOptions.GetTypeInfo</c>
-/// metadata, so enum members prove the AOT path without reflection fallback
-/// once registered on the serializer context.
-/// </remarks>
+/// <remarks>Endpoint values travel through <c>JsonSerializerOptions.GetTypeInfo</c> metadata.</remarks>
 public enum AotOrderStatus
 {
     Unknown,

@@ -6,10 +6,7 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>A notifying view over a live mutable list.</summary>
-/// <remarks>
-/// Mutations are applied to the supplied list instance. Changes made directly to that list are not
-/// observable unless it implements <see cref="INotifyCollectionChanged"/>.
-/// </remarks>
+/// <remarks>Mutations are applied to the supplied list instance.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed class SparseObservableList<TModel, TView>
     : IList<TView>,
@@ -34,12 +31,7 @@ public sealed class SparseObservableList<TModel, TView>
     private bool _disposed;
 
     /// <summary>Creates a notifying view over a live mutable list.</summary>
-    /// <remarks>
-    /// The optional raw-model access callback is invoked when <see cref="Model"/> is
-    /// read so owners (such as an edit session) can invalidate caches that raw
-    /// mutations would bypass. Generated sessions pass their raw-model callback here;
-    /// trusted session internals read <see cref="UnsafeModel"/> instead.
-    /// </remarks>
+    /// <remarks>The callback runs when callers access the raw model.</remarks>
     public SparseObservableList(
         IList<TModel> model,
         Func<TModel, Action, TView> wrap,
@@ -62,11 +54,7 @@ public sealed class SparseObservableList<TModel, TView>
     }
 
     /// <summary>The live list instance wrapped by this view.</summary>
-    /// <remarks>
-    /// Reading this property reports raw-model access to the owner so session caches
-    /// stay valid when the returned list is mutated directly. Generated session
-    /// internals that already account for the access read <see cref="UnsafeModel"/>.
-    /// </remarks>
+    /// <remarks>Access notifies the owner because callers can mutate the returned list.</remarks>
     public IList<TModel> Model
     {
         get
@@ -77,10 +65,7 @@ public sealed class SparseObservableList<TModel, TView>
     }
 
     /// <summary>The live list instance without reporting raw-model access.</summary>
-    /// <remarks>
-    /// For trusted generated code only: the caller must raise the change itself.
-    /// External callers should read <see cref="Model"/> so session caches stay valid.
-    /// </remarks>
+    /// <remarks>For trusted generated code only: the caller must raise the change itself.</remarks>
     public IList<TModel> UnsafeModel => _model;
 
     /// <summary>Whether this view has been detached from its model collection.</summary>
@@ -99,10 +84,7 @@ public sealed class SparseObservableList<TModel, TView>
     public bool IsReadOnly => _model.IsReadOnly;
 
     /// <summary>Gets whether the wrapped list has a fixed size.</summary>
-    /// <remarks>
-    /// True when the model also implements non-generic <see cref="System.Collections.IList"/>
-    /// and reports fixed size; replacements stay allowed while size changes do not.
-    /// </remarks>
+    /// <remarks>True when the model also implements non-generic <see cref="System.Collections.IList"/> and reports fixed size.</remarks>
     public bool IsFixedSize => _model is System.Collections.IList raw && raw.IsFixedSize;
 
     /// <inheritdoc />
@@ -376,21 +358,9 @@ public sealed class SparseObservableList<TModel, TView>
         }
     }
 
-    /// <summary>
-    /// Raises a single Reset notification for bulk changes made directly to the backing list.
-    /// </summary>
-    /// <param name="reportChange">
-    /// Whether to report the change to the owner. Pass <see langword="false"/> when the
-    /// owner already accounts for the mutation (such as a session refreshing after an
-    /// in-place write) to avoid duplicate notifications.
-    /// </param>
-    /// <remarks>
-    /// Session internals call this with <see langword="false"/> after an in-place write
-    /// reuses the same backing instance; call it after your own bulk raw-model
-    /// mutations. Notifications for backing lists that implement
-    /// <see cref="INotifyCollectionChanged"/> are forwarded automatically and must not
-    /// be duplicated with this method.
-    /// </remarks>
+    /// <summary>Raises a single Reset notification for bulk changes made directly to the backing list.</summary>
+    /// <param name="reportChange">Whether to report the change to the owner.</param>
+    /// <remarks>Session internals call this with <see langword="false"/> after an in-place write reuses the same backing instance.</remarks>
     public void NotifyReset(bool reportChange = true)
     {
         if (_disposed)
@@ -549,7 +519,8 @@ public sealed class SparseObservableList<TModel, TView>
             case NotifyCollectionChangedAction.Reset:
                 PruneStale();
                 break;
-            // Add/Move only introduce or permute models, so cached proxies stay live.
+            // Add/Move only introduce or permute models, so cached proxies stay
+            // live.
         }
 
         RaiseCollectionChanged(converted);

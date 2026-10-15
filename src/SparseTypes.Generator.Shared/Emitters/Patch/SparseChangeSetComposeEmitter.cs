@@ -117,12 +117,8 @@ internal static class SparseChangeSetComposeEmitter
         );
         code.AppendLineAt(5, "return Between(__sparse_wholeBefore, next.__sparse_wholeAfter);");
         code.AppendLineAt(4, "}");
-        // Shared-baseline algebra: a whole-root endpoint composes with a
-        // memberwise transition when the memberwise side is contiguous with the retained
-        // whole state. Only overlapping (changed) paths are checked; disjoint paths
-        // compose without full-state equality. The merged endpoint is derived by
-        // applying the memberwise patch onto the retained whole state, then Between
-        // normalizes (including back to no-op where before == final after).
+        // Compose whole-root and memberwise changes when their shared paths are
+        // contiguous.
         code.AppendLineAt(4, "if (__sparse_hasWhole)");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
@@ -192,8 +188,6 @@ internal static class SparseChangeSetComposeEmitter
             );
         }
         // Emit per-member merge with explicit locals.
-        // Scalar members keep snapshot equality; keyed/dict compose per interacting
-        // key so disjoint keys compose despite differing unrelated snapshots.
         foreach (var member in members)
         {
             if (IsNested(member))
@@ -333,20 +327,10 @@ internal static class SparseChangeSetComposeEmitter
     }
 
     /// <summary>Emits per-key sparse compose for a keyed member.</summary>
-    /// <remarks>
-    /// Declares locals __cb_has/__cb_whole/__cb_wb/__cb_wa/__cb_items/__cb_bO/__cb_aO.
-    /// Disjoint keys compose without full-snapshot equality; overlapping keys require
-    /// semantic contiguity (added/removed/edited continuity via element equality and
-    /// nested ChangeSet compose). Net no-ops normalize to empty. Whole member
-    /// transitions fall back to full-endpoint composition.
-    /// </remarks>
+    /// <remarks>Stores sparse compose state in generated locals.</remarks>
     internal static void AppendPragmaDisableNullKey(SharedIndentedBuilder code, int indent)
     {
-        // Sparse keyed/dictionary transitions flow stable keys through per-key maps
-        // across all key shapes (string/int/tuple/interface keys). The keys are
-        // non-null by construction (validated during Between/STJ read), but nullable
-        // analysis cannot prove it uniformly: `!` is invalid on value-type keys
-        // (CS8715) while omitting it warns on reference-type keys (CS8604).
+        // Use comparer-aware key maps for all key shapes.
         code.AppendLineAt(
             indent,
             "#pragma warning disable CS8604 // Sparse stable keys are non-null by construction."

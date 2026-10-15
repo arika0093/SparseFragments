@@ -1,11 +1,8 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 
-// Playground migration contracts for issue #272: the Case 4/Case 5 row
-// patterns (one shared collection snapshot plus keyed and temporary-key
-// member fields through vendor value/callback inputs), the Case 6 group
-// flow (immutable capture, draft rejection, per-section acknowledgement),
-// and fork-merge adoption through a session swap.
+// Pin the Case 4/5 collection-field patterns and Case 6 group/fork flows
+// used by the playground migration.
 namespace SparseTypes.Blazor.Tests;
 
 public sealed class SparseHeadlessPlaygroundMigrationTests
@@ -193,9 +190,7 @@ public sealed class SparseHeadlessPlaygroundMigrationTests
         var linesField = lines.ShouldNotBeNull();
         var assigned = assignedTitle.ShouldNotBeNull();
         shownAssigned.ShouldBe("persisted v2");
-        // A surviving edited member reports changed; members of added rows
-        // report the default state instead (row-level add subsumes them), so
-        // added rows highlight at the row, never at the cell.
+        // A surviving edited member reports changed.
         assigned.IsChanged.ShouldBeTrue();
 
         using var draftTree = await Headless.Tree.CreateAsync(
@@ -351,9 +346,8 @@ public sealed class SparseHeadlessPlaygroundMigrationTests
 
         shown.ShouldBe("ORD-FORK");
         field.ShouldNotBeNull();
-        // Session edits apply to the live model at once: the main-side tag
-        // is present in main, while the fork never observed it, and the
-        // fork-side rename never leaked into main.
+        // The main-side tag is present in main, while the fork never observed
+        // it, and the fork-side rename never leaked into main.
         live.Number.ShouldBe("ORD-1");
         live.Customer.Name.ShouldBe("Ada");
         live.Tags.ShouldContain("heavy");

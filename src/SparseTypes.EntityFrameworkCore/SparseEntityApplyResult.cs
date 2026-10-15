@@ -80,17 +80,7 @@ public sealed record SparseEntityAppliedPath
 /// <summary>
 /// The outcome of one <c>ApplyWithResult</c> call.
 /// </summary>
-/// <remarks>
-/// Successful writes are recorded in <see cref="AppliedPaths" />. Keyed
-/// collection synchronization also records each created child entity under
-/// its DTO <c>[SparseTemporaryKey]</c> value so the application can correlate
-/// database-generated permanent keys across <c>SaveChanges</c>. Correlations
-/// are scoped by DTO collection path: the same temporary value reused under a
-/// different collection resolves independently there. Nested scopes additionally
-/// resolve by parent scope (stable key or temporary identity), so parents
-/// whose display keys collide still correlate independently; direct nested
-/// path-string lookups keep their merged legacy view.
-/// </remarks>
+/// <remarks>Successful writes are recorded in <see cref="AppliedPaths" />.</remarks>
 public sealed class SparseEntityApplyResult
 {
     private Dictionary<Guid, IReadOnlyList<object>>? _byTemporaryKey;

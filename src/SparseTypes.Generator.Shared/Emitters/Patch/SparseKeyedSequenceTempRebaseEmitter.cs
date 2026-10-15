@@ -1,11 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Temporary-identity three-way merge for keyed-sequence patch rebase.</summary>
-/// <remarks>
-/// Replays temporary operations against newer state by Guid instead of by
-/// permanent key. Assigned-key merging stays in
-/// <see cref="SparseKeyedSequenceRebaseEmitter"/>.
-/// </remarks>
+/// <remarks>Replays temporary operations against newer state by Guid instead of by permanent key.</remarks>
 internal static class SparseKeyedSequenceTempRebaseEmitter
 {
     /// <summary>Emits temporary side maps for base/current/desired states.</summary>

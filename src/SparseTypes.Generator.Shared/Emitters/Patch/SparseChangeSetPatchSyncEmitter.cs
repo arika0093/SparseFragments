@@ -398,9 +398,7 @@ internal static class SparseChangeSetPatchSyncEmitter
         SparseOperationTarget? target = null
     )
     {
-        // Baseline advancement for synchronous edit sessions: the before-state
-        // check rejects stale transitions, then the patch projection computes
-        // the candidate baseline before the caller commits it.
+        // Baseline advancement for synchronous edit sessions.
         if (target is not null)
         {
             code.AppendLineAt(
@@ -576,7 +574,8 @@ internal static class SparseChangeSetPatchSyncEmitter
             : member.Collection.ValueType?.IsFragmentModel == true;
         code.AppendLineAt(3, "if (" + HasField(member) + ")");
         code.AppendLineAt(3, "{");
-        // Whole presence/null transitions project via canonical collection Between.
+        // Whole presence/null transitions project via canonical collection
+        // Between.
         code.AppendLineAt(4, "if (" + KeyedWholeFlag(member) + ")");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
@@ -618,7 +617,8 @@ internal static class SparseChangeSetPatchSyncEmitter
         code.AppendLineAt(6, "else if (__it.IsRemoved)");
         if (isKeyed && SparseKeyedCollectionEmitter.HasTemporaryKey(member))
         {
-            // Temporary removals address by Guid; assigned removals keep key addressing.
+            // Temporary removals address by Guid; assigned removals keep key
+            // addressing.
             code.AppendLineAt(
                 6,
                 "{ if (__it.TemporaryKey.HasValue) __coll"
@@ -655,7 +655,8 @@ internal static class SparseChangeSetPatchSyncEmitter
         code.AppendLineAt(6, "{");
         if (isKeyed && SparseKeyedCollectionEmitter.HasTemporaryKey(member))
         {
-            // Temporary edits address by Guid; assigned edits keep key addressing.
+            // Temporary edits address by Guid; assigned edits keep key
+            // addressing.
             code.AppendLineAt(7, "var __isTempEdit = __it.TemporaryKey.HasValue;");
         }
         if (hasValuePatch)
@@ -702,7 +703,8 @@ internal static class SparseChangeSetPatchSyncEmitter
             code.AppendLineAt(7, "__coll" + id + ".UpdateEntry(__it.Key!, __it.After.Value!);");
         }
         code.AppendLineAt(6, "}");
-        // Reorder-only items contribute no add/remove/edit; order is applied below.
+        // Reorder-only items contribute no add/remove/edit; order is applied
+        // below.
         code.AppendLineAt(5, "}");
         if (isKeyed)
         {
@@ -711,7 +713,8 @@ internal static class SparseChangeSetPatchSyncEmitter
             var tempBeforeOrder = KeyedTempBeforeOrder(member);
             var tempAfterOrder = KeyedTempAfterOrder(member);
             var orderChanged = KeyedOrderChangedExpression(member, __facade);
-            // Equal sentinel-key sequences can still carry a temporary-identity reorder.
+            // Equal sentinel-key sequences can still carry a temporary-identity
+            // reorder.
             code.AppendLineAt(
                 5,
                 $"if ({beforeOrder} is not null && {afterOrder} is not null && ({orderChanged}))"

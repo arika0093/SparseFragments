@@ -8,12 +8,7 @@ internal static class SparseChangeSetMemberRebaseEmitter
     /// <summary>
     /// Emits a redacted-before guard for one member block.
     /// </summary>
-    /// <remarks>
-    /// The guard evaluates before the member's own condition so granular
-    /// bodies stay untouched. Strict mode reports a secret-safe conflict and
-    /// excludes the member; the default replays <paramref name="passthrough"/>
-    /// as the explicit desired operation with no historical comparison.
-    /// </remarks>
+    /// <remarks>The guard evaluates before the member's own condition so granular bodies stay untouched.</remarks>
     internal static void AppendRedactedGuard(
         SharedIndentedBuilder code,
         SparseMemberModel member,
@@ -144,12 +139,7 @@ internal static class SparseChangeSetMemberRebaseEmitter
     /// <summary>
     /// Emits plain scalar rebase with the caller-wide fallback mode applied.
     /// </summary>
-    /// <remarks>
-    /// The mode only fills the built-in default slot: members with an explicit
-    /// rebase policy or merge strategy never reach this path. PreferIncoming
-    /// replays divergent edits as overwrites, PreferCurrent drops them, and
-    /// FailOnConflict keeps the three-way shape below.
-    /// </remarks>
+    /// <remarks>Members with an explicit rebase policy or merge strategy never reach this path.</remarks>
     internal static void AppendScalarModeRebase(
         SharedIndentedBuilder code,
         SparseMemberModel member,
@@ -243,15 +233,7 @@ internal static class SparseChangeSetMemberRebaseEmitter
     /// <summary>
     /// Emits merge-aware rebase for Append/SetUnion scalar-collection members.
     /// </summary>
-    /// <remarks>
-    /// Unlike plain scalar equality, Append members replay the locally appended suffix onto
-    /// the current prefix and SetUnion members replay locally added elements beside the
-    /// current set; both consume only the retained per-member before/desired plus the
-    /// supplied current member, mirroring the generated Patch rebase dispatch (typed
-    /// set/sequence fast paths with a boxed semantic fallback). A rebased value equal to
-    /// current normalizes to no-op; an unmergeable concurrent change reports a structured
-    /// member conflict while leaving other paths untouched.
-    /// </remarks>
+    /// <remarks>Unlike plain scalar equality.</remarks>
     internal static void AppendMergeCollectionRebase(
         SharedIndentedBuilder code,
         SparseMemberModel member,

@@ -21,7 +21,7 @@ public partial class BenchDescriptorHolder
     public Dictionary<string, string> Metadata { get; set; } = new();
 }
 
-// Quantifies session descriptor-graph caching (issue #134): repeated root
+// Quantifies session descriptor-graph caching: repeated root
 // lookups must reuse one graph instead of reallocating it per access.
 [MemoryDiagnoser]
 public class DescriptorAccessBenchmarks

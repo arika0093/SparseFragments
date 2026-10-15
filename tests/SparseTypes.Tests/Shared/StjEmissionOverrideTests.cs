@@ -2,14 +2,8 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Shared;
 
-/// <summary>Certifies explicit JSON feature overrides against probed STJ surfaces (issue #264).</summary>
-/// <remarks>
-/// A downstream product disables JSON by selecting out of the
-/// <c>EmitJsonConverters</c> family; the effective choice must stay off even
-/// when the compilation offers the full API set. Absent or partial surfaces
-/// suppress JSON even when the family is requested, so emitters never see an
-/// incoherent plan.
-/// </remarks>
+/// <summary>Certifies explicit JSON feature overrides against probed STJ surfaces.</summary>
+/// <remarks>A downstream product disables JSON by selecting out of the <c>EmitJsonConverters</c> family.</remarks>
 public sealed class StjEmissionOverrideTests
 {
     private static SparseGeneratorConfig MinimalConfig(

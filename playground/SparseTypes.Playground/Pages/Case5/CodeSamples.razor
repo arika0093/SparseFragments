@@ -44,14 +44,13 @@
                     });
             }
         }
-        // Total, Product, and Qty map automatically because their names and types match.
-        // Key and TemporaryId identify keyed changes, so they need no scalar mapping.
-        // The generator implements IEntityModelMapping and backs Map for this build.
+        // Total, Product, and Qty map automatically because their names and
+        // types match.
         """;
 
     private const string EfFlowCode = """
         var session = draft.CreateEditSession(); // The draft is the live model; the session retains the baseline.
-        // ... edit draft ...
+        // Edit draft.
         var submitted = session.CreateChangeSet(); // Exact immutable snapshot before the awaited save.
         var submittedDraft = draft.DeepClone(); // Correlates temporary identities after the save.
         // Keep editing draft while the save is in flight.
@@ -63,9 +62,8 @@
         lines.TryMoveByKey(assignedId, 0, out var moveError);
         lines.TryReplaceByKey(assignedId, replacement, out var replaceError);
         lines.TryRemoveByTemporaryKey(temporaryId, out var removeError);
-        // Add/remove/reorder/replace keep assigned and temporary identities stable.
-        // Apply now, or when the 10-second snackbar expires.
-        // ApplyWithResult correlates created lines by temporary identity.
+        // Add/remove/reorder/replace keep assigned and temporary identities
+        // stable.
         var result = mapper.ApplyWithResult(db, tracked, submitted); // No query, no SaveChanges.
         var modified = db.ChangeTracker.Entries()
             .SelectMany(static entry => entry.Properties)
@@ -78,8 +76,8 @@
             tracked.Revision++;
             await db.SaveChangesAsync(); // The concurrency token also protects the write after the preflight check.
             var persisted = mapper.ToDto(await ReloadOrderAsync(tracked.Id));
-            // Generated keys land on the authoritative projection; acknowledgement routes
-            // by what the server returned, never by list position.
+            // Generated keys land on the authoritative projection;
+            // acknowledgement routes by what the server returned, never by list
             mapper.AssignTemporaryKeys(db, result, submittedDraft, persisted);
             if (!session.TryReconcile(submitted, persisted, out var error))
                 throw new InvalidOperationException(error); // No partial writeback; retry or reseed.
@@ -103,7 +101,8 @@
             var syncDraft = PlaygroundOrderDto.ChangeSet.Between(draft, targetDraft);
             if (!syncDraft.IsEmpty && !session.TryApplyInPlace(syncDraft, out var syncConflicts))
                 throw new InvalidOperationException($"Could not merge persisted values: {syncConflicts?.Count ?? 0} conflicts.");
-            // Untouched fields adopt authoritative values; post-submit edits stay pending.
+            // Untouched fields adopt authoritative values; post-submit edits
+            // stay pending.
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -122,12 +121,14 @@
             if (rebase.HasConflicts)
             {
                 var resolution = PlaygroundOrderDto.ChangeSet.BeginResolution(rebase, current);
-                // The UI records UseIncoming(path) or UseCurrent(path) for each conflict.
+                // The UI records UseIncoming(path) or UseCurrent(path) for each
+                // conflict.
                 if (!resolution.TryBuild(out var resolved, out var failure))
                     throw new InvalidOperationException(failure?.Reason);
                 changesToApply = resolved!;
             }
-            // Recheck the persisted revision immediately before applying user choices.
+            // Recheck the persisted revision immediately before applying user
+            // choices.
             PlaygroundConcurrency.EnsureCurrentRevision(SharedOptions, tracked.Id, currentEntity.Revision);
             var retry = mapper.ApplyWithResult(db, currentEntity, changesToApply);
             if (db.ChangeTracker.HasChanges())
@@ -211,8 +212,6 @@
         foreach (var change in changes.EnumerateChanges())
         {
             // Kind: Changed / Added / Removed / Order.
-            // PathText: e.g. Customer, Lines[3].Qty. Before/After are
-            // Optional<object?>; missing renders as — in the dialog table.
             Console.WriteLine($"{change.Kind} {change.PathText}");
         }
         """;

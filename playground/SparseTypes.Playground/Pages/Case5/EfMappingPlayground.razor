@@ -249,9 +249,7 @@
     private PlaygroundOrderEntity? _tracked;
     private SparseEntityMapper<PlaygroundOrderEntity, PlaygroundOrderDto>? _mapper;
     private SparseEntityApplyResult? _applyResult;
-    // Session-owned draft and baseline (#266): the live draft instance is edited directly and
-    // the session retains the baseline, which advances only when a save is acknowledged.
-    // _baselineView is a display-only clone of the last acknowledged state for the DTO card.
+    // Session-owned draft and baseline.
     private PlaygroundOrderDto.EditSession _session = null!;
     private PlaygroundOrderDto _liveDraft = null!;
     private PlaygroundOrderDto _baselineView = new();
@@ -519,8 +517,8 @@
             return;
         }
 
-        // A pending submission references the retained baseline, so cancel it first:
-        // reverting would otherwise orphan the in-flight snapshot.
+        // A pending submission references the retained baseline, so cancel it
+        // first: reverting would otherwise orphan the in-flight snapshot.
         _savePending = false;
         _pendingSubmitted = null;
         _pendingDraft = null;
@@ -544,9 +542,7 @@
     }
 
     // Field writes arrive through SparseField bindings (which own the session
-    // write and refresh); this only runs the draft bookkeeping the headless
-    // components do not supply: clearing the last save outcome and refreshing
-    // the retained ChangeSet the save pipeline acknowledges.
+    // write and refresh).
     private void OnDraftEdited()
     {
         _applied = false;
@@ -632,9 +628,7 @@
         }
     };
 
-    // Scalar highlights now come from each SparseField's render-scoped
-    // state; the retained ChangeSet below stays for the save pipeline, which
-    // acknowledges the exact immutable submission (#266 owns that lifecycle).
+    // Scalar highlights now come from each SparseField's render-scoped state.
     private static string ConflictHandlingName(ConflictHandlingMode mode) => mode switch
     {
         ConflictHandlingMode.Standard => "Standard",
@@ -721,9 +715,7 @@
             return;
         }
 
-        // Capture the exact immutable submission before the awaited save. The retained
-        // baseline stays put so the submission remains verifiable at acknowledgement;
-        // edits made meanwhile stay pending against it.
+        // Capture the exact immutable submission before the awaited save.
         var submitted = _session.CreateChangeSet();
         if (submitted.IsChanged != true)
         {
@@ -774,8 +766,8 @@
             }
             else
             {
-                // Acknowledgement never ran, so the retained baseline is untouched and the
-                // submission simply stays pending for a retry.
+                // Acknowledgement never ran, so the retained baseline is
+                // untouched and the submission simply stays pending for a
                 var applyError = _applyError;
                 RefreshChanges();
                 _applyError = applyError;
@@ -842,7 +834,8 @@
                 PlaygroundConcurrency.SimulateConcurrentEdit(SharedOptions, orderId);
             }
 
-            // Check before SaveChanges because the in-memory provider cannot roll back a partial write.
+            // Check before SaveChanges because the in-memory provider cannot
+            // roll back a partial write.
             PlaygroundConcurrency.EnsureCurrentRevision(SharedOptions, orderId, expectedRevision);
             _tracked.Revision++;
             _db.SaveChanges();
@@ -856,8 +849,8 @@
                 throw new InvalidOperationException("The EF Core mapper result is not available.");
             }
 
-            // Correlate created rows by temporary identity onto the authoritative
-            // projection, then acknowledge through the session contract.
+            // Correlate created rows by temporary identity onto the
+            // authoritative projection, then acknowledge through the session
             var persisted = _mapper.ToDto(_tracked);
             _mapper.AssignTemporaryKeys(_db, _applyResult, submittedDraft, persisted);
             AcknowledgeSave(submitted, submittedDraft, persisted);
@@ -942,10 +935,7 @@
         var current = _mapper.ToDto(_tracked);
         if (conflictHandlingMode == ConflictHandlingMode.Strict)
         {
-            // Reject the whole submission: adopt the current state as the new baseline while
-            // the live draft (submitted plus post-submit edits) stays pending for another save.
-            // A fresh session over the same live instance is required because Reload would
-            // rebase (and possibly drop) overlapping local edits instead of preserving them.
+            // Reject the whole submission.
             _session = current.CreateEditSession(_liveDraft);
             _baselineView = current;
             ClearConflictResolution();
@@ -1006,8 +996,8 @@
         }
 
         _entityJsonBeforeApply = EntityJson;
-        // Retry only the rebased submission; post-submit edits stay out of the write and are
-        // merged back by the reconciliation below.
+        // Retry only the rebased submission; post-submit edits stay out of the
+        // write and are merged back by the reconciliation below.
         var retry = _mapper.ApplyWithResult(_db, _tracked, submittedRebase.Rebased);
         _modifiedRows = PlaygroundEfPresentation.CollectModifiedRows(_db);
         if (_db.ChangeTracker.HasChanges())
@@ -1025,8 +1015,8 @@
         _mapper.AssignTemporaryKeys(_db, retry, submittedDraft, merged);
         _applyResult = null;
 
-        // Rebase later edits onto the authoritative state before reconciliation so
-        // remote field values and local post-submit edits both survive.
+        // Rebase later edits onto the authoritative state before reconciliation
+        // so remote field values and local post-submit edits both survive.
         try
         {
             _conflictRows = PreparePostSubmitDraft(submittedDraft, merged);

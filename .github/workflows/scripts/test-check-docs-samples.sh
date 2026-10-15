@@ -1,21 +1,5 @@
 #!/usr/bin/env bash
-# Maintained negative probes for the docs sample enforcement (#213).
-#
-# Each probe builds a minimal Markdown/fixture/registry tree under a temp
-# directory and runs check-docs-samples.py (or check-docs-links.py) against
-# it. Probes that must fail assert a non-zero exit; the illustrative control
-# must pass. Any unexpected verdict fails this script, so CI catches verifier
-# regressions the same way it catches docs drift.
-#
-# Probes: (a) unregistered sample marker in a new guide, (b) changed sample
-# code, (c) missing fixture marker, (d) broken internal link,
-# (e) mutated JSON specimen, (f) illustrative control passes,
-# (g) duplicate sample id, (h) unused registry entry, (i) unguarded runnable
-# fence, (j) fixture region without an assertion body, (k) empty illustrative
-# reason, (l) mutated JSON inside a C# raw-string wrapper, (m) -store shape
-# exemption passes.
-#
-# Usage: test-check-docs-samples.sh
+# Maintained negative probes for the docs sample enforcement.
 set -euo pipefail
 
 scripts_dir="$(dirname "$0")"
@@ -130,7 +114,7 @@ else
     passed=$((passed + 1))
 fi
 
-# (e) Mutated JSON specimen fails through the same discovery process (#212 hook).
+# (e) Mutated JSON specimen fails through the same discovery process ( hook).
 root="${tmp_base}/json-specimen"
 mkdir -p "${root}/docs"
 cat > "${root}/docs/guide.md" <<'EOF'
@@ -228,8 +212,6 @@ EOF
 expect_fail "k/empty illustrative reason" "${root}"
 
 # (l) Mutated JSON inside a C# raw-string wrapper fails deep comparison.
-# This locks the #212 fixture shape: the Markdown fence holds raw JSON while
-# the fixture region wraps the specimen in a `"""..."""` literal.
 root="${tmp_base}/json-wrapper"
 mkdir -p "${root}/docs"
 cat > "${root}/docs/guide.md" <<'EOF'
@@ -249,10 +231,7 @@ EOF
 printf 'docs/guide.md\tpayload-wire\tfixture.cs\tjson-specimen\n' > "${root}/registry.tsv"
 expect_fail "l/mutated JSON in raw-string wrapper" "${root}"
 
-# (m) Supporting-store shape passes without an assertion body. Like -model
-# ids, a -store region declares a shape exercised through its consuming
-# sample (rebase-server-store through rebase-server-save), so the assertion
-# rule exempts it.
+# (m) Supporting-store shape passes without an assertion body.
 root="${tmp_base}/store-shape"
 mkdir -p "${root}/docs"
 cat > "${root}/docs/guide.md" <<'EOF'

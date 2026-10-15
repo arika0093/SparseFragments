@@ -8,20 +8,7 @@ using SparseTypes;
 using SparseTypes.Generator;
 using SparseTypes.Generator.Shared;
 
-/// <summary>
-/// Incremental-generator scale benchmarks for the promoted-model pipeline
-/// (issue #18, extended by #61). Distinguishes cold generation from one-file
-/// incremental edits over 10 / 100 / 1000 roots sharing a single promoted
-/// partial type, and additionally records incremental step caching:
-/// <c>CachedSteps</c> counts tracked outputs that stay cached after an
-/// unrelated-root edit (higher is better), while <c>RecomputedSteps</c> counts
-/// tracked outputs that recompute after a shared promoted-type edit.
-/// Model-shape dimensions beyond root count (properties per root, nesting
-/// depth/fan-out, keyed collections, dictionary members, promoted-model count)
-/// live in <c>GeneratorModelShapeBenchmarks</c>; per-stage cached-vs-recomputed
-/// expectations are pinned by deterministic tests in
-/// <c>GeneratorStepTrackingTests</c>.
-/// </summary>
+/// <summary>Measures incremental generator cost across root and model-shape scales.</summary>
 [MemoryDiagnoser]
 public class GeneratorInvalidationBenchmarks
 {

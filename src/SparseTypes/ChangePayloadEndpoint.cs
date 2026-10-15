@@ -3,13 +3,7 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>Presence-aware typed endpoint used by generated ChangePayloads.</summary>
-/// <remarks>
-/// This type is serializer-agnostic: it carries no JSON attributes (issue
-/// #242). The v1 wire mapping (<c>state</c>/<c>value</c> names, order, and the
-/// lower-case tokens in <see cref="ChangePayloadWire"/>) is implemented by the
-/// optional generated JSON bridge, which is only emitted when the consuming
-/// compilation references a compatible <c>System.Text.Json</c> API set.
-/// </remarks>
+/// <remarks>This type is serializer-agnostic: it carries no JSON attributes (issue ).</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed class ChangePayloadEndpoint<T>
 {
@@ -34,12 +28,7 @@ public sealed class ChangePayloadEndpoint<T>
     }
 
     /// <summary>Creates a redacted endpoint that carries no observable value.</summary>
-    /// <remarks>
-    /// A redacted endpoint marks a before-state the sender could not disclose
-    /// (issue #119). It carries no value by construction and never converts to
-    /// <see cref="Optional{T}"/>; project it through a baseline-free patch instead.
-    /// Redacted never converts to <see cref="Optional{T}.Missing"/>.
-    /// </remarks>
+    /// <remarks>Redacted values conceal before-state data.</remarks>
     public static ChangePayloadEndpoint<T> Redacted() =>
         new() { State = ChangePayloadState.Redacted };
 
@@ -47,22 +36,15 @@ public sealed class ChangePayloadEndpoint<T>
     public bool IsRedacted => State == ChangePayloadState.Redacted;
 
     /// <summary>Validates that value-free states carry no value.</summary>
-    /// <remarks>
-    /// A redacted before-state is contractually value-free (issue #164): it
-    /// marks an undisclosed value, never a confidential value in disguise.
-    /// Producers must emit value-free redactions; consumers reject malformed
-    /// envelopes before mixed interpretation so secrets cannot hide in a
-    /// field the partition bypasses. The rejection never embeds plaintext.
-    /// </remarks>
+    /// <remarks>A redacted before-state is contractually value-free: it marks an undisclosed value, never a confidential value in disguise.</remarks>
     /// <exception cref="InvalidOperationException">
     /// Thrown when a <c>Missing</c>, <c>Null</c>, or <c>Redacted</c> endpoint
     /// carries a value.
     /// </exception>
     public void Validate()
     {
-        // Default(T) is the value-free sentinel: null for reference types and
-        // zero for value types, matching what Redacted() and deserialization
-        // of a value-free envelope produce.
+        // Null for reference types and zero for value types, matching what
+        // Redacted() and deserialization of a value-free envelope produce.
         if (
             Value is not null
             && !System.Collections.Generic.EqualityComparer<T>.Default.Equals(Value, default!)
@@ -89,10 +71,7 @@ public sealed class ChangePayloadEndpoint<T>
     }
 
     /// <summary>Converts this endpoint to an optional value.</summary>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when the endpoint is redacted. A redacted before-state has no known
-    /// value to restore, so it cannot form a baseline-aware transition.
-    /// </exception>
+    /// <exception cref="InvalidOperationException">Thrown when the endpoint is redacted.</exception>
     public Optional<T> ToOptional()
     {
         Validate();
@@ -111,8 +90,8 @@ public sealed class ChangePayloadEndpoint<T>
             ChangePayloadState.Value => throw new InvalidOperationException(
                 "A value endpoint must contain a value."
             ),
-            // A redacted before-state is undisclosed, not absent: callers must
-            // project through ChangePayload.ToPatch rather than read a baseline.
+            // Callers must project through ChangePayload.ToPatch rather than
+            // read a baseline.
             _ => throw new InvalidOperationException(
                 "A redacted payload endpoint has no observable optional value."
             ),
@@ -121,11 +100,7 @@ public sealed class ChangePayloadEndpoint<T>
 }
 
 /// <summary>The presence state of a generated ChangePayload endpoint.</summary>
-/// <remarks>
-/// Wire tokens are defined by <see cref="ChangePayloadWire"/> and written by
-/// the generated JSON bridge; the enum itself carries no serializer
-/// attributes so the base runtime stays serializer-agnostic.
-/// </remarks>
+/// <remarks>Wire tokens are defined by <see cref="ChangePayloadWire"/> and written by the generated JSON bridge.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public enum ChangePayloadState
 {
@@ -139,21 +114,12 @@ public enum ChangePayloadState
     Value,
 
     /// <summary>The endpoint state is deliberately undisclosed.</summary>
-    /// <remarks>
-    /// Redacted marks an unavailable before-state (issue #119). It does not mean
-    /// <see cref="Missing"/> and does not delete anything: a redacted before-state
-    /// paired with a concrete after-state is an explicit write-only operation.
-    /// After-states must stay concrete; a redacted after-state is malformed.
-    /// </remarks>
+    /// <remarks>Redacted marks an unavailable before-state.</remarks>
     Redacted,
 }
 
 /// <summary>The operation represented by a keyed or dictionary payload item.</summary>
-/// <remarks>
-/// Wire tokens are defined by <see cref="ChangePayloadWire"/> and written by
-/// the generated JSON bridge; the enum itself carries no serializer
-/// attributes so the base runtime stays serializer-agnostic.
-/// </remarks>
+/// <remarks>Wire tokens are defined by <see cref="ChangePayloadWire"/> and written by the generated JSON bridge.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public enum ChangePayloadItemKind
 {

@@ -125,9 +125,7 @@ internal sealed class WriteNode<TDto, TEntity, TDtoValue> : MemberNode
     }
 }
 
-/// <summary>
-/// A nested DTO object mapped onto a reference navigation with a scoped child plan.
-/// </summary>
+/// <summary>A nested DTO object mapped onto a reference navigation with a scoped child plan.</summary>
 internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : MemberNode
     where TDtoChild : class
     where TEntityChild : class
@@ -286,8 +284,7 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
         }
 
         // Direct ChangeSet sourcing: nested edits recurse through the child
-        // ChangeSet. No desired DTO is consulted. Validation runs here without
-        // mutating the graph; creation/linking/tracking happen in execution.
+        // ChangeSet.
         var existing = _entityGetter((TEntity)state.Entity);
         if (existing is not null)
         {
@@ -475,8 +472,7 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
     public override void WriteAll(PlanWriteState state, List<Action> actions)
     {
         // Wholesale writes project the nested snapshot from the parent-level
-        // After snapshot through the DTO selector, never a reconstructed root
-        // DTO and never a blind cast: deeper levels carry their own DTO type.
+        // After snapshot through the DTO selector.
         if (state.AfterSnapshot is not TDto parent)
         {
             throw new SparseEntityMappingException(
@@ -513,7 +509,7 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
         }
 
         // Validate wholesale content preflight on a detached instance so a
-        // later failure leaves the graph untouched; create for real at execution.
+        // later failure leaves the graph untouched; create for real at
         ValidateWholesaleOnProspective(
             state.Context,
             state.DisplayPath(DtoName),
@@ -572,11 +568,8 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
         ISparseChangeSet? child
     )
     {
-        // Nested adds use the complete After snapshot carried by the
-        // whole-object record (the DTO itself or its Fragment converted
-        // through ToModel); no desired or reconstructed root DTO is consulted.
-        // The child ChangeSet of a null-to-object transition carries only the
-        // whole-root entry, so member recursion alone would write nothing.
+        // Nested adds use the complete after-snapshot; a null-to-object child
+        // ChangeSet has no member entries to apply recursively.
         if (TryResolveAfterSnapshot(whole, out var added) && added is not null)
         {
             ApplySnapshotToInstance(state, actions, added);

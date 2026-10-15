@@ -5,15 +5,7 @@ using System.Threading;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Per-model Builder/Paths implementation file shell.</summary>
-/// <remarks>
-/// Issue #194 relocated model-specific algorithms into an external per-model
-/// container. Issue #230 moves the state-bound Patch and ChangeSet bodies
-/// into the private nested <c>Patch.__Core</c> and <c>ChangeSet.__Core</c>,
-/// so this container hosts only public <c>FragmentBuilder</c> and paths.
-/// This emitter writes the implementation file envelope; placement and hint
-/// names resolve through <see cref="SparseGeneratedPlacement"/> with no
-/// product literals.
-/// </remarks>
+/// <remarks>Moves model operations into an external container.</remarks>
 internal static class SparseModelOperationFileEmitter
 {
     /// <summary>Opens the implementation file and the patch operation container.</summary>

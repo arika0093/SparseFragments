@@ -18,40 +18,22 @@ public interface IDescriptor
     string PathText { get; }
 
     /// <summary>Gets the property's CLR type.</summary>
-    /// <remarks>
-    /// Declared model type. The runtime value returned by <see cref="GetValue"/>
-    /// may be a generated observable/view proxy for nested generated models;
-    /// see <see cref="ViewType"/> for the runtime type.
-    /// </remarks>
+    /// <remarks>Declared model type.</remarks>
     Type Type { get; }
 
     /// <summary>Gets the runtime observable/view type returned by current reads.</summary>
-    /// <remarks>
-    /// Equals <see cref="Type"/> for scalars and unproxied shapes; for nested
-    /// generated-model references it names the generated observable proxy type,
-    /// and for proxied collections the element/value view type differs.
-    /// </remarks>
+    /// <remarks>Equals <see cref="Type"/> for scalars and unproxied shapes.</remarks>
     Type ViewType { get; }
 
     /// <summary>Gets whether the property accepts null.</summary>
     bool IsNullable { get; }
 
     /// <summary>Gets whether the property is nullable-oblivious.</summary>
-    /// <remarks>
-    /// True for reference types compiled without nullable annotations
-    /// (<c>#nullable disable</c> or legacy code): the runtime setter accepts
-    /// null even though <see cref="IsNullable"/> is false. Explicitly annotated
-    /// non-nullable and nullable members report false.
-    /// </remarks>
+    /// <remarks>True for reference types compiled without nullable annotations (<c>#nullable disable</c> or legacy code).</remarks>
     bool IsNullableOblivious { get; }
 
     /// <summary>Gets whether the property is a C# required member.</summary>
-    /// <remarks>
-    /// Independent of <see cref="IsNullable"/> (a required member may be
-    /// nullable) and of validation attributes such as <c>RequiredAttribute</c>
-    /// (see <see cref="Attributes"/>): it reports the <c>required</c> keyword
-    /// for creation forms. Editing existing instances is unaffected.
-    /// </remarks>
+    /// <remarks>Required status is independent of nullability.</remarks>
     bool IsRequired { get; }
 
     /// <summary>Gets whether the property itself can be replaced.</summary>
@@ -73,13 +55,7 @@ public interface IDescriptor
     bool TrySetValue(object? value);
 
     /// <summary>Gets descriptors for a nested generated model, when available.</summary>
-    /// <remarks>
-    /// Instance-bound: the set is captured against the current nested instance.
-    /// After the parent property is replaced or nulled, retained descriptors
-    /// keep their creation-time <see cref="Path"/> but writes fail safely
-    /// (false/null) instead of mutating the orphan. Re-resolve for the current
-    /// instance.
-    /// </remarks>
+    /// <remarks>Instance-bound: the set is captured against the current nested instance.</remarks>
     IDescriptorSet? Child { get; }
 
     /// <summary>Gets sequence operations for this property, when supported.</summary>
@@ -89,20 +65,11 @@ public interface IDescriptor
     IDictDescriptor? Dictionary { get; }
 
     /// <summary>Gets set operations for this property, when supported.</summary>
-    /// <remarks>
-    /// Set members expose membership over live model values; unlike sequences
-    /// there are no positional semantics and no per-item nested descriptors.
-    /// Edit an element's members by removing and re-adding the element.
-    /// </remarks>
+    /// <remarks>Set members expose membership over live model values.</remarks>
     ISetDescriptor? Set { get; }
 
     /// <summary>Gets static declared shape information for this property.</summary>
-    /// <remarks>
-    /// Unlike the live <see cref="Child"/>, <see cref="Array"/>,
-    /// <see cref="Dictionary"/> and <see cref="Set"/> accessors (which return
-    /// null when the current value is null), the shape is always available and
-    /// describes what <em>could</em> be constructed for a null member.
-    /// </remarks>
+    /// <remarks>Unlike the live <see cref="Child"/>.</remarks>
     SparseDescriptorShape Shape { get; }
 }
 
@@ -118,12 +85,7 @@ public interface IDescriptorSet
 
     /// <summary>Finds the descriptor at exactly the given path, or null when absent.</summary>
     /// <param name="path">The exact path to locate.</param>
-    /// <remarks>
-    /// Exact paths only; ancestors and descendants never match. Member segments
-    /// resolve through <see cref="TryGet"/>, key segments through dictionary
-    /// values (when convertible) or keyed-sequence keys, and index segments
-    /// through sequence positions.
-    /// </remarks>
+    /// <remarks>Exact paths only; ancestors and descendants never match.</remarks>
     IDescriptor? Find(SparsePath path);
 
     /// <summary>Resolves the underlying model value addressed by a path.</summary>
@@ -189,12 +151,7 @@ public interface IArrayDescriptor
     bool TryMove(int oldIndex, int newIndex);
 
     /// <summary>Gets whether the sequence carries stable keyed identity.</summary>
-    /// <remarks>
-    /// Sourced from the generator's key analysis; generic editors must not
-    /// reverse-engineer <c>SparseKey</c> conventions themselves. Positional APIs
-    /// stay positional: use <see cref="GetItemKey"/> and <see cref="IndexOfKey"/>
-    /// to track identity through reorder.
-    /// </remarks>
+    /// <remarks>Sourced from the generator's key analysis; generic editors must not reverse-engineer <c>SparseKey</c> conventions themselves.</remarks>
     bool IsKeyed { get; }
 
     /// <summary>Gets the key type, or null for unkeyed sequences.</summary>
@@ -209,11 +166,7 @@ public interface IArrayDescriptor
     object? GetItemKey(int index);
 
     /// <summary>Finds the first index with an equal assigned key.</summary>
-    /// <remarks>
-    /// Pure key equality: unassigned sentinels match like any other value, so
-    /// callers exempting them must check <see cref="IsUnassignedKey"/> first.
-    /// Returns -1 when unkeyed, unconvertible, or absent.
-    /// </remarks>
+    /// <remarks>Unassigned sentinels match like any other value, so callers exempting them must check <see cref="IsUnassignedKey"/> first.</remarks>
     int IndexOfKey(object? key);
 
     /// <summary>Finds the first index with the given temporary identity.</summary>
@@ -263,13 +216,7 @@ public interface IDictDescriptor
     object? GetValueModel(object? key);
 
     /// <summary>Gets nested descriptors for a value that is a generated model.</summary>
-    /// <remarks>
-    /// The nested set's <see cref="IDescriptor.Path"/> uses the canonical
-    /// bracket-key form: the InvariantCulture key text, double-quoted with
-    /// backslash and quote escaping (for example <c>Scores["a]b"].Value</c>).
-    /// All key types render quoted without a type prefix, matching change-set
-    /// paths and Blazor field paths.
-    /// </remarks>
+    /// <remarks>The InvariantCulture key text, double-quoted with backslash and quote escaping (for example <c>Scores["a]b"].Value</c>).</remarks>
     IDescriptorSet? GetValueDescriptors(object? key);
 
     /// <summary>Attempts to add an entry through the generated observable view.</summary>
@@ -283,11 +230,7 @@ public interface IDictDescriptor
 }
 
 /// <summary>Describes and edits a set through its live model values.</summary>
-/// <remarks>
-/// Membership uses the backing set's comparer. Mutation is supported only where
-/// the backing set is mutable; each effective add or remove raises the parent
-/// property notification. No-op adds/removes report false and raise nothing.
-/// </remarks>
+/// <remarks>Membership uses the backing set's comparer.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public interface ISetDescriptor
 {
@@ -320,12 +263,7 @@ public interface ISetDescriptor
 }
 
 /// <summary>Static declared shape information for one model property.</summary>
-/// <remarks>
-/// Shape answers "is this shape supported" without a live instance; the
-/// <c>Child</c>/<c>Array</c>/<c>Dictionary</c>/<c>Set</c> accessors answer
-/// "is there a live instance right now". A nullable member with no value has
-/// shape but no live accessors until it is assigned.
-/// </remarks>
+/// <remarks>Shape answers "is this shape supported" without a live instance.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed class SparseDescriptorShape
 {

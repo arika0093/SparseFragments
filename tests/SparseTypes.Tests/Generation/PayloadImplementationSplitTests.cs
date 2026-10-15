@@ -4,13 +4,7 @@ using SparseTypes.Generator;
 
 namespace SparseTypes.Tests.Generation;
 
-/// <summary>
-/// Source-placement regression tests for the payload/converter relocation
-/// (issue #192, stage 3). The typed payload DTO hierarchy and the
-/// <c>FragmentJsonConverter</c> bodies must live in the per-model
-/// implementation source; the annotated model keeps the public
-/// <c>ChangePayload</c> facade plus a thin converter shell.
-/// </summary>
+/// <summary>Source-placement regression tests for the payload/converter relocation (, stage 3).</summary>
 public sealed class PayloadImplementationSplitTests
 {
     private static Dictionary<string, string> Files() =>

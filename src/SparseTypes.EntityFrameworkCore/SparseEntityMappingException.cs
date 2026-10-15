@@ -17,10 +17,10 @@ public enum SparseEntityMappingFailure
     /// <summary>Two DTO paths target the same entity member.</summary>
     Ambiguous = 3,
 
-    /// <summary>A changed DTO path targets an identity, generated, concurrency-token, or shadow member without explicit allowance.</summary>
+    /// <summary>A changed DTO path targets an identity, generated, token or shadow member without explicit allowance.</summary>
     Protected = 4,
 
-    /// <summary>A changed DTO path addresses a collection member with no keyed synchronization support (declared-only marker, unkeyed sequence, or skip navigation).</summary>
+    /// <summary>A changed DTO path addresses a collection member with no keyed synchronization support (declared-only marker.</summary>
     CollectionNotSupported = 5,
 
     /// <summary>A changed-to-missing after-state has no handling policy.</summary>
@@ -119,11 +119,7 @@ public sealed record SparseEntityMappingError
 /// <summary>
 /// Reports an explicit entity-mapping plan or apply failure.
 /// </summary>
-/// <remarks>
-/// Unsupported changed paths never disappear silently: unmapped, ambiguous,
-/// protected, and collection paths all surface through this exception with the
-/// offending DTO path attached.
-/// </remarks>
+/// <remarks>Unmapped, ambiguous, protected, and collection paths all surface through this exception with the offending DTO path attached.</remarks>
 public sealed class SparseEntityMappingException : InvalidOperationException
 {
     private readonly IReadOnlyList<SparseEntityMappingError> _errors;

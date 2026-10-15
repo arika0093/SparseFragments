@@ -18,7 +18,7 @@ public partial class ReloadCtorDocument
     public string Title { get; set; } = string.Empty;
 }
 
-/// <summary>Reload must not silently drop server init/getter-only changes (#128).</summary>
+/// <summary>Reload must not silently drop server init/getter-only changes.</summary>
 public sealed class ReloadImmutableTests
 {
     // Raw live-model access now hides behind ISparseEditSession<TModel>.
@@ -65,7 +65,8 @@ public sealed class ReloadImmutableTests
         pending.Title.After.Value.ShouldBe("local");
         session.HasChanges.ShouldBeTrue();
 
-        // A server state that only touches writable members still reloads afterwards.
+        // A server state that only touches writable members still reloads
+        // afterwards.
         var retry = session.Reload(new ReloadImmutableDocument { Version = 1, Title = "base" });
         retry.HasConflicts.ShouldBeFalse();
         Raw(session).Version.ShouldBe(1);

@@ -203,8 +203,7 @@ internal static class SparseTemporaryKeyOrderEmitter
         }
         code.AppendLineAt(indent + 1, "var __qk = " + loopVar + "." + keyProp + ";");
         // Mapped temp persisted rows join by their assigned key when the
-        // submitted temp survives; assigned rows join by key; the rest are
-        // server-added and always join.
+        // submitted temp survives.
         code.AppendLineAt(indent + 1, "var __qt = " + loopVar + "." + tempProp + ";");
         code.AppendLineAt(
             indent + 1,
@@ -271,8 +270,7 @@ internal static class SparseTemporaryKeyOrderEmitter
     )
     {
         _ = elementType;
-        // Post-submit additions keep their live relative positions: each
-        // addition slots after its nearest surviving predecessor in live
+        // Each addition slots after its nearest surviving predecessor in live
         // order, or at the head when it leads the collection.
         var loopVar = "__n";
         code.AppendLineAt(indent, "foreach (var " + loopVar + "Raw in " + liveList + ")");

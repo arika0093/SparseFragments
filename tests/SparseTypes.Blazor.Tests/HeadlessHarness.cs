@@ -12,13 +12,11 @@ using Microsoft.Extensions.Logging;
 
 namespace SparseTypes.Blazor.Tests;
 
-// Shared renderer harness for the headless component tests (issue #271): a
-// dependency-free renderer driving hand-built trees through the real diff
-// engine, plus generic fragment builders whose TModel/TValue/TPaths infer from
-// the session and path exactly like the Razor call sites they mirror.
+// Shared renderer harness for the headless component tests.
 internal static class Headless
 {
-    // Third-party-style input: value/callback/expression triple with no vendor package.
+    // Third-party-style input: value/callback/expression triple with no vendor
+    // package.
     internal sealed class VendorField<TValue> : ComponentBase
     {
         [Parameter]
@@ -117,9 +115,8 @@ internal static class Headless
             builder.CloseComponent();
         };
 
-    // Compact copy of the renderer harness in BlazorToolkitNeutralTests: runs
-    // the real component diff on the default dispatcher and surfaces render
-    // failures without throwing them off-thread.
+    // Runs the real component diff on the default dispatcher and surfaces
+    // render failures without throwing them off-thread.
     internal sealed class HeadlessRenderer : Renderer
     {
         private readonly Dispatcher _dispatcher = Dispatcher.CreateDefault();

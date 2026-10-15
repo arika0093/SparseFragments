@@ -3,19 +3,8 @@ using static SparseTypes.Generator.Shared.SparseChangeSetBasicsEmitter;
 
 namespace SparseTypes.Generator.Shared;
 
-/// <summary>Fragment applier for path-based conflict resolution (issue #203).</summary>
-/// <remarks>
-/// Emits <c>__SparseTryApplyResolution</c>, which writes one resolved
-/// presence-aware value into a fragment subtree addressed by a canonical
-/// <c>SparsePath</c>. Everything funnels through <c>FragmentBuilder</c> copies and cloned
-/// collection containers, so shared rebase inputs are never mutated. Scalar and
-/// nested slots use the known fragment value types with checked conversions (no
-/// unchecked casts); keyed and dictionary entries are located by typed key
-/// comparison (never display text), and nested or element leaves recurse through
-/// the owning change set's own applier, so no emitter needs another model's
-/// member list. Product specifics stay on the existing patch dialect (runtime
-/// namespace for segments, path type for signatures).
-/// </remarks>
+/// <summary>Fragment applier for path-based conflict resolution.</summary>
+/// <remarks>Emits <c>__SparseTryApplyResolution</c>.</remarks>
 internal static class SparseResolutionApplyEmitter
 {
     internal static void AppendForwarderShell(

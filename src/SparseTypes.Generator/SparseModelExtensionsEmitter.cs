@@ -161,10 +161,7 @@ internal static class SparseModelExtensionsEmitter
             && config.EffectiveEmissionFeatures.EmitObservable
         )
         {
-            // Session-rooted collection editing facade (issue #251): the
-            // overloads below only forward the live descriptor set and the
-            // batch runner to the runtime editors, so all semantics stay in
-            // the reusable runtime while call sites read session-first.
+            // Session-rooted collection editing facade.
             var sessionType =
                 modelType
                 + "."

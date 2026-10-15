@@ -3,7 +3,7 @@ using System.ComponentModel;
 namespace SparseTypes.CompilerServices;
 
 /// <summary>Minimal generated-code runtime facade.</summary>
-/// <remarks>Generated-code plumbing: referenced by emitted code, not hand-written callers. Method-level layer ownership is recorded in docs/architecture/runtime-ownership-audit.md.</remarks>
+/// <remarks>Generated code uses this facade; it is not intended for hand-written callers.</remarks>
 [EditorBrowsable(EditorBrowsableState.Never)]
 public static class SparseFragmentRuntime
 {
@@ -26,19 +26,12 @@ public static class SparseFragmentRuntime
     ) => SparseValueComparer.AreSequenceEqual(left, right, itemComparer);
 
     /// <summary>Compares arrays in order without runtime shape probing.</summary>
-    /// <remarks>
-    /// Static specialization for declared <c>T[]</c> members (issue #187): binds at compile
-    /// time and skips shape classification plus comparer/count reflection. Falls back to the
-    /// <c>IEnumerable{T}</c> overload for interface-declared or unknown shapes.
-    /// </remarks>
+    /// <remarks>Binds at compile time and skips shape classification plus comparer/count reflection.</remarks>
     public static bool AreSequenceEqual<T>(T[]? left, T[]? right) =>
         SparseConcreteComparisons.AreSequenceEqual(left, right);
 
     /// <summary>Compares lists in order without runtime shape probing.</summary>
-    /// <remarks>
-    /// Derived lists keep their non-generic <c>IList</c> comparison view via the object
-    /// fallback; exact <c>List{T}</c> instances compare by indexer.
-    /// </remarks>
+    /// <remarks>Derived lists keep their non-generic <c>IList</c> comparison view via the object fallback.</remarks>
     public static bool AreSequenceEqual<T>(List<T>? left, List<T>? right) =>
         SparseConcreteComparisons.AreSequenceEqual(left, right);
 
@@ -58,18 +51,12 @@ public static class SparseFragmentRuntime
         SparseValueComparer.AreSetEqual(left, right);
 
     /// <summary>Compares hash sets without depending on enumeration order.</summary>
-    /// <remarks>
-    /// The set comparer is read statically; differing comparers veto equality in both
-    /// directions. Interface-declared or custom sets keep the <c>IEnumerable{T}</c> fallback.
-    /// </remarks>
+    /// <remarks>The set comparer is read statically; differing comparers veto equality in both directions.</remarks>
     public static bool AreSetEqual<T>(HashSet<T>? left, HashSet<T>? right) =>
         SparseConcreteComparisons.AreSetEqual(left, right);
 
     /// <summary>Compares sorted sets without depending on enumeration order.</summary>
-    /// <remarks>
-    /// The set comparer is read statically; differing comparers veto equality in both
-    /// directions. Interface-declared or custom sets keep the <c>IEnumerable{T}</c> fallback.
-    /// </remarks>
+    /// <remarks>The set comparer is read statically; differing comparers veto equality in both directions.</remarks>
     public static bool AreSetEqual<T>(SortedSet<T>? left, SortedSet<T>? right) =>
         SparseConcreteComparisons.AreSetEqual(left, right);
 
@@ -87,11 +74,7 @@ public static class SparseFragmentRuntime
     ) => SparseValueComparer.AreDictionaryEqual(left, right, valueComparer);
 
     /// <summary>Compares dictionaries by key/value semantics with static comparer access.</summary>
-    /// <remarks>
-    /// The key comparer is read statically; differing comparers veto equality in both
-    /// directions. Interface-declared or custom dictionaries keep the
-    /// <c>IEnumerable{KeyValuePair{TKey,TValue}}</c> fallback.
-    /// </remarks>
+    /// <remarks>The key comparer is read statically; differing comparers veto equality in both directions.</remarks>
     public static bool AreDictionaryEqual<TKey, TValue>(
         Dictionary<TKey, TValue>? left,
         Dictionary<TKey, TValue>? right
@@ -148,10 +131,12 @@ public static class SparseFragmentRuntime
 
     /// <summary>Tracks per-element origins for an append merge of two attributed contributions.</summary>
     /// <param name="lower">The lower-priority elements.</param>
-    /// <param name="lowerOrigins">Per-element origins aligned with <paramref name="lower"/>, or null.</param>
+    /// <param name="lowerOrigins">Per-element origins aligned with
+    /// <paramref name="lower"/>, or null.</param>
     /// <param name="lowerFallback">The lower member attribution used when an element has none.</param>
     /// <param name="higher">The higher-priority elements.</param>
-    /// <param name="higherOrigins">Per-element origins aligned with <paramref name="higher"/>, or null.</param>
+    /// <param name="higherOrigins">Per-element origins aligned with
+    /// <paramref name="higher"/>, or null.</param>
     /// <param name="higherFallback">The higher member attribution used when an element has none.</param>
     /// <returns>One origin per concatenated effective element; null means Unknown.</returns>
     public static string?[] MergeAppendOrigins<T>(
@@ -173,10 +158,12 @@ public static class SparseFragmentRuntime
 
     /// <summary>Tracks first-accepted per-element origins for a sequence set-union merge.</summary>
     /// <param name="lower">The lower-priority elements.</param>
-    /// <param name="lowerOrigins">Per-element origins aligned with <paramref name="lower"/>, or null.</param>
+    /// <param name="lowerOrigins">Per-element origins aligned with
+    /// <paramref name="lower"/>, or null.</param>
     /// <param name="lowerFallback">The lower member attribution used when an element has none.</param>
     /// <param name="higher">The higher-priority elements.</param>
-    /// <param name="higherOrigins">Per-element origins aligned with <paramref name="higher"/>, or null.</param>
+    /// <param name="higherOrigins">Per-element origins aligned with
+    /// <paramref name="higher"/>, or null.</param>
     /// <param name="higherFallback">The higher member attribution used when an element has none.</param>
     /// <param name="comparer">Element equality, or null for the default comparer.</param>
     /// <returns>One origin per effective element in union order; null means Unknown.</returns>
@@ -201,10 +188,12 @@ public static class SparseFragmentRuntime
 
     /// <summary>Tracks first-accepted per-element origins for a set-union merge in effective order.</summary>
     /// <param name="lower">The lower-priority elements.</param>
-    /// <param name="lowerOrigins">Per-element origins aligned with <paramref name="lower"/>, or null.</param>
+    /// <param name="lowerOrigins">Per-element origins aligned with
+    /// <paramref name="lower"/>, or null.</param>
     /// <param name="lowerFallback">The lower member attribution used when an element has none.</param>
     /// <param name="higher">The higher-priority elements.</param>
-    /// <param name="higherOrigins">Per-element origins aligned with <paramref name="higher"/>, or null.</param>
+    /// <param name="higherOrigins">Per-element origins aligned with
+    /// <paramref name="higher"/>, or null.</param>
     /// <param name="higherFallback">The higher member attribution used when an element has none.</param>
     /// <param name="effective">The merged effective elements whose order the result follows.</param>
     /// <returns>One origin per effective element in enumeration order; null means Unknown.</returns>
@@ -386,9 +375,7 @@ public static class SparseFragmentRuntime
         IEqualityComparer<TKey>? comparer = null
     ) => SparseKeyedCollection.OrderEquals(left, right, comparer);
 
-    /// <summary>
-    /// Explains which low-to-high contribution supplied each effective sequence element for a built-in merge mode.
-    /// </summary>
+    /// <summary>Explains which low-to-high contribution supplied each effective sequence element for a built-in merge mode.</summary>
     public static bool TryExplainCollectionProvenance<T>(
         MergeMode mode,
         IReadOnlyList<Optional<IReadOnlyList<T>?>> contributions,

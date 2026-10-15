@@ -4,15 +4,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace SparseTypes.Generator;
 
-// Supported declarative Configure subset for SPF033 suppression: direct
-// typed Map calls whose DTO selector is a single member access, with
-// Object/Collection/Element lambdas tracked for scope. The receiver is the
-// generated Map property (Map. or this.Map.); nested scope parameters (lines,
-// child) behave as before. Anything else (helpers, control flow, dynamic
-// calls) makes the whole Configure unanalyzable, in which case nothing is
-// provable and diagnostics stay silent with runtime plan validation as the
-// backstop. A mapper without a supported Configure is defaults-only and
-// provably covers nothing, so an empty set is returned (SPF033 stays active).
+// SPF033 recognizes direct typed Map registrations with member selectors and
+// scoped lambdas.
 internal static class SparseEntityMapperConfigureAnalysis
 {
     internal static bool TryFindParameterlessConfigure(
@@ -137,7 +130,7 @@ internal static class SparseEntityMapperConfigureAnalysis
         {
             case "Member":
                 // Only a converter-bearing Member resolves a member: a
-                // two-argument or policy-only Member cannot supply a conversion.
+                // two-argument or policy-only Member cannot supply a
                 if (
                     arguments.Count > 0
                     && HasConverterArgument(arguments)

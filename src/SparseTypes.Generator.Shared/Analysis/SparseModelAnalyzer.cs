@@ -8,11 +8,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Orchestrates model analysis: shape validation, member discovery and diagnostics.</summary>
-/// <remarks>
-/// Each analysis phase is owned by a focused component: <see cref="SparseModelDiscovery"/>
-/// for member/model construction, <see cref="SparseCloneAnalysis"/> for cloneability and
-/// cycles, and <see cref="SparseModelDiagnostics"/> for validation diagnostics.
-/// </remarks>
+/// <remarks>Each analysis phase is owned by a focused component.</remarks>
 internal static class SparseModelAnalyzer
 {
     public static SparseGenerationAnalysis Analyze(
@@ -70,9 +66,8 @@ internal static class SparseModelAnalyzer
             model
         );
 
-        // Member-level rebase policies validate against the generated member
-        // shape: whole-member reconciliation cannot target nested, keyed,
-        // dictionary, or merge-collection members.
+        // Whole-member reconciliation cannot target nested, keyed, dictionary,
+        // or merge-collection members.
         for (var index = 0; index < members.Length && index < memberModels.Length; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -96,9 +91,7 @@ internal static class SparseModelAnalyzer
             }
         }
 
-        // Formerly a late render-time check: reserved generated-name collisions
-        // now fail during analysis on the shared collision primitive, keeping
-        // the historical single generated-name diagnostic with no source location.
+        // Formerly a late render-time check.
         var reservedNames = config.EffectiveReservedGeneratedNames;
         if (config.EffectiveEmissionFeatures.EmitChangePayload && config.PatchDialect.HasValue)
         {
@@ -153,9 +146,8 @@ internal static class SparseModelAnalyzer
             );
         }
 
-        // Downstream emission plan: feature dependencies, product policy
-        // names and generated-name collisions covering emitted families and
-        // declared product names. Standalone defaults pass unconfigured.
+        // Feature dependencies, product policy names and generated-name
+        // collisions covering emitted families and declared product names.
         SparseDownstreamPolicy.ValidateEmissionPlan(
             memberModels,
             config,

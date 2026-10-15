@@ -1,12 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Temporary-identity reconcile helpers for fragment models.</summary>
-/// <remarks>
-/// Builds the temporary-to-permanent correlation between a submitted model
-/// and its authoritative persisted counterpart, then assigns mapped keys into
-/// the live model. Values are never guessed: reconstruction replays recorded
-/// post-submit edits onto persisted elements, and mismatches fail explicitly.
-/// </remarks>
+/// <remarks>Builds the temporary-to-permanent correlation between a submitted model and its authoritative persisted counterpart.</remarks>
 internal static class SparseTemporaryKeyReconcileEmitter
 {
     internal static void AppendReconcileHelpers(
@@ -63,9 +58,8 @@ internal static class SparseTemporaryKeyReconcileEmitter
             2,
             "if (__scope is null) throw new global::System.ArgumentNullException(nameof(__scope));"
         );
-        // Models without keyed fragment members or fragment children emit
-        // no failing paths, so the helper stays omitted to avoid an
-        // unused local function in the generated model.
+        // Models without keyed fragment members or fragment children emit no
+        // failing paths.
         var needsFailHelper = false;
         foreach (var member in members)
         {
@@ -93,8 +87,7 @@ internal static class SparseTemporaryKeyReconcileEmitter
         {
             AppendRetargetBackups(code, members);
             // Fail helper restores earlier commits so a late failure never
-            // leaves a sibling collection changed. Per-member staging never
-            // aliases the live list; this covers cross-member partials.
+            // leaves a sibling collection changed.
             code.AppendLineAt(2, "string? __Fail(string __err)");
             code.AppendLineAt(2, "{");
             AppendRetargetRestoreStatements(code, members);
@@ -129,9 +122,6 @@ internal static class SparseTemporaryKeyReconcileEmitter
     )
     {
         // Shallow backups preserve original row references for rollback.
-        // Deep clones would lose reference identity, so each keyed list
-        // keeps its original contents and each settable child keeps its
-        // original reference.
         foreach (var member in members)
         {
             var prop = SparseNaming.EscapeIdentifier(member.Property.Name);
@@ -173,9 +163,7 @@ internal static class SparseTemporaryKeyReconcileEmitter
         System.Collections.Immutable.ImmutableArray<SparseMemberModel> members
     )
     {
-        // Inline in __Fail so original references stay captured. Lists
-        // restore original contents; replaced settable shapes re-attach
-        // the original reference.
+        // Inline in __Fail so original references stay captured.
         foreach (var member in members)
         {
             var prop = SparseNaming.EscapeIdentifier(member.Property.Name);
@@ -256,9 +244,8 @@ internal static class SparseTemporaryKeyReconcileEmitter
         var prop = SparseNaming.EscapeIdentifier(member.Property.Name);
         var unassigned = member.Collection.UnassignedKeyExpression;
         var optionalFragment = runtimeNamespace + "Optional<" + elementType + ".Fragment?>";
-        // Nullable element annotations ride the working list so indexable
-        // casts never fail on variance; element operations use the
-        // non-nullable name with promotion guards.
+        // Nullable element annotations ride the working list so indexable casts
+        // never fail on variance.
         var elementName = member.Collection.ElementType.Name;
         var elementRef2 = member.Collection.ElementType.IsReferenceType;
         var elementNullableStruct2 =
@@ -344,8 +331,7 @@ internal static class SparseTemporaryKeyReconcileEmitter
                         "var __edit = __transition?.GetTemporaryChange(__t.Value)?.Edit;"
                     );
                     code.AppendLineAt(5, elementType + " __merged;");
-                    // Rows without their own edits adopt the persisted element:
-                    // the live row carries no divergent local state, so the
+                    // The live row carries no divergent local state, so the
                     // server state (identity plus values it computed) decides.
                     code.AppendLineAt(
                         5,
@@ -357,10 +343,8 @@ internal static class SparseTemporaryKeyReconcileEmitter
                     );
                     code.AppendLineAt(5, "else");
                     code.AppendLineAt(5, "{");
-                    // The edit sits on the submitted temporary state, so applying
-                    // it to the assigned persisted state goes stale. Patches are
-                    // baseline-free and temp-correlated: local field values win
-                    // while the persisted element contributes its identity.
+                    // The edit sits on the submitted temporary state, so
+                    // applying it to the assigned persisted state goes stale.
                     code.AppendLineAt(
                         6,
                         "var __persistedElement = (" + elementType + ")__persisted!;"
@@ -422,7 +406,8 @@ internal static class SparseTemporaryKeyReconcileEmitter
         }
         else
         {
-            // Keyless keyed members cannot correlate; nested recursion still applies.
+            // Keyless keyed members cannot correlate; nested recursion still
+            // applies.
             code.AppendLineAt(
                 4,
                 "var __elemScope = __collectionScope + \"[\" + __i.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + \"]\";"
@@ -473,10 +458,8 @@ internal static class SparseTemporaryKeyReconcileEmitter
                     System.StringComparison.Ordinal
                 )
             );
-        // Atomic commit: preflight every shape constraint before touching
-        // the live list, then publish the detached staging in one step.
-        // Init-only and getter-only shapes stay rejected when dirty, but
-        // the rejection now precedes any mutation.
+        // Atomic commit: preflight every shape constraint before touching the
+        // live list, then publish the detached staging in one step.
         var elementName = member.Collection.ElementType.Name;
         var conversion = member.Property.Type.Name.TrimEnd().EndsWith("[]")
             ? "new global::System.Collections.Generic.List<"
@@ -504,9 +487,7 @@ internal static class SparseTemporaryKeyReconcileEmitter
             code.AppendLineAt(5, "__backing.Clear();");
             code.AppendLineAt(5, "foreach (var __commit in __working) __backing.Add(__commit);");
             code.AppendLineAt(4, "}");
-            // Arrays never reach the backing branch as writable lists;
-            // BCL read interfaces and List shapes accept the staged list,
-            // while array-typed properties convert back explicitly.
+            // Arrays never reach the backing branch as writable lists.
             code.AppendLineAt(4, "else live." + prop + " = " + conversion + ";");
         }
         code.AppendLineAt(3, "}");
@@ -527,9 +508,7 @@ internal static class SparseTemporaryKeyReconcileEmitter
         var childNullableValue = !childRef && member.ChildModel.Value.Name.TrimEnd().EndsWith("?");
         var settable = !member.Property.IsReadOnly && !member.Property.IsInitOnly;
         var defaultExpr = (childRef || childNullableValue) ? "default!" : "default";
-        // The ?. accessors above always yield nullable locals. Bang
-        // unwraps reference types, but Nullable<T> structs still need
-        // .Value because neither ! nor is-null narrows them.
+        // The ?. accessors above always yield nullable locals.
         var perAccess = childRef ? "__childPer!" : "__childPer.Value";
         // Child live value with nullability normalized; server-side drops with
         // local edits fail deterministically instead of losing edits silently.
@@ -614,9 +593,8 @@ internal static class SparseTemporaryKeyReconcileEmitter
                 3,
                 "var __mergedChildBase = " + childFrag + ".From(" + perAccess + ");"
             );
-            // Pending edits sit on the submitted state while the base moved
-            // to the persisted state; the baseline-free patch carries local
-            // field values onto the persisted child instead.
+            // Pending edits sit on the submitted state while the base moved to
+            // the persisted state.
             code.AppendLineAt(
                 3,
                 "var __mergedChildAdvanced = " + childOptionalFrag + ".Present(__mergedChildBase);"

@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
-# Verifies the .NET Framework 4.8 packed-package consumer (#49).
-#
-# The fixture installs the release-candidate SparseTypes package from a
-# local feed (no ProjectReference fallback), builds for net48, executes the
-# resulting .exe under .NET Framework, and must reach its success marker.
-# This job is Windows-only; Blazor stays excluded from net48.
+# Verifies the.NET Framework 4.8 packed-package consumer.
 set -euo pipefail
 
 package_directory="${1:-}"
@@ -32,12 +27,8 @@ if [[ -z "${version}" ]]; then
 fi
 feed="$(realpath "${package_directory}")"
 
-# Isolated restore (#79, adopted per #81): restore into a fresh global-packages
-# directory so a stale same-version entry in the shared cache cannot satisfy
-# restore without proving the fresh nupkg is consumable. External feeds stay
-# available; the local feed is appended via RestoreAdditionalProjectSources.
-# cygpath keeps this working under Git Bash on Windows (native dotnet.exe
-# needs a Windows path); on Linux the POSIX path is used directly.
+# Restore from the local feed into a fresh package cache to avoid stale entries.
+# Convert the feed path for native dotnet.exe under Git Bash on Windows.
 isolated_packages="$(mktemp -d)"
 trap 'rm -rf "${isolated_packages}"' EXIT
 if command -v cygpath >/dev/null 2>&1; then
@@ -52,9 +43,7 @@ dotnet build "${fixture_csproj}" \
     -p:SparseTypesPackageVersion="${version}" \
     -p:RestoreAdditionalProjectSources="${feed}"
 
-# Post-restore assertion: the candidate must have resolved at this version and
-# been extracted into the isolated global-packages dir (proves the fresh nupkg
-# was consumed, not a stale cache entry).
+# Verify the version and extraction in the isolated cache.
 assets_file="${fixture_dir}/obj/project.assets.json"
 if [[ ! -f "${assets_file}" ]]; then
     echo "Restore did not produce '${assets_file}'." >&2

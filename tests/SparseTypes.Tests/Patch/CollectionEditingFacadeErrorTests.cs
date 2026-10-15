@@ -2,7 +2,7 @@ using SparseTypes.Generated;
 
 namespace SparseTypes.Tests;
 
-/// <summary>Failure matrix for the collection editing facade (issue #251).</summary>
+/// <summary>Failure matrix for the collection editing facade.</summary>
 public sealed class CollectionEditingFacadeErrorTests
 {
     [Test]

@@ -6,7 +6,8 @@ namespace SparseTypes.Generator.Shared;
 
 internal sealed class SparseRewriteBuffer : IDisposable
 {
-    // IndexOf uses -1 for exhaustion; -2 keeps disposal distinct without another field.
+    // IndexOf uses -1 for exhaustion; -2 keeps disposal distinct without
+    // another field.
     private const int Disposed = -2;
     private readonly string _source;
     private readonly string _oldValue;

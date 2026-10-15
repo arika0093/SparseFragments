@@ -16,7 +16,7 @@ public partial class CollectionNotifyModel
     public ObservableCollection<string> Live { get; set; } = [];
 }
 
-/// <summary>Held collection views stay notified across in-place writes (#168).</summary>
+/// <summary>Held collection views stay notified across in-place writes.</summary>
 public sealed class CollectionNotificationTests
 {
     [Test]
@@ -43,8 +43,7 @@ public sealed class CollectionNotificationTests
         {
             Tags = ["b", "c"],
             Map = new() { ["key"] = "updated" },
-            // Untouched reference-safe members must share the instance; distinct but
-            // equal instances compare by reference and would stay pending forever.
+            // Untouched reference-safe members must share the instance.
             Live = model.Live,
         };
         session.ApplyInPlace(model.CreateChangeSet(edited));
@@ -58,7 +57,8 @@ public sealed class CollectionNotificationTests
         model.Tags.ShouldBe(["b", "c"]);
         model.Map.ShouldBe(new Dictionary<string, string> { ["key"] = "updated" });
 
-        // Applying does not advance the baseline: the applied edit stays pending.
+        // Applying does not advance the baseline: the applied edit stays
+        // pending.
         var pending = session.CreateChangeSet();
         pending.Tags.After.Value.ShouldBe(["b", "c"]);
         pending.Map.Edited["key"].ShouldBe("updated");
@@ -127,8 +127,8 @@ public sealed class CollectionNotificationTests
 
         session.Reload(new CollectionNotifyModel { Live = ["b"] }).HasConflicts.ShouldBeFalse();
 
-        // The backing instance was replaced rather than bulk-mutated: bindings are
-        // notified through the property, and the retired view reports no Reset.
+        // Bindings are notified through the property, and the retired view
+        // reports no Reset.
         liveActions.ShouldBeEmpty();
         topProperties.ShouldContain(nameof(CollectionNotifyModel.Live));
         liveView.IsDisposed.ShouldBeTrue();

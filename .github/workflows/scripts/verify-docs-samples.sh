@@ -1,31 +1,5 @@
 #!/usr/bin/env bash
-# Verifies docs/*.md samples (#45, #68, #201, #213).
-#
-# The canonical compile-checked sources are
-# tests/fixtures/consumers/package-sparse-docs/*.cs (one topic file per guide
-# page) and tests/fixtures/consumers/package-sparse-blazor/Program.cs (Blazor
-# edit sessions). This script guards against drift between each guide and its
-# canonical fixture source, then builds and runs both fixtures against the
-# packed release-candidate packages so CI fails when the public generated API
-# breaks a documented sample.
-#
-# Adding a verified sample: wrap the fenced block in `<!-- sample: <id> -->`
-# ... `<!-- /sample -->`, add the matching `// sample: <id>` ...
-# `// /sample` region to the canonical fixture (and execute it from Run() so
-# the documented result is verified, not just compiled), then add one row to
-# docs-samples-registry.tsv (`<markdown> TAB <id> TAB <fixture>`). No shell
-# edit is needed: the registry check discovers README.md and every
-# docs/**/*.md from the filesystem, so an unregistered marker fails the
-# build. Snippets that must not compile (error illustrations, ellipsized
-# shapes, excerpts using names defined elsewhere) carry
-# `<!-- illustrative: reason -->` instead of a sample marker and stay outside
-# exact verification; every runnable fence needs one of the two guards.
-#
-# Tests consume the packed release-candidate packages via a local feed (no
-# ProjectReference fallback, no second pack). The Blazor fixture resolves both
-# shipped packages at one shared version (#46).
-#
-# Usage: verify-docs-samples.sh <package-directory>
+# Verifies docs/*.md samples.
 set -euo pipefail
 
 package_directory="${1:-}"
@@ -51,9 +25,8 @@ if [[ ! -f "${blazor_fixture_csproj}" ]]; then
     exit 1
 fi
 
-# 1. Representative API tokens must appear in both the guide and its canonical
-# fixture source so the fixture cannot silently drift from the docs. Failures
-# name the affected topic/sample explicitly.
+# Representative API tokens must appear in both the guide and its canonical
+# fixture source so the fixture cannot silently drift from the docs.
 check_sample() {
     local topic="$1"
     local guide="$2"
@@ -128,13 +101,8 @@ check_sample "ui-frameworks" "docs/explanation/ui-frameworks.md" "${docs_fixture
     'PropertyChanged' \
     'CreateChangeSet'
 
-# 1b. Registry-driven verification (#213). The central registry maps every
-# Markdown file plus sample id to its canonical fixture; discovery covers
-# README.md and all docs/**/*.md, so a new guide with an unregistered marker
-# fails here without a shell edit. The check additionally enforces the
-# fenced-snippet rule (every runnable fence is sampled or illustrative),
-# requires assertion bodies in fixture regions, and validates JSON specimens
-# through the same discovery once #212 registers them.
+# Registry verification covers README and docs, including fence guards,
+# fixture assertions, and JSON specimens.
 if ! python3 "$(dirname "$0")/check-docs-samples.py" --registry "$(dirname "$0")/docs-samples-registry.tsv"; then
     echo "Docs sample drift: see mismatches above." >&2
     exit 1
@@ -151,7 +119,7 @@ check_sample "blazor" "docs/explanation/ui-frameworks.md" "${blazor_fixture_dir}
     'session.Field(' \
     'AddValidationError'
 
-# 1c. Internal link and anchor validation (#68, #201). Files are discovered
+# Internal link and anchor validation. Files are discovered
 # rather than enumerated, so new guides (including Descriptor, architecture,
 # and benchmark pages) are covered automatically.
 mapfile -t docs_files < <(find docs -name '*.md' | sort)
@@ -161,9 +129,7 @@ if ! python3 "$(dirname "$0")/check-docs-links.py" "$(dirname "$0")/../../../" \
     exit 1
 fi
 
-# 2. Compile and run the canonical fixtures against the packed packages.
-# The core glob pins the version digit so the Blazor package
-# (SparseTypes.Blazor.*.nupkg, #46) never resolves here.
+# Compile and run the canonical fixtures against the packed packages.
 package="$(ls "${package_directory}"/SparseTypes.[0-9]*.nupkg 2>/dev/null | head -n 1 || true)"
 if [[ -z "${package}" ]]; then
     echo "No SparseTypes package found in '${package_directory}'." >&2
@@ -181,10 +147,7 @@ if [[ -z "${blazor_package}" ]]; then
 fi
 feed="$(realpath "${package_directory}")"
 
-# Isolated restore (#79): restore into a fresh global-packages directory so a
-# stale same-version entry in ~/.nuget/packages cannot satisfy restore without
-# proving the fresh nupkgs are consumable. External feeds stay available; the
-# local feed is appended via RestoreAdditionalProjectSources.
+# Use a fresh cache to avoid stale packages with the same version.
 isolated_packages="$(mktemp -d)"
 trap 'rm -rf "${isolated_packages}"' EXIT
 if command -v cygpath >/dev/null 2>&1; then

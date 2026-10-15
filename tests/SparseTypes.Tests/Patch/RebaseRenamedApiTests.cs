@@ -3,7 +3,7 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-// Issue #113: model-oriented coverage for the renamed rebase surface
+// model-oriented coverage for the renamed rebase surface
 // (RebaseResult.Rebased, SparseConflict/SparseConflictKind).
 public sealed class RebaseRenamedApiTests
 {

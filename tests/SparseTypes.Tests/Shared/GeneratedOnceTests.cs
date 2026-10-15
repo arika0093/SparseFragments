@@ -5,10 +5,8 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Shared;
 
-// Unit coverage for the capability-driven Generated-Once plane (issue
-// #178): deterministic capability sets, prerequisite validation, stable
-// naming, and product-neutral rendering. Generator-driver and
-// cross-assembly conformance live in the #180 suites.
+// Deterministic capability sets, prerequisite validation, stable naming, and
+// product-neutral rendering.
 public sealed class GeneratedOnceTests
 {
     private static SparseEmissionFeatures Standalone() => SparseEmissionFeatures.Standalone;

@@ -3,13 +3,7 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>Options controlling conflict-to-error projection.</summary>
-/// <remarks>
-/// Mirrors the message wording and path semantics of the Blazor
-/// <c>SparseConflictValidationOptions</c> (issue #255) while staying free of
-/// <c>EditContext</c>: Core stores the exact conflict path and surfaces
-/// parent views through subtree queries instead of resolving against a live
-/// model.
-/// </remarks>
+/// <remarks>Maps conflicts to validation errors.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed record SparseValidationConflictOptions
 {

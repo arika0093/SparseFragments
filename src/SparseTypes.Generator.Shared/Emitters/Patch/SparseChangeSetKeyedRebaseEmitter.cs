@@ -85,8 +85,8 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                     + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__baselineKey")
                     + ") throw new global::System.InvalidOperationException(\"An unassigned key cannot appear in the baseline of a keyed ChangeSet.\");"
             );
-        // Whole presence/null transitions: replay via member patch rebase is not sparse;
-        // report member conflict unless already applied, else keep whole.
+        // Replay via member patch rebase is not sparse; report member conflict
+        // unless already applied, else keep whole.
         code.AppendLineAt(4, "if (" + KeyedWholeFlag(member) + ")");
         code.AppendLineAt(4, "{");
         code.AppendLineAt(
@@ -259,7 +259,8 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                 id
             );
         }
-        // Added: replay when absent; already-applied when equal; conflict otherwise.
+        // Added: replay when absent; already-applied when equal; conflict
+        // otherwise.
         code.AppendLineAt(6, "if (__it.IsAdded)");
         code.AppendLineAt(6, "{");
         if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
@@ -398,7 +399,8 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                 + "[__it.Key]), \"The keyed element conflicts with a concurrent change.\")); }"
         );
         code.AppendLineAt(6, "}");
-        // Removed: already-applied when absent; replay when still base; conflict otherwise.
+        // Removed: already-applied when absent; replay when still base;
+        // conflict otherwise.
         code.AppendLineAt(6, "else if (__it.IsRemoved)");
         code.AppendLineAt(6, "{");
         code.AppendLineAt(6, "if (!__cmap" + id + ".ContainsKey(__it.Key)) { }");
@@ -542,7 +544,8 @@ internal static class SparseChangeSetKeyedRebaseEmitter
         code.AppendLineAt(7, "}");
         code.AppendLineAt(6, "}");
         code.AppendLineAt(6, "}");
-        // Reorder-only: keep when current order still matches base rank; else coincidentally ordered.
+        // Reorder-only: keep when current order still matches base rank; else
+        // coincidentally ordered.
         code.AppendLineAt(6, "else if (__it.IsReordered)");
         code.AppendLineAt(6, "{");
         code.AppendLineAt(
@@ -562,8 +565,7 @@ internal static class SparseChangeSetKeyedRebaseEmitter
         code.AppendLineAt(6, "}");
         code.AppendLineAt(5, "}");
         // Order reconciliation: no local order change preserves current order
-        // (concurrent adds kept); a local reorder is kept only when the base
-        // order still matches current, else an order conflict is reported.
+        // (concurrent adds kept).
         code.AppendLineAt(
             5,
             "global::System.Collections.Generic.List<"

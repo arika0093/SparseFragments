@@ -1,12 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Temporary-identity diff and apply for keyed-sequence patches.</summary>
-/// <remarks>
-/// Correlates unassigned elements by Guid for patch Between and matches
-/// temporary operations against baselines for patch Apply. Assigned-key
-/// behavior stays in
-/// <see cref="SparseKeyedSequenceApplyEmitter"/>.
-/// </remarks>
+/// <remarks>Correlates unassigned elements by Guid for patch Between and matches temporary operations against baselines for patch Apply.</remarks>
 internal static class SparseKeyedSequenceTempBetweenEmitter
 {
     /// <summary>Emits baseline temporary validation for patch Between.</summary>
@@ -202,13 +197,7 @@ internal static class SparseKeyedSequenceTempBetweenEmitter
     }
 
     /// <summary>Emits baseline temporary validation for patch Apply.</summary>
-    /// <remarks>
-    /// Unassigned entries register by temporary identity as usual. Assigned
-    /// entries echoing a temporary identity register as well so a
-    /// baseline-free temp-correlated patch (such as a reconcile replay onto
-    /// persisted state) finds its target; duplicates across either shape
-    /// still fail closed.
-    /// </remarks>
+    /// <remarks>Unassigned entries register by temporary identity as usual.</remarks>
     internal static void AppendApplyBaselineValidation(
         SharedIndentedBuilder code,
         SparseMemberModel member,
@@ -300,7 +289,8 @@ internal static class SparseKeyedSequenceTempBetweenEmitter
     {
         var id = member.Id;
         var keyOf = SparseKeyedCollectionEmitter.KeyOfMethod(member);
-        // Assigned removals stay silent on missing keys; temporary removals match that.
+        // Assigned removals stay silent on missing keys; temporary removals
+        // match that.
         code.AppendLineAt(
             4,
             $"if (__removedTemp is not null) foreach (var __t in __removedTemp) {{ if (__baselineTemp{id}.TryGetValue(__t, out var __removedItem)) {{ var __removedKey = {keyOf}(__removedItem); if (map.Remove(__removedKey)) __baselineTempEcho{id}--; __baselineTemp{id}.Remove(__t); }} }}"
@@ -340,11 +330,7 @@ internal static class SparseKeyedSequenceTempBetweenEmitter
     }
 
     /// <summary>Emits temporary-aware order consumption for patch Apply.</summary>
-    /// <remarks>
-    /// Slots carrying a temporary identity resolve by Guid (pending adds
-    /// first, then surviving baselines); slots without one keep positional
-    /// legacy flow. Unconsumed temporary adds fail instead of vanishing.
-    /// </remarks>
+    /// <remarks>Slots carrying a temporary identity resolve by Guid (pending adds first.</remarks>
     internal static void AppendApplyOrderConsumption(
         SharedIndentedBuilder code,
         SparseMemberModel member,
@@ -468,10 +454,8 @@ internal static class SparseKeyedSequenceTempBetweenEmitter
                 "if (!__tapplied.IsPresent || __tapplied.Value is null) throw new global::System.InvalidOperationException(\"Element edit removed the element. Use Remove instead.\");"
             );
             code.AppendLineAt(5, "var __tupdated = __tapplied.Value!.ToModel();");
-            // Identity is preserved rather than unassigned: ordinary flows
-            // keep the sentinel key while reconcile replays keep the
-            // persisted assignment. Either way the key and temporary
-            // identity must be unchanged.
+            // Ordinary flows keep the sentinel key while reconcile replays keep
+            // the persisted assignment.
             code.AppendLineAt(
                 5,
                 "if (!global::System.Collections.Generic.EqualityComparer<"

@@ -3,15 +3,9 @@ using SparseTypes.Playground.Models;
 namespace SparseTypes.Tests;
 
 /// <summary>
-/// Case 4 consumer flow through the path-addressed collection facade (issue #265).
+/// Case 4 consumer flow through the path-addressed collection facade.
 /// </summary>
-/// <remarks>
-/// The Blazor editors (<c>TaskListEditor</c>/<c>TaskRow</c>) are not runnable
-/// without a renderer, so these tests mirror their mutation logic line for
-/// line against the real <c>PlaygroundSettings</c> session: the sortable
-/// index mapping, the baseline-aware add, and the keyed remove/move/rename.
-/// Any mapping change must update both the editor and the mirror below.
-/// </remarks>
+/// <remarks>The Blazor editors (<c>TaskListEditor</c>/<c>TaskRow</c>) are not runnable without a renderer.</remarks>
 public sealed class Case4ConsumerFlowTests
 {
     private static PlaygroundSettings Tasks(params (string Id, string Title)[] rows) =>
@@ -29,9 +23,7 @@ public sealed class Case4ConsumerFlowTests
     private static List<string> Ids(PlaygroundSettings model) =>
         model.Tasks.Select(static task => task.Id).ToList();
 
-    // Mirrors TaskListEditor.OnSortableUpdate: same stale/no-op guards and
-    // the same end-position mapping (Count addresses the end), applied
-    // through the facade instead of handwritten remove/insert code.
+    // Mirrors TaskListEditor.OnSortableUpdate.
     private static bool ApplySortableUpdate(
         PlaygroundSettings.EditSession session,
         int oldIndex,
@@ -63,7 +55,7 @@ public sealed class Case4ConsumerFlowTests
         return true;
     }
 
-    // The pre-#265 TaskListEditor spelling, kept as the parity oracle.
+    // The pre- TaskListEditor spelling, kept as the parity oracle.
     private static void ApplyLegacySortableUpdate(
         PlaygroundSettings.EditSession session,
         int oldIndex,
@@ -184,9 +176,7 @@ public sealed class Case4ConsumerFlowTests
     [Test]
     public void ConsumerAdd_SkipsBaselineIds()
     {
-        // Mirrors TaskListEditor.AddTask: the candidate must avoid both the
-        // live rows and the retained baseline, which would otherwise read as
-        // an edit of the removed row instead of an addition.
+        // Mirrors TaskListEditor.AddTask.
         var baseline = Tasks(("t1", "One"), ("t2", "Two"), ("t3", "Removed"));
         var model = Tasks(("t1", "One"), ("t2", "Two"));
         var session = model.CreateEditSession();

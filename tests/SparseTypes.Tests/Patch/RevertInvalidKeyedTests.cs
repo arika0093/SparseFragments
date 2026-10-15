@@ -6,7 +6,7 @@ public partial class RevertNestedKeyedParent
     public DuplicateKeySessionModel Nested { get; set; } = new();
 }
 
-/// <summary>RevertChanges must recover from invalid temporary keyed state (#167).</summary>
+/// <summary>RevertChanges must recover from invalid temporary keyed state.</summary>
 public sealed class RevertInvalidKeyedTests
 {
     [Test]

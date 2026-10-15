@@ -5,22 +5,7 @@ using System.Text;
 namespace SparseTypes;
 
 /// <summary>The canonical typed path abstraction for sparse member navigation.</summary>
-/// <remarks>
-/// A path names a root model plus an ordered segment list: members, typed keys,
-/// and positional indexes. Identity covers root type, segment kind, declared
-/// member name, and typed key/index, so different roots, distinct key types,
-/// and escaping-sensitive keys never collide. The string rendering
-/// (<see cref="ToString"/>) keeps the historical wire grammar (dotted members,
-/// <c>Name["key"]</c> JSON-escaped keys, <c>[n]</c> positions, <c>$root</c> for
-/// the whole contribution) for display and transport; parsing restores the
-/// segment structure with string keys.
-/// The default value is the root path for <see cref="object"/>.
-/// <para>
-/// Exact-match lookup compares whole paths. Ancestor and descendant queries use
-/// <see cref="IsAncestorOf"/>, <see cref="IsDescendantOf"/>, and
-/// <see cref="StartsWith"/> explicitly.
-/// </para>
-/// </remarks>
+/// <remarks>A path names a root model plus an ordered segment list: members, typed keys, and positional indexes.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public readonly struct SparsePath : IEquatable<SparsePath>
 {
@@ -266,13 +251,7 @@ public readonly struct SparsePath : IEquatable<SparsePath>
     public static bool operator !=(SparsePath left, SparsePath right) => !(left == right);
 
     /// <summary>Renders the wire-compatible path text.</summary>
-    /// <remarks>
-    /// Member segments join with <c>.</c>; key segments render as
-    /// <c>Name["key"]</c> with JSON-escaped key text; index segments render as
-    /// <c>[n]</c>; the whole-root path renders as <c>$root</c>. This spelling is
-    /// unchanged from the historical string-path grammar, so serialized
-    /// payloads keep their shape.
-    /// </remarks>
+    /// <remarks>Member segments join with <c>.</c>.</remarks>
     public override string ToString()
     {
         if (SegmentsArray.Length == 0)

@@ -34,7 +34,8 @@ public class ChangeSetLifecycleBenchmarks
         _after = State(Shape == ChangeSetLifecycleShape.Empty ? 0 : 1);
         _final = State(Shape == ChangeSetLifecycleShape.Empty ? 0 : 2);
         _change = Between();
-        // A distinct but equivalent intermediate state exercises semantic contiguity.
+        // A distinct but equivalent intermediate state exercises semantic
+        // contiguity.
         _next = BenchChangeSetRebaseRecord.ChangeSet.Between(
             State(Shape == ChangeSetLifecycleShape.Empty ? 0 : 1),
             _final

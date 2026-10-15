@@ -366,7 +366,8 @@ public sealed class FragmentPatchAlgebraTests
             "dictionary invert round-trip"
         );
 
-        // Scalar sequences: whole-value, order-sensitive (duplicates preserved).
+        // Scalar sequences: whole-value, order-sensitive (duplicates
+        // preserved).
         var q0 = SequenceState(["a", "a", "b"], [1, 2]);
         var q1 = SequenceState(["b", "a", "a"], [2, 1]);
         var sequencePatch = ScalarSequenceHolder.Patch.Between(q0, q1);
@@ -583,9 +584,8 @@ public sealed class FragmentPatchAlgebraTests
     [Test]
     public void OracleAgreesWithBetweenOnLawOutcomes()
     {
-        // Cross-check: the independent oracle and Between concur on representative
-        // law outcomes. The laws themselves are asserted via the oracle above; this
-        // test only documents agreement on a small, cheap sample.
+        // Cross-check: the independent oracle and Between concur on
+        // representative law outcomes.
         var before = Optional<Settings.Fragment?>.Present(
             Settings.Fragment.From(new Settings { RetryCount = 1, Label = "a" })
         );

@@ -1,9 +1,6 @@
 using SparseTypes;
 
-// Canonical compile-checked mirror of docs/cloning-and-ownership.md (#45).
-// Covers the ownership rule of thumb (assignment shares; construction from a
-// model snapshots), builders, DeepClone isolation, and the
-// [SparseCloneReferenceSafe] opt-out for intentionally shared references.
+// Canonical compile-checked mirror of docs/cloning-and-ownership.md.
 public static class CloningAndOwnershipSamples
 {
     public static void Run()
@@ -114,9 +111,8 @@ public sealed class DocsSharedService
 [SparseModel]
 public partial class CloneDocsServiceSettings
 {
-    // Non-partial nested types stay atomic whole values: Replace keeps that
-    // explicit (SPF007), while SparseCloneReferenceSafe carries the reference
-    // over instead of requiring a deep-cloneable shape.
+    // Replace keeps that explicit (SPF007), while SparseCloneReferenceSafe
+    // carries the reference over instead of requiring a deep-cloneable shape.
     [SparseMerge(MergeMode.Replace)]
     [SparseCloneReferenceSafe]
     public DocsSharedService Service { get; set; } = null!;

@@ -6,11 +6,7 @@ namespace SparseTypes.Generator.Shared;
 internal static class SparseObservableDictionaryDescriptorEmitter
 {
     /// <summary>Emits a read-only dictionary descriptor for sorted/read-only shapes.</summary>
-    /// <remarks>
-    /// SortedDictionary, SortedList and IReadOnlyDictionary members have no
-    /// notifying observable view, so the descriptor stays live over the current
-    /// IReadOnlyDictionary without supporting size or value mutations.
-    /// </remarks>
+    /// <remarks>SortedDictionary, SortedList and IReadOnlyDictionary members have no notifying observable view.</remarks>
     internal static string ReadOnlyDictionaryAccessor(
         SparseMemberModel member,
         string path,

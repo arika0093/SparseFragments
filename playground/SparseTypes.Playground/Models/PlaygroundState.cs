@@ -368,12 +368,7 @@ public static class PlaygroundJson
         return options;
     }
 
-    /// <summary>
-    /// Creates options for ChangePayload JSON. Generated payload types are not visible to the
-    /// System.Text.Json source generator in this compilation, so they resolve through the
-    /// reflection fallback. The payload DTOs are statically referenced named types, which keeps
-    /// this path working in trimmed builds; do not pass anonymous objects through it.
-    /// </summary>
+    /// <summary>Creates options for ChangePayload JSON.</summary>
     public static JsonSerializerOptions ChangeSetOptions() =>
         new()
         {
@@ -400,7 +395,8 @@ public static class PlaygroundJson
             return "null";
         }
 
-        // Strings are IEnumerable<char>: keep the previous JSON-quoted rendering.
+        // Strings are IEnumerable<char>: keep the previous JSON-quoted
+        // rendering.
         if (value is string text)
         {
             return JsonSerializer.Serialize(text, PlaygroundJsonContext.Default.String);
@@ -419,7 +415,7 @@ public static class PlaygroundJson
         }
 
         // Collection-level Before/After values (e.g. a whole keyed list) box as
-        // ReadOnlyCollection<T>; format element-wise instead of Object.ToString().
+        // ReadOnlyCollection<T>.
         if (value is System.Collections.IEnumerable sequence)
         {
             return "["
@@ -436,8 +432,8 @@ public static class PlaygroundJson
             return JsonSerializer.Serialize(value, typeInfo);
         }
 
-        // No JSON metadata (e.g. an ad-hoc projection): fall back to ToString so a
-        // ChangeSet table cell never throws during render.
+        // No JSON metadata (e.g. an ad-hoc projection): fall back to ToString
+        // so a ChangeSet table cell never throws during render.
         return value.ToString() ?? "null";
     }
 

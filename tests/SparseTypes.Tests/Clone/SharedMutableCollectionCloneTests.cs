@@ -2,13 +2,7 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-/// <summary>
-/// Representative first-class collection matrix (issue #280): arrays, lists,
-/// sets and dictionaries with alias/cycle preservation. Exotic containers
-/// (queues, stacks, concurrent collections, priority queues, linked lists,
-/// sorted/observable wrappers, immutable collections) are intentionally
-/// unsupported and require a custom clone policy.
-/// </summary>
+/// <summary>Representative first-class collection matrix: arrays, lists, sets and dictionaries with alias/cycle preservation.</summary>
 [SparseModel]
 public partial class SharedMutableCollectionRoot
 {

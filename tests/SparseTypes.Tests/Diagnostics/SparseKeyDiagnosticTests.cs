@@ -6,11 +6,7 @@ using SparseTypes.Generator;
 namespace SparseTypes.Tests.Diagnostics;
 
 /// <summary>Generator diagnostic tests for the single-property SparseKey API.</summary>
-/// <remarks>
-/// Identity is declared with exactly one property marked with parameterless
-/// <c>[SparseKey]</c>. Tuple and value-object keys use a computed key property
-/// whose declared type is the key type.
-/// </remarks>
+/// <remarks>Identity is declared with exactly one property marked with parameterless <c>[SparseKey]</c>.</remarks>
 public sealed class SparseKeyDiagnosticTests
 {
     private static (
@@ -105,8 +101,8 @@ public sealed class SparseKeyDiagnosticTests
     [Test]
     public void Spf014_TypeLevelAttributeReportsError()
     {
-        // The attribute only targets properties, so the compilation also errors;
-        // the generator reports the declaration shape specifically.
+        // The attribute only targets properties, so the compilation also
+        // errors; the generator reports the declaration shape specifically.
         const string element = """
             [SparseKey]
             public partial class Keyed

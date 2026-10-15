@@ -5,40 +5,8 @@ using Microsoft.AspNetCore.Components.Forms;
 
 namespace SparseTypes.Blazor;
 
-/// <summary>
-/// The render-scoped template context provided by <see cref="SparseField{TModel, TValue}"/>.
-/// </summary>
-/// <remarks>
-/// <para>
-/// Wraps one live <see cref="SparseFieldBinding{TModel, TValue}"/> with component-friendly
-/// access: a settable typed <see cref="Value"/>, an <see cref="ValueChanged"/> callback and
-/// <see cref="ValueExpression"/> triple for inputs, <see cref="SetAsync"/> for code, the
-/// render-scoped semantic <see cref="State"/> (with <see cref="IsChanged"/> and
-/// presence-aware <see cref="Before"/>/<see cref="After"/>), Blazor <see cref="IsModified"/>
-/// and <see cref="ValidationMessages"/>, and root-preserving typed navigation
-/// (<see cref="Select{TChild}"/>, <see cref="Key{TKey, TElement, TChild}"/>,
-/// <see cref="At{TElement, TChild}"/>, <see cref="TemporaryKey{TElement, TChild}"/>).
-/// </para>
-/// <para>
-/// Ordinary third-party controls bind with <c>@bind-Value="field.Value"</c> (value plus the
-/// generated change callback). Standard <c>InputBase&lt;TValue&gt;</c> controls additionally
-/// need the original-model expression, so pass the triple explicitly:
-/// <c>Value="field.Value" ValueChanged="field.ValueChanged"
-/// ValueExpression="field.ValueExpression"</c>. Do not use <c>@bind-Value</c> on
-/// <c>InputBase</c> controls: its compiler-generated expression targets this context instead
-/// of the original model, so field-level validation would misattribute. Keyed,
-/// temporary-key, and indexed paths expose a null <see cref="ValueExpression"/> (no
-/// fabricated tree), and <c>InputBase</c> rejects a null expression outright; edit those
-/// paths through value/callback inputs and surface errors explicitly through
-/// <see cref="ValidationMessages"/> and <see cref="IsModified"/>.
-/// </para>
-/// <para>
-/// Reads resolve live through the binding, so nested replacement is followed and removed
-/// keyed entries report <see cref="IsStale"/> instead of mutating an orphan. The instance is
-/// recreated when the path, session, or edit context changes; in-flight callbacks captured
-/// from a previous instance complete against their own binding.
-/// </para>
-/// </remarks>
+/// <summary>The render-scoped template context provided by <see cref="SparseField{TModel, TValue}"/>.</summary>
+/// <remarks>Wraps one live <see cref="SparseFieldBinding{TModel, TValue}"/> with component-friendly access.</remarks>
 /// <typeparam name="TModel">The root session model type.</typeparam>
 /// <typeparam name="TValue">The addressed value type.</typeparam>
 public sealed class SparseFieldContext<TModel, TValue>
@@ -67,22 +35,11 @@ public sealed class SparseFieldContext<TModel, TValue>
     public SparseFieldBinding<TModel, TValue> Binding { get; }
 
     /// <summary>Gets the path this field was created from.</summary>
-    /// <remarks>
-    /// The runtime instance is the concrete generated builder, but the static type is the
-    /// shared typed-path contract: generated child navigation (such as <c>.Email</c>) is
-    /// available on the ancestor edit path or through <see cref="Select{TChild}"/>,
-    /// <see cref="Key{TKey, TElement, TChild}"/>, <see cref="At{TElement, TChild}"/>, and
-    /// <see cref="TemporaryKey{TElement, TChild}"/>, all of which keep the root model type.
-    /// </remarks>
+    /// <remarks>The runtime instance is the concrete generated builder, but the static type is the shared typed-path contract.</remarks>
     public ISparseTypedPath<TModel, TValue> Path { get; }
 
     /// <summary>Gets or sets the live typed value.</summary>
-    /// <remarks>
-    /// The setter writes through the binding and throws when the write fails (stale, disabled,
-    /// read-only, or rejected value); check <see cref="IsStale"/> first or use
-    /// <see cref="TrySet"/> for graceful handling. Suitable for
-    /// <c>@bind-Value="field.Value"</c> on value/callback inputs.
-    /// </remarks>
+    /// <remarks>The setter writes through the binding and throws when the write fails (stale.</remarks>
     /// <exception cref="InvalidOperationException">The read or write failed.</exception>
     public TValue Value
     {
@@ -91,29 +48,15 @@ public sealed class SparseFieldContext<TModel, TValue>
     }
 
     /// <summary>Gets the change callback writing through the binding.</summary>
-    /// <remarks>
-    /// Received by the owning field component, so invoking it refreshes the field after the
-    /// write. Pass explicitly to <c>InputBase&lt;TValue&gt;</c> controls together with
-    /// <see cref="Value"/> and <see cref="ValueExpression"/>.
-    /// </remarks>
+    /// <remarks>Received by the owning field component, so invoking it refreshes the field after the write.</remarks>
     public EventCallback<TValue> ValueChanged { get; }
 
     /// <summary>Gets a value expression targeting the original model for <c>InputBase</c> use.</summary>
-    /// <remarks>
-    /// Only member-only paths expose an expression; keyed, temporary-key, and indexed paths
-    /// return null instead of a fabricated tree (see the class remarks for the documented
-    /// fallback).
-    /// </remarks>
+    /// <remarks>Only member-only paths expose an expression.</remarks>
     public Expression<Func<TValue>>? ValueExpression => Binding.ValueExpression;
 
     /// <summary>Gets the render-scoped semantic field state.</summary>
-    /// <remarks>
-    /// Snapshot by the owning field component once per render from a fresh session diff; it
-    /// does not update until the next render. <see cref="IsChanged"/> reports the exact
-    /// transition at this path, never a UI visited flag. Collection-root fields report the
-    /// default state because member transitions cannot be represented as the collection
-    /// value; use <see cref="TryGetCollectionState"/> for collection change info.
-    /// </remarks>
+    /// <remarks>Snapshot by the owning field component once per render from a fresh session diff; it does not update until the next render.</remarks>
     public SparseFieldState<TValue> State { get; internal set; }
 
     /// <summary>Gets whether the path itself changed between the baseline and the live model.</summary>
@@ -136,8 +79,7 @@ public sealed class SparseFieldContext<TModel, TValue>
     public FieldIdentifier Field => Binding.Field;
 
     /// <summary>Gets whether Blazor tracks the live field as modified.</summary>
-    /// <remarks>False when the binding is stale; Blazor touched state is independent of the
-    /// semantic <see cref="IsChanged"/>.</remarks>
+    /// <remarks>False when the binding is stale; Blazor touched state is independent of the semantic <see cref="IsChanged"/>.</remarks>
     public bool IsModified =>
         Binding.TryGetField(out var fieldId, out _) && Binding.EditContext.IsModified(fieldId);
 
@@ -173,12 +115,7 @@ public sealed class SparseFieldContext<TModel, TValue>
         SparseSessionInterop.TryCollectionState(_session, Path.UntypedPath, out state);
 
     /// <summary>Navigates to a child member with a root-preserving compile-time typed path.</summary>
-    /// <remarks>
-    /// The selector must be a member-access chain over the field value (nested chains such as
-    /// <c>customer => customer.Address.City</c> are supported); method calls, indexers, and
-    /// keyed navigation inside the selector are rejected. Each member is validated against
-    /// the runtime type, so renamed members fail here instead of at bind time.
-    /// </remarks>
+    /// <remarks>The selector must contain only member accesses.</remarks>
     /// <param name="selector">The member chain from the field value to the child.</param>
     /// <typeparam name="TChild">The addressed child type.</typeparam>
     /// <returns>A typed path usable as a nested <c>SparseField</c> path.</returns>
@@ -192,11 +129,7 @@ public sealed class SparseFieldContext<TModel, TValue>
     }
 
     /// <summary>Navigates to a member of a keyed entry of a collection field.</summary>
-    /// <remarks>
-    /// The key keeps its compile-time type so the segment matches the generated spelling;
-    /// boxing the key would silently miss. All type arguments infer from the key and the
-    /// annotated selector: <c>lines.Key("b", (OrderLine l) => l.Price)</c>.
-    /// </remarks>
+    /// <remarks>The key keeps its compile-time type so the segment matches the generated spelling; boxing the key would silently miss.</remarks>
     /// <param name="key">The stable entry key.</param>
     /// <param name="selector">The member chain from the entry to the child.</param>
     /// <typeparam name="TKey">The key type.</typeparam>

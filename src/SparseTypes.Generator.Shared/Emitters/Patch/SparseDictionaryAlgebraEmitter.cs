@@ -138,7 +138,7 @@ internal static class SparseDictionaryAlgebraEmitter
             4,
             "if (__removed is not null) foreach (var k in __removed) if (next.__set is not null && next.__set.ContainsKey(k)) removed.Remove(k);"
         );
-        // Remove keys that are set by this then removed by next? Already: removed contains next removed, set does not contain them unless re-set. Need to drop this-set keys removed by next:
+        // Drop keys added by this patch when the next patch removes them.
         code.AppendLineAt(
             4,
             "if (next.__removed is not null) foreach (var k in next.__removed) set.Remove(k);"
@@ -426,7 +426,8 @@ internal static class SparseDictionaryAlgebraEmitter
                 + patchName
                 + "());"
         );
-        // Per-key three-way (without nested rebase composition for brevity: nested edits rebase recursively when both edited).
+        // Per-key three-way (without nested rebase composition for brevity:
+        // nested edits rebase recursively when both edited).
         EmitRebaseDictionarySnapshot(code, "baseState", "baseDict", keyType, valueType, comparer);
         EmitRebaseDictionarySnapshot(
             code,
@@ -437,8 +438,8 @@ internal static class SparseDictionaryAlgebraEmitter
             comparer
         );
         EmitRebaseDictionarySnapshot(code, "desired", "desiredDict", keyType, valueType, comparer);
-        // Pre-index locally removed keys once (O(K)) so per-key touch checks are
-        // O(1) comparer-correct lookups instead of O(K) List.Contains scans.
+        // Pre-index locally removed keys once (O(K)) so per-key touch checks
+        // Use comparer-aware maps instead of repeated linear scans.
         code.AppendLineAt(
             4,
             "var __dictRemoved = (local.__removed is null) ? new global::System.Collections.Generic.HashSet<"
@@ -652,7 +653,8 @@ internal static class SparseDictionaryAlgebraEmitter
         var interfaceType =
             $"global::System.Collections.Generic.IDictionary<{keyType}, {valueType}>";
         var direct = "__" + variable + "Direct";
-        // These indexes are read-only. Keep fallback assignment semantics for custom comparers.
+        // These indexes are read-only. Keep fallback assignment semantics for
+        // custom comparers.
         code.AppendLineAt(
             4,
             $"var {variable} = {state}.IsPresent && {state}.Value is {dictionaryType} {direct} && global::System.Object.Equals({direct}.Comparer, {comparer}) ? {direct} : null;"

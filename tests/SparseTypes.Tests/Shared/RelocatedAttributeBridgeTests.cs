@@ -8,11 +8,8 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Shared;
 
-// Regression tests for the attribute-bridge gating mismatch (reloc-1 review,
-// #190/#191): the surface used to emit __SparseAttributes_* bridges only with
-// a descriptor dialect present, while the relocation rewrite referenced them
-// whenever an implementation namespace was set. Both sides now use the same
-// gate (emission whenever relocation can reference a bridge).
+// Verify attribute bridges are emitted whenever relocation can reference them,
+// regardless of descriptor dialect.
 public sealed class RelocatedAttributeBridgeTests
 {
     private const string AttributeExpression =

@@ -5,12 +5,8 @@ using Microsoft.AspNetCore.Components.Forms;
 using SparseTypes;
 using SparseTypes.Blazor;
 
-// Canonical compile-checked mirror of docs/ui-frameworks.md (#45, #48) and the
-// Blazor candidate-consumer gate (#46). Exercises the generated
-// CreateEditSession() workflow against the packed SparseTypes.Blazor
-// package (no ProjectReference fallback when SparseTypesPackageVersion is
-// set): baseline-relative HasChanges, semantic CreatePatch, AcceptChanges
-// re-baselining, edit-then-restore, and EditContext validation integration.
+// Compile-checked Blazor consumer for docs/ui-frameworks.md.
+// Covers edit sessions, patches, rebaselining, and EditContext validation.
 
 var order = new BlazorDocsOrder
 {
@@ -58,7 +54,8 @@ session.Observable.Number = "ORD-2";
 Require(!session.HasChanges, "edit-then-restore has no semantic changes");
 Require(session.CreatePatch().IsEmpty, "edit-then-restore patch is empty");
 
-// Validation flows through the ordinary EditContext pipeline, bound to the raw model.
+// Validation flows through the ordinary EditContext pipeline, bound to the raw
+// model.
 var editContext = session.CreateEditContext();
 var store = session.CreateValidationStore(editContext);
 editContext.OnValidationRequested += (sender, _) =>
@@ -452,10 +449,8 @@ public static class UiDocSamples
         DocsCheck.Require(!retrySession.HasChanges, "retry from persisted state is clean");
     }
 
-    // Toolkit-neutral bindings through the packaged Blazor helpers: standard
-    // inputs and custom components share Bind, FieldState, CollectionState,
-    // opt-in history, and session-replacement context handling. Plain probe
-    // code, not a docs sample.
+    // Standard inputs and custom components share Bind, FieldState,
+    // CollectionState, opt-in history, and session-replacement context
     private static async Task BlazorToolkitBindingsAsync()
     {
         var order = new UiOrder
@@ -502,7 +497,8 @@ public static class UiDocSamples
         );
         DocsCheck.Require(history.UndoCount == 2, "history retains one entry per action");
 
-        // Undo replays newest-first: the name edit reverts before the number edit.
+        // Undo replays newest-first: the name edit reverts before the number
+        // edit.
         history.Undo();
         DocsCheck.Require(
             order.Items.Single(item => item.Id == "line-1").Name == "First item",

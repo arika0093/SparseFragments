@@ -1,22 +1,5 @@
 #!/usr/bin/env bash
-# Stale same-version NuGet candidate isolation regression (#79, #102).
-#
-# Proves the isolated candidate-consumer restore cannot be satisfied by a stale
-# package with the same ID/version from a pre-populated global NuGet cache.
-#
-# The script builds a deliberately distinguishable stale SparseTypes nupkg
-# with the exact candidate ID/version, restores it into a simulated polluted
-# global-packages directory (showing the old existence-only check would pass
-# there while the content check fails), then runs the real candidate-consumer
-# path with a fresh isolated global-packages directory and proves the
-# extracted package bytes match the current local-feed candidate (sha512 +
-# restore source) and the consumer reaches its success marker.
-#
-# Existing isolated-restore checks are unchanged; this test protects them from
-# later regression (e.g. dropping NUGET_PACKAGES isolation would let the stale
-# bytes satisfy an existence-only gate).
-#
-# Usage: verify-package-stale-isolation.sh <package-directory>
+# Stale same-version NuGet candidate isolation regression.
 set -euo pipefail
 
 package_directory="${1:-}"
@@ -68,7 +51,7 @@ to_native_path() {
     fi
 }
 
-# 1. Build a distinguishable stale package with the same ID/version.
+# Build a distinguishable stale package with the same ID/version.
 stale_src="${work_root}/stale-src"
 stale_feed="${work_root}/stale-feed"
 mkdir -p "${stale_src}" "${stale_feed}"
@@ -107,9 +90,7 @@ if [[ "${stale_sha512}" == "${candidate_sha512}" ]]; then
 fi
 echo "Stale decoy built at same ID/version '${version}' with a distinct hash."
 
-# 2. Simulate a polluted global cache holding the stale same-version package.
-# Restore (not build: the decoy lacks the real API surface) with the stale
-# feed so NuGet extracts the stale bytes into the polluted directory.
+# Simulate a polluted global cache holding the stale same-version package.
 export NUGET_PACKAGES="$(to_native_path "${polluted_packages}")"
 dotnet restore "${fixture_csproj}" \
     -p:SparseTypesPackageVersion="${version}" \
@@ -125,8 +106,7 @@ if [[ -z "${polluted_sha512}" ]]; then
     exit 1
 fi
 # The legacy existence-only check would pass against this polluted cache, which
-# is exactly the false positive #79 closed: prove it, then prove the content
-# check rejects the stale bytes.
+# is exactly the false positive closed.
 echo "Polluted cache holds a same-version entry (existence-only check would pass)."
 if [[ "${polluted_sha512}" == "${candidate_sha512}" ]]; then
     echo "Polluted cache unexpectedly matches the candidate hash; stale seeding failed." >&2
@@ -134,7 +114,7 @@ if [[ "${polluted_sha512}" == "${candidate_sha512}" ]]; then
 fi
 echo "Content check rejects the stale entry (hash mismatch vs candidate)."
 
-# 3. Run the real candidate-consumer path with a fresh isolated cache and prove
+# Run the real candidate-consumer path with a fresh isolated cache and prove
 # the extracted bytes are the current local-feed candidate, not the stale one.
 export NUGET_PACKAGES="$(to_native_path "${isolated_packages}")"
 dotnet build "${fixture_csproj}" \

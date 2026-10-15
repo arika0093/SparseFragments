@@ -9,22 +9,7 @@ using Microsoft.CodeAnalysis;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Per-compilation index backing comparison-rule inheritance.</summary>
-/// <remarks>
-/// <para>
-/// Resolving inherited <c>SparseCompare</c> rules needs every fragment root
-/// plus the set of models each root references. Recomputing that per model
-/// scans the containing assembly once per generated model, which grows
-/// quadratically in large consumer compilations.
-/// </para>
-/// <para>
-/// The index is computed once per assembly symbol and shared by all models in
-/// that compilation. New compilations produce new assembly symbols, so edited
-/// trees invalidate the entry without explicit bookkeeping; entries are held
-/// weakly and release with their compilation. Reference graphs mirror
-/// <c>SparseComparisonRules</c> traversal exactly, so inheritance, ambiguity,
-/// and veto behavior are unchanged.
-/// </para>
-/// </remarks>
+/// <remarks>Resolving inherited <c>SparseCompare</c> rules needs every fragment root plus the set of models each root references.</remarks>
 internal sealed class SparseComparisonIndex
 {
     private static readonly ConditionalWeakTable<SparseGeneratorConfig, string> ConfigurationKeys =
@@ -194,8 +179,7 @@ internal sealed class SparseComparisonIndex
         );
     }
 
-    // Transitive reference closure mirroring SparseComparisonRules traversal:
-    // type arguments are followed through framework types, while only
+    // Type arguments are followed through framework types, while only
     // non-framework member graphs are expanded.
     private static HashSet<INamedTypeSymbol> CollectReferences(
         INamedTypeSymbol root,

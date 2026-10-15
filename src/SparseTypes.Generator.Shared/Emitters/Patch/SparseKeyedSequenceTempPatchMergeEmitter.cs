@@ -1,11 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Temporary-identity operation merge for keyed-sequence patches.</summary>
-/// <remarks>
-/// Merges Guid-keyed removal/edit logs and routes temporary adds through
-/// cancellation and edit-application. Assigned-key logs stay in
-/// <see cref="SparseKeyedSequenceComposeEmitter"/>.
-/// </remarks>
+/// <remarks>Merges Guid-keyed removal/edit logs and routes temporary adds through cancellation and edit-application.</remarks>
 internal static class SparseKeyedSequenceTempPatchMergeEmitter
 {
     /// <summary>Emits the full temporary merge for patch Compose.</summary>
@@ -297,13 +293,7 @@ internal static class SparseKeyedSequenceTempPatchMergeEmitter
     }
 
     /// <summary>Emits temporary order lockstep for patch Compose.</summary>
-    /// <remarks>
-    /// Replaces the key-only order merge for temporary members: template
-    /// slots filter with their keys (assigned removals and temporary
-    /// removals alike), then unslotted temporary additions append with
-    /// sentinel slots. Assigned slots carry no identity. The parallel lists
-    /// stay aligned by construction.
-    /// </remarks>
+    /// <remarks>Replaces the key-only order merge for temporary members.</remarks>
     internal static void AppendPatchOrderTempMerge(
         SharedIndentedBuilder code,
         SparseMemberModel member,

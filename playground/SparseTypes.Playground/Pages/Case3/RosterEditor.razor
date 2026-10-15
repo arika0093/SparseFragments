@@ -35,11 +35,7 @@
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
-    /// <summary>
-    /// Gets or sets the typed keyed quest transition consumed through the
-    /// shared collection state and the typed per-field transitions. Pass an
-    /// empty transition when the roster state is invalid.
-    /// </summary>
+    /// <summary>Gets or sets the typed keyed quest transition consumed through the shared collection and typed field states.</summary>
     [Parameter, EditorRequired]
     public PlaygroundRoster.ChangeSet.QuestsTransition Changes { get; set; } = null!;
 

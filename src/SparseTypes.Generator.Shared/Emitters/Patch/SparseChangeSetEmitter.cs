@@ -5,7 +5,7 @@ using System.Linq;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Emits the immutable baseline-aware ChangeSet sibling for a generated model.</summary>
-/// <remarks>Canonical storage is sparse per-path transition state; Compose/Rebase operate directly on it. This facade preserves the public API and delegates to single-responsibility emitters.</remarks>
+/// <remarks>Stores per-path transitions and delegates composition and rebasing to focused emitters.</remarks>
 internal static class SparseChangeSetEmitter
 {
     public static void AppendChangeSet(
@@ -56,8 +56,7 @@ internal static class SparseChangeSetEmitter
         );
         code.AppendLineAt(1, "{");
         // State-bound bodies live in the private nested __Core with direct
-        // private-state access; facades delegate to __Core instead of an
-        // external container. Pure/shared kernels stay in Generated-Once.
+        // private-state access.
         SharedIndentedBuilder? changeSetCore = null;
         if (target is not null)
         {
@@ -69,9 +68,8 @@ internal static class SparseChangeSetEmitter
                 "__Core"
             );
         }
-        // Public-first order: internal probes precede private canonical storage.
-        // Split emission defers both: internal match bridges first, then
-        // private storage and constructor, so no private precedes internal.
+        // Public-first order: internal probes precede private canonical
+        // storage.
         using var surfaceDeferred = changeSetCore is null
             ? null
             : new SharedIndentedBuilder(code.CancellationToken);
@@ -179,7 +177,8 @@ internal static class SparseChangeSetEmitter
             canApplyInPlace,
             target
         );
-        // The emitted model-targeted ApplyInPlace checks the before-state first.
+        // The emitted model-targeted ApplyInPlace checks the before-state
+        // first.
         var keyedProjectionFields = SparseChangeSetTransitionEmitter.AppendTypedSurface(
             code,
             members,
@@ -288,9 +287,8 @@ internal static class SparseChangeSetEmitter
         {
             if (implementationBuilder is not null && implementationNamespace is not null)
             {
-                // Stage 3 (#192): typed DTOs live in the per-model implementation
-                // source; the surface keeps the ChangePayload facade plus a
-                // namespace alias so all simple container references resolve.
+                // Stage 3: typed DTOs live in the per-model implementation
+                // source.
                 SparseChangeSetPayloadEmitter.AppendPayload(
                     code,
                     members,

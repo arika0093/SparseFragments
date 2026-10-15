@@ -155,11 +155,7 @@ internal sealed class CollectionDeclaration<TDtoChild, TEntityChild>
 /// <summary>
 /// The resolved, executable state for one keyed parent collection.
 /// </summary>
-/// <remarks>
-/// Built once per plan against EF metadata and the generated keyed-transition
-/// contract. Parent CLR types appear only in <see cref="Create{TDto,TEntity}" />;
-/// synchronization itself runs object-based through EF collection entries.
-/// </remarks>
+/// <remarks>Built once per plan against EF metadata and the generated keyed-transition contract.</remarks>
 internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
     where TDtoChild : class
     where TEntityChild : class
@@ -229,13 +225,7 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
     public LambdaExpression? OrderSelectorExpression { get; private set; }
 
     /// <summary>Restores prior identities and assigns keys for created entities in this scope.</summary>
-    /// <remarks>
-    /// Validates the complete correlation and stages every required assignment
-    /// across this collection before mutating any authoritative DTO. Nested
-    /// scopes recurse during the apply phase; a nested failure rolls back
-    /// through the ambient <see cref="TemporaryKeyStagingScope" /> opened by the
-    /// mapper entry point, so no earlier member stays modified.
-    /// </remarks>
+    /// <remarks>Validates the complete correlation and stages every required assignment across the collection before changing entities.</remarks>
     public void AssignTemporaryKeys(
         DbContext context,
         IEnumerable<TDtoChild>? baseline,
@@ -251,8 +241,8 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         }
 
         var collectionPath = string.IsNullOrEmpty(parentPath) ? DtoName : $"{parentPath}.{DtoName}";
-        // First pass: validate everything and stage assignments without mutation,
-        // so deterministic mapping failures surface before earlier items change.
+        // Validate everything and stage assignments without mutation, so
+        // deterministic mapping failures surface before earlier items change.
         var staged = StageTemporaryAssignments(
             context,
             baseline,
@@ -289,12 +279,7 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
     }
 
     /// <summary>Derives the nested lookup scopes for one authoritative item.</summary>
-    /// <remarks>
-    /// Runs after the item's temporary identity was assigned above, so both
-    /// the stable key and the temporary identity are available for the
-    /// fallback chain. Index-addressed items yield no scope and keep the
-    /// legacy path-string behavior.
-    /// </remarks>
+    /// <remarks>Runs after the item's temporary identity was assigned above.</remarks>
     private IReadOnlyList<CollectionScopeIdentity> ScopesFor(TDtoChild item)
     {
         var key = DtoKey(item);
@@ -332,13 +317,7 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
     }
 
     /// <summary>Validates complete correlation and stages assignments without mutation.</summary>
-    /// <remarks>
-    /// Baseline survivors keep their prior temporary identity, created rows
-    /// take the result temporary (which wins when both match), and correlation
-    /// runs only on stable keys and temporaries: never by collection index.
-    /// Removed baseline rows simply have no authoritative match and stay
-    /// ignored, while every created row must reconcile or fail explicitly.
-    /// </remarks>
+    /// <remarks>Baseline survivors keep their prior temporary identity.</remarks>
     private List<StagedTemporaryAssignment> StageTemporaryAssignments(
         DbContext context,
         IEnumerable<TDtoChild>? baseline,
@@ -414,8 +393,7 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         }
 
         // Prefer the parent-scoped records so parents whose display keys
-        // collide keep independent correlations; fall back to the legacy
-        // path-string view when nothing was recorded for these scopes.
+        // collide keep independent correlations.
         var createdRecords =
             NestedCreated(result, collectionPath, parentScopes)
             ?? result.GetCreated(collectionPath);
@@ -657,19 +635,14 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
     }
 
     /// <summary>Gets whether a boxed key is the explicitly declared unassigned sentinel.</summary>
-    /// <remarks>
-    /// Never inferred from <c>default(TKey)</c>: without an explicit
-    /// declaration this always returns false, so a stable default key is a
-    /// valid assigned identity.
-    /// </remarks>
+    /// <remarks>Without an explicit declaration this always returns false, so a stable default key is a valid assigned identity.</remarks>
     public bool IsUnassigned(object? key) =>
         HasUnassignedSentinel && KeyComparer.Equals(key!, UnassignedSentinel!);
 
     private void ResolveNavigation(PlanBuildSession session, PlanLevel level)
     {
-        // Skip navigations live outside FindNavigation: check them first so a
-        // many-to-many member fails with actionable guidance instead of a
-        // missing-navigation report.
+        // Check them first so a many-to-many member fails with actionable
+        // guidance instead of a missing-navigation report.
         if (level.EntityType.FindSkipNavigation(NavigationName) is not null)
         {
             throw new SparseEntityMappingException(
@@ -720,8 +693,8 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         ChildEntityType = navigation.TargetEntityType;
         var foreignKey = navigation.ForeignKey;
         Owned = foreignKey.IsOwnership;
-        // Requiredness comes from the relationship (IForeignKey.IsRequired), not
-        // from individual composite FK property nullability.
+        // Requiredness comes from the relationship (IForeignKey.IsRequired),
+        // not from individual composite FK property nullability.
         ForeignKeyRequired = foreignKey.IsRequired;
         RelationshipDetail = DescribeRelationship(foreignKey);
     }
@@ -876,8 +849,7 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         }
 
         // Never infer from default(TKey): only an explicit model or builder
-        // declaration marks a key unassigned. Builder declaration wins so
-        // computed/composite keys can declare a sentinel without an attribute.
+        // declaration marks a key unassigned.
         if (declaration.HasUnassignedKeyValue)
         {
             UnassignedSentinel = declaration.UnassignedKeyValue;
@@ -1055,13 +1027,7 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
     }
 
     /// <summary>Builds the null-navigation factory for the declared type.</summary>
-    /// <remarks>
-    /// Interface-typed navigations take a plain list. Concrete collection
-    /// types are instantiated as declared (so an ObservableCollection stays
-    /// one) when they carry a public parameterless constructor; anything
-    /// else fails here at plan creation instead of casting blindly during
-    /// execution after the root already attached.
-    /// </remarks>
+    /// <remarks>Interface-typed navigations take a plain list.</remarks>
     private void ResolveCollectionFactory(Type declared)
     {
         if (declared.IsInterface || declared == typeof(List<TEntityChild>))

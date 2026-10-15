@@ -205,7 +205,6 @@ public sealed class EditSessionGroupTests
 
         // The consumed submission no longer matches the advanced group
         // revision, so the repeat is rejected as stale before reaching the
-        // session. The group stays convergent for later submissions.
         Should.Throw<EditSessionStaleSubmissionException>(() =>
             group.AcceptChanges(submission, handle)
         );
@@ -228,8 +227,7 @@ public sealed class EditSessionGroupTests
         var submission = group.Prepare();
 
         // Acknowledging outside the group moves the session baseline without
-        // moving group revisions. The next group acknowledgement surfaces the
-        // session outcome instead of a stale wrapper.
+        // moving group revisions.
         session.AcceptChanges();
         var outcome = Should.Throw<InvalidOperationException>(() =>
             group.AcceptChanges(submission, handle)
@@ -260,9 +258,7 @@ public sealed class EditSessionGroupTests
         var submission = group.Prepare();
         failNotifications = true;
 
-        // The session commits the baseline before notifying, so the handler
-        // failure must propagate untouched (not as a stale submission) while
-        // the group revision follows the session.
+        // The session commits the baseline before notifying.
         var failure = Should.Throw<InvalidOperationException>(() =>
             group.AcceptChanges(submission, handle)
         );

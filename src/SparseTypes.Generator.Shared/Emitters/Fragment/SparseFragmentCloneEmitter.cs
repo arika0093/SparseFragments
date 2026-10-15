@@ -39,10 +39,8 @@ internal sealed class SparseFragmentCloneEmitter
         string receiver = "this."
     )
     {
-        // Stage 4 (#193): facades delegate both DeepClone overloads; bodies
-        // move with an explicit receiver (surface construction is `this`).
-        // Public-first order keeps the public facade with the public surface;
-        // the internal overload moves via AppendDeepCloneInternalFacade.
+        // Stage 4: facades delegate both DeepClone overloads; bodies move with
+        // an explicit receiver (surface construction is `this`).
         if (operationsType is not null)
         {
             AppendDeepClonePublicFacade(code, modelType, operationsType);
@@ -219,12 +217,8 @@ internal sealed class SparseFragmentCloneEmitter
                 ", ",
                 constructor.Parameters.Select(parameter => boundClones[parameter.PropertyName])
             );
-        // Register the clone before overlaying mutable setter members so setter-bound
-        // reference cycles resolve to the in-progress clone. Init-only and required
-        // members stay in the object initializer (they cannot be assigned afterwards),
-        // while plain mutable setters are assigned after registration. Cycles cannot
-        // pass through init-only or required values because those are fixed at
-        // construction time.
+        // Register the clone before setting mutable members so reference cycles
+        // resolve to it.
         var initializerMembers = members
             .Where(static member =>
                 !member.Property.IsReadOnly
@@ -449,9 +443,8 @@ internal sealed class SparseFragmentCloneEmitter
         string helperAccessibility = "private"
     )
     {
-        // Stage 4 (#193): POCO helpers move to the operations class with no
-        // surface counterpart; the staying Fragment clone bridge resolves
-        // them through the qualified operations type.
+        // Stage 4: POCO helpers move to the operations class with no surface
+        // counterpart.
         if (operationsType is not null)
             return;
         code.CancellationToken.ThrowIfCancellationRequested();

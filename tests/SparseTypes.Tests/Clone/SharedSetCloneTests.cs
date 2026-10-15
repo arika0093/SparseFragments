@@ -75,9 +75,8 @@ internal sealed class PortableHashSet<T> : HashSet<T>, IReadOnlySet<T>
 
 public sealed class SharedSetCloneTests
 {
-    // Representative set matrix (issue #280): HashSet comparer semantics and
-    // mutable/read-only alias preservation in both member orders. SortedSet and
-    // other specialized containers are intentionally unsupported.
+    // Representative set matrix: HashSet comparer semantics and
+    // mutable/read-only alias preservation in both member orders.
     [Test]
     [Arguments(false)]
     [Arguments(true)]

@@ -5,10 +5,8 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Shared;
 
-// Stage-1 tests for the facade/implementation separation (issue #176):
-// central placement resolution, explicit product-neutral policy, and
-// multi-source result capability. Later stages relocate types through this
-// resolver; this suite pins naming stability and collision safety first.
+// Central placement resolution, explicit product-neutral policy, and
+// multi-source result capability.
 public sealed class GeneratedPlacementTests
 {
     private static SparseModelInfo Model(
@@ -117,10 +115,8 @@ public sealed class GeneratedPlacementTests
     [Test]
     public void ParentChildReferencesShareTheChildContainer()
     {
-        // Blocking review finding on reloc-1 (#190/#191): parent-side child
-        // refs hash NonNullableName while the child hashes its own identity.
-        // The old qualifier handling doubled top-level names and diverged for
-        // nested models; both sides must normalize identically instead.
+        // Blocking review finding on reloc-1: parent-side child refs hash
+        // NonNullableName while the child hashes its own identity.
         ParentRefShouldMatchChildContainer(
             "Inner",
             "global::Ns.Outer.Inner",

@@ -21,14 +21,8 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-      # Action updates affect the product CI, so they run the same strict
-      # dotnet gate as NuGet updates.
-      # NOTE: dependabot/fetch-metadata reports ecosystem names with
-      # underscores (github_actions) and per-project directories for nuget
-      # (e.g. /src/devtools/... instead of /), so match on ecosystem with a
-      # directory wildcard where the selected checks are not
-      # directory-sensitive.
-      # Observed values: nuget:/src/..., github_actions:/
+      # Run the same strict CI gate for Actions and NuGet updates.
+      # Dependabot uses `github_actions` and project-specific NuGet directories.
       - name: Select checks
         id: checks
         shell: bash
@@ -63,10 +57,7 @@ jobs:
     needs:
       - metadata
       - dotnet-strict
-    # The selected check must have succeeded; a selected check that was
-    # skipped instead of run blocks the merge loudly rather than merging
-    # without validation. An unselected ecosystem (run-dotnet: false) passes
-    # vacuously because its job is legitimately skipped.
+    # The selected check must have succeeded.
     if: >-
       always() &&
       needs.metadata.result == 'success' &&

@@ -2,16 +2,8 @@ using System.Threading;
 
 namespace SparseTypes.Generator.Shared;
 
-/// <summary>Builds the compilation-scoped collection clone kernel source (#182).</summary>
-/// <remarks>
-/// Ports the model-independent clone kernels out of
-/// <c>SparseFragmentCollectionCloneEmitter</c> verbatim: count probing,
-/// set/dictionary/array/list kernels with reference-identity tracking, cycle
-/// handling, comparer preservation and the TFM-specific
-/// <c>IReadOnlySet{T}</c> bridge. Per-model clone code passes model-specific
-/// typed item/key/value clone delegates plus the shared clone context and
-/// calls these kernels through the qualified container name.
-/// </remarks>
+/// <summary>Builds the compilation-scoped collection clone kernel source.</summary>
+/// <remarks>Ports the model-independent clone kernels out of <c>SparseFragmentCollectionCloneEmitter</c> verbatim.</remarks>
 internal static class SparseGeneratedOnceCloneKernels
 {
     /// <summary>Builds the shared clone kernel source for the explicit namespace.</summary>
@@ -79,8 +71,8 @@ internal static class SparseGeneratedOnceCloneKernels
                 + "(source as global::System.Collections.Generic.HashSet<T>)?.Comparer);"
         );
         code.AppendLineAt(3, "context.Add(source, clone);");
-        // A HashSet copy constructor can retain a source's oversized capacity and
-        // cross the LOH threshold. Union into the count-sized set instead.
+        // A HashSet copy constructor can retain a source's oversized capacity
+        // and cross the LOH threshold. Union into the count-sized set instead.
         code.AppendLineAt(3, "if (cloneElement is null) clone.UnionWith(source);");
         code.AppendLineAt(3, "else");
         code.AppendLineAt(3, "{");
@@ -246,11 +238,8 @@ internal static class SparseGeneratedOnceCloneKernels
         }
     }
 
-    // IReadOnlySet{T} only exists on netstandard2.1 and later. The caller
-    // gates includePortableSetView on the BCL probe (see
-    // SparseFragmentCollectionCloneEmitter.RequiresPortableSetView and
-    // d7011db), so naming the interface here cannot break netstandard2.0
-    // or net48 compilations: those never request the bridge.
+    // The caller emits this IReadOnlySet bridge only when the target BCL
+    // supports it, keeping older target frameworks free of that reference.
     private static void AppendPortableSetView(
         SharedIndentedBuilder code,
         bool hashSetSupportsCapacity

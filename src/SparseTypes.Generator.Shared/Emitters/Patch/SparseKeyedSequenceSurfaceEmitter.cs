@@ -27,7 +27,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             : elementType;
         var comparer =
             "global::System.Collections.Generic.EqualityComparer<" + keyType + ">.Default";
-        // Shared removal prefix (#183); null keeps the legacy private kernels.
+        // Shared removal prefix; null keeps the legacy private kernels.
         var sharedRemoval = string.IsNullOrEmpty(implementationNamespace)
             ? null
             : SparseDictionaryRemovalIndexEmitter.SharedPrefix(keyType, implementationNamespace!);
@@ -46,9 +46,8 @@ internal static class SparseKeyedSequenceSurfaceEmitter
             ? null
             : new SharedIndentedBuilder(code.CancellationToken);
         var internalCode = surfaceDeferred ?? code;
-        // Relocated operation bodies reach state through these fields, so
-        // they are internal rather than private. The mutating surface below
-        // stays on the facade as thin delegating stubs.
+        // Relocated operation bodies reach state through these fields, so they
+        // are internal rather than private.
         internalCode.AppendLineAt(3, "internal " + operation + " __whole;");
         internalCode.AppendLineAt(
             3,
@@ -161,7 +160,8 @@ internal static class SparseKeyedSequenceSurfaceEmitter
         {
             SparseKeyedRemovalIndexEmitter.Emit(code, keyType, comparer, implementationNamespace);
         }
-        // Relocated mutator bodies reuse this guard through the facade instance.
+        // Relocated mutator bodies reuse this guard through the facade
+        // instance.
         internalCode.AppendLineAt(3, "internal void EnsureGranular(string operation)");
         internalCode.AppendLineAt(3, "{");
         internalCode.AppendLineAt(
@@ -379,13 +379,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
     }
 
     /// <summary>Emits the keyed mutators (Add/Remove/Edit/Update/SetOrder).</summary>
-    /// <remarks>
-    /// With a null split the mutators stay instance members of the nested
-    /// patch (legacy single-file emission). Otherwise thin stubs stay on the
-    /// facade while the bodies move into the member operation class,
-    /// aliasing facade fields by reference so element identity and
-    /// in-place mutation semantics are unchanged.
-    /// </remarks>
+    /// <remarks>With a null split the mutators stay instance members of the nested patch (legacy single-file emission).</remarks>
     internal static void EmitKeyedMutators(
         SharedIndentedBuilder code,
         SparseMemberModel member,
@@ -846,11 +840,7 @@ internal static class SparseKeyedSequenceSurfaceEmitter
     }
 
     /// <summary>Aliases nested keyed-patch fields by reference for relocated bodies.</summary>
-    /// <remarks>
-    /// Relocated mutator and algebra bodies operate on the facade instance
-    /// through these aliases, so element identity, lazy nested state and
-    /// in-place mutation semantics match the legacy instance methods exactly.
-    /// </remarks>
+    /// <remarks>Relocated mutator and algebra bodies operate on the facade instance through these aliases.</remarks>
     internal static void AppendFieldAliases(
         SharedIndentedBuilder code,
         SparseMemberModel? member = null

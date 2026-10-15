@@ -6,10 +6,7 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Generator;
 
-// Validates the [SparseFragmentMapper{TEntity, TDto}] declaration shape: the
-// attribute is the single authority for the Entity/DTO pair, the mapper must
-// be an augmentable partial class, and only one optional parameterless
-// Configure plus the generated Map member may exist.
+// Validates the [SparseFragmentMapper{TEntity, TDto}] declaration shape.
 internal static class SparseEntityMapperDeclaration
 {
     internal sealed record Error(Location? Location, string Message);

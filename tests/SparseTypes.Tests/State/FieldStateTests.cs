@@ -2,7 +2,7 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-/// <summary>Path-first semantic field state over sessions and change sets (issue #250).</summary>
+/// <summary>Path-first semantic field state over sessions and change sets.</summary>
 public sealed class FieldStateTests
 {
     [Test]
@@ -98,7 +98,8 @@ public sealed class FieldStateTests
         leaf.Before.Value.ShouldBe("localhost");
         leaf.After.Value.ShouldBe("edited");
 
-        // The nested builder path has no typed form; the untyped query sees descendants.
+        // The nested builder path has no typed form; the untyped query sees
+        // descendants.
         var parent = session.FieldState(Settings.SparsePath.Nested);
         parent.IsChanged.ShouldBeFalse();
         parent.Kind.ShouldBe(SparseFieldChangeKind.Unchanged);
@@ -121,7 +122,8 @@ public sealed class FieldStateTests
         var session = model.CreateEditSession();
         model.Nested = new Nested { Host = "replaced", Port = 1 };
 
-        // Wholesale replacement still diffs granularly: leaves carry exact changes.
+        // Wholesale replacement still diffs granularly: leaves carry exact
+        // changes.
         session.FieldState(Settings.SparsePath.Nested.Host).IsChanged.ShouldBeTrue();
         session.FieldState(Settings.SparsePath.Nested.Port).IsChanged.ShouldBeTrue();
 
@@ -159,7 +161,8 @@ public sealed class FieldStateTests
         }.CreateEditSession();
         session.Observable.Scores["a"] = 2;
 
-        // Dictionaries enumerate per-entry records only: no member-level exact change.
+        // Dictionaries enumerate per-entry records only: no member-level exact
+        // change.
         var member = session.FieldState(ScalarDictHolder.SparsePath.Scores);
         member.IsChanged.ShouldBeFalse();
         member.HasDescendantChange.ShouldBeTrue();

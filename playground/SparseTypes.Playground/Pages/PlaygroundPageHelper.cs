@@ -17,10 +17,8 @@ internal static class PlaygroundPageHelper
         }
     }
 
-    // Audit (#256): Cases 3-5 each mapped their own per-model ChangeKind plus a
-    // Missing-to-"—" format. Tables now project ISparseChangeSet records through
-    // SparseChangeRowProjection, so one mapping over the model-independent kind
-    // covers every case; value text stays with each case's JSON hook.
+    // Audit: Cases 3-5 each mapped their own per-model ChangeKind plus a
+    // Missing-to-"—" format.
     internal static string ChangeOperation(SparseChangeKind kind) =>
         kind switch
         {

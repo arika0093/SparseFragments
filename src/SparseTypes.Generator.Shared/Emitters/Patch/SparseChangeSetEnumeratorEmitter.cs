@@ -92,7 +92,8 @@ internal static class SparseChangeSetEnumeratorEmitter
         );
         code.AppendLineAt(2, "public sealed class ChangeInfo");
         code.AppendLineAt(2, "{");
-        // Public-first order: public properties precede the internal constructor.
+        // Public-first order: public properties precede the internal
+        // constructor.
         code.AppendLineAt(3, "/// <summary>Gets the changed member path.</summary>");
         code.AppendLineAt(3, "public " + pathType + " Path { get; }");
         code.AppendLineAt(3, "/// <summary>Gets the wire-compatible path text.</summary>");
@@ -236,7 +237,7 @@ internal static class SparseChangeSetEnumeratorEmitter
             "var changes = new global::System.Collections.Generic.List<ChangeInfo>();"
         );
         // Root presence transitions carry no member values but are nonempty
-        // history; report them instead of silently dropping them (issue #127).
+        // history; report them instead of silently dropping them.
         code.AppendLineAt(
             3,
             "var __sparse_prefix = " + pathType + ".Root(typeof(" + rootModel + "));"
@@ -327,9 +328,7 @@ internal static class SparseChangeSetEnumeratorEmitter
         string optionalObject
     )
     {
-        // Set-element membership deltas at audit granularity (issue #174):
-        // per-element entries carry the element value in a key segment and use
-        // the comparer-aware typed deltas, so distinct values never share a path.
+        // Set-element membership deltas at audit granularity.
         var transition = "__sparse_set_transition_" + member.Id;
         var added = "__sparse_set_added_" + member.Id;
         var removed = "__sparse_set_removed_" + member.Id;
@@ -462,7 +461,8 @@ internal static class SparseChangeSetEnumeratorEmitter
         code.AppendLineAt(4, "{");
         if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
         {
-            // Temporary entries address by Guid; assigned entries keep key paths.
+            // Temporary entries address by Guid; assigned entries keep key
+            // paths.
             code.AppendLineAt(
                 5,
                 "var "

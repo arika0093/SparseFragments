@@ -35,7 +35,8 @@ public readonly record struct Optional<T>
     /// <summary>Whether this member is missing or present with a value.</summary>
     public override string ToString() => IsPresent ? $"Present({_value})" : "Missing";
 
-    // Record struct with synthesized equality; Missing has a single representation.
+    // Record struct with synthesized equality; Missing has a single
+    // representation.
 
     /// <summary>Creates a present member from a value.</summary>
     public static implicit operator Optional<T>(T? value) => Present(value);

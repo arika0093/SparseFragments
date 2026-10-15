@@ -4,13 +4,8 @@ using System.Text.Json.Serialization;
 
 namespace SparseTypes.Tests.Patch;
 
-/// <summary>Certifies the optional-JSON split (issues #242/#243).</summary>
-/// <remarks>
-/// The base runtime carries no System.Text.Json reference; the v1 wire shape
-/// is implemented by generated bridge converters. These tests pin the
-/// serializer-agnostic runtime surface and the bridge presence/shape so wire
-/// drift fails here instead of in consumers.
-/// </remarks>
+/// <summary>Certifies the optional-JSON split.</summary>
+/// <remarks>The base runtime carries no System.Text.Json reference; the v1 wire shape is implemented by generated bridge converters.</remarks>
 public sealed class ChangePayloadWireTests
 {
     [Test]
@@ -167,7 +162,6 @@ public sealed class ChangePayloadWireTests
 
         // Scalar, keyed, dictionary, and nested round-trips live in
         // ChangePayloadTests; redaction round-trips live in
-        // ChangePayloadRedactionTests. This pins the bridge token matrix only.
         foreach (var state in Enum.GetValues<ChangePayloadState>())
         {
             var token = ChangePayloadWire.ToToken(state);

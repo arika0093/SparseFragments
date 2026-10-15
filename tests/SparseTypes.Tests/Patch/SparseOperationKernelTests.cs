@@ -2,7 +2,7 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests;
 
-/// <summary>Model-independent operation kernel regressions (issue #188).</summary>
+/// <summary>Model-independent operation kernel regressions.</summary>
 public sealed class SparseOperationKernelTests
 {
     [Test]

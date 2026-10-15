@@ -24,11 +24,7 @@ public partial class SparseBenchSettings318
     public IReadOnlyList<string> Plugins { get; set; } = [];
 }
 
-/// <summary>
-/// Plain-model overlay used by the hand-written merge baseline.
-/// Nullable reference / value members mean "unspecified, fall through";
-/// non-null members override the lower layer.
-/// </summary>
+/// <summary>Plain-model overlay used by the hand-written merge baseline.</summary>
 public sealed class SparseBenchHandOverlay318
 {
     public bool? Enabled { get; set; }
@@ -183,8 +179,7 @@ public class SparseFragmentBenchmarks318
     private static SparseBenchSettings318 CloneViaReflection(SparseBenchSettings318 value)
     {
         // Minimal reflection-based copy baseline: one Activator call plus a
-        // per-property GetValue/SetValue round trip. Nested models and the
-        // plugin list are copied so the clone is independent like DeepClone.
+        // per-property GetValue/SetValue round trip.
         var clone = (SparseBenchSettings318)(
             Activator.CreateInstance(typeof(SparseBenchSettings318))!
         );

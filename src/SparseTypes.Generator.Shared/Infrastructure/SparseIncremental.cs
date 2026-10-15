@@ -67,11 +67,7 @@ internal static class SparseExternalInit
     internal const string IsExternalInitMetadataName =
         "System.Runtime.CompilerServices.IsExternalInit";
 
-    /// <summary>
-    /// Determines whether the generator must emit its own <c>IsExternalInit</c>
-    /// marker: emission is enabled by configuration and the compilation does not
-    /// already reference an accessible marker type.
-    /// </summary>
+    /// <summary>Emission is enabled by configuration and the compilation does not already reference an accessible marker type.</summary>
     public static bool ShouldEmitIsExternalInit(Compilation compilation, bool configured)
     {
         if (!configured)

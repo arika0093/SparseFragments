@@ -4,15 +4,7 @@ using System.Text;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Orders relocated operation members internal-first.</summary>
-/// <remarks>
-/// Patch and ChangeSet operation containers are filled by many small
-/// emitters, each appending its own internal entry points alongside private
-/// helpers. Appending in call order therefore interleaves the two groups.
-/// This helper reorders only top-level member declarations within one
-/// container so every <c>internal</c> member precedes every <c>private</c>
-/// member; relative order inside each group and all member bodies stay
-/// byte-identical, so semantics never change.
-/// </remarks>
+/// <remarks>Patch and ChangeSet operation containers are filled by many small emitters.</remarks>
 internal static class SparseOperationOrdering
 {
     private enum LineKind

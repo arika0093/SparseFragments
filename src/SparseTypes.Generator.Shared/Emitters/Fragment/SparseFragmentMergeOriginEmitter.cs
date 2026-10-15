@@ -4,13 +4,7 @@ using System.Collections.Immutable;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Emits origin-aware merge and apply bodies for generated fragments.</summary>
-/// <remarks>
-/// Split from <c>SparseFragmentMergeEmitter</c> so neither file exceeds the
-/// Sonar file-size rule; the bodies are unchanged, only relocated.
-/// Origins stay explanatory metadata: values compute once into locals, the
-/// origin-free fast path returns them unattributed, and attribution arrays
-/// are attached only when provenance is present.
-/// </remarks>
+/// <remarks>Split from <c>SparseFragmentMergeEmitter</c> so neither file exceeds the Sonar file-size rule.</remarks>
 internal static class SparseFragmentMergeOriginEmitter
 {
     /// <summary>Appends the origin-propagating merge tail after the merged values are computed.</summary>

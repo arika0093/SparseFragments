@@ -1,11 +1,7 @@
 using SparseTypes;
 
-// Canonical compile-checked mirror of docs/how-to/layered-settings.md.
-// Library, application, and user fragments share one model: precedence,
-// independent nested members, an explicit nullable override, Remove
-// fallthrough for a scalar and a nested contribution, and the Fragment
-// contribution versus ToModel() distinction. Regions execute as part of Run()
-// so the documented effective values are verified, not just compiled.
+// Compile-checked samples for layered settings and fragment precedence.
+// Run() verifies nullable overrides, Remove fallthrough, and ToModel().
 public static class LayeredSettingsSamples
 {
     public static void Run()

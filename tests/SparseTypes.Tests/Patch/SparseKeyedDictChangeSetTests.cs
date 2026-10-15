@@ -3,7 +3,7 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-/// <summary>Composite dictionary key with a colliding display string (issue #138).</summary>
+/// <summary>Composite dictionary key with a colliding display string.</summary>
 /// <remarks>Distinct keys share one <c>ToString()</c>; paths must still differ.</remarks>
 public readonly struct CollidingCompositeKey : IEquatable<CollidingCompositeKey>
 {
@@ -26,14 +26,8 @@ public partial class CollidingKeyDictHolder
     public Dictionary<CollidingCompositeKey, int> Scores { get; set; } = new();
 }
 
-/// <summary>Truly sparse keyed/dictionary ChangeSet storage and algebra (issue #103).</summary>
-/// <remarks>
-/// Canonical keyed/dict transitions retain only added(-&gt;after), removed(-&gt;before),
-/// edited (nested) and key-only ordering – never full member before/after snapshots.
-/// Per-key Compose/Rebase validate continuity only where keys interact, so disjoint
-/// keys compose despite differing unrelated snapshots. Payload scales with the edit,
-/// not the collection.
-/// </remarks>
+/// <summary>Truly sparse keyed/dictionary ChangeSet storage and algebra.</summary>
+/// <remarks>Checks sparse keyed and dictionary transition storage.</remarks>
 public sealed class SparseKeyedDictChangeSetTests
 {
     private static KeyedServer S(string id, string? name = null, int count = 1) =>
@@ -99,11 +93,13 @@ public sealed class SparseKeyedDictChangeSetTests
         changes.Items.Edited.ContainsKey("k7").ShouldBeTrue();
 
         var json = JsonSerializer.Serialize(changes.ToPayload());
-        // Unchanged element payloads must not be retained/serialized (wide names fail obviously).
+        // Unchanged element payloads must not be retained/serialized (wide
+        // names fail obviously).
         json.ShouldNotContain("k5-original-");
         json.ShouldNotContain("k150-original-");
         json.ShouldContain("EDITED-");
-        // Order keys may be retained, but element values must not scale with the collection.
+        // Order keys may be retained, but element values must not scale with
+        // the collection.
         var full = KeyedServerHolder.ChangeSet.Between(
             before,
             KState(
@@ -376,7 +372,8 @@ public sealed class SparseKeyedDictChangeSetTests
     [Test]
     public void DisjointKeyedEditsComposeDespiteDifferingUnrelatedSnapshots()
     {
-        // First edits A (B = B1 in its snapshots); second edits C (B = B2, different value).
+        // First edits A (B = B1 in its snapshots); second edits C (B = B2,
+        // different value).
         KeyedServer A0() =>
             new()
             {
@@ -435,7 +432,8 @@ public sealed class SparseKeyedDictChangeSetTests
         composed.Items.GetChange("c").Edit.Name.After.Value.ShouldBe("C1");
         composed.Items.GetChange("b").IsEmpty.ShouldBeTrue();
 
-        // Net replays both edits onto the first baseline (B stays B1, untouched).
+        // Net replays both edits onto the first baseline (B stays B1,
+        // untouched).
         var merged = composed.ToPatch().Apply(KState(A0(), B1(), C0()));
         KeyedServerHolder.Patch.Between(merged, KState(A1(), B1(), C1())).IsEmpty.ShouldBeTrue();
     }
@@ -526,7 +524,8 @@ public sealed class SparseKeyedDictChangeSetTests
                 }
             )
         );
-        // Different snapshots share no edited keys (x vs z) with an extra unrelated entry each way.
+        // Different snapshots share no edited keys (x vs z) with an extra
+        // unrelated entry each way.
         var sComposed = sFirst.Compose(sSecond);
         sComposed.Servers.GetChange("x").IsEdited.ShouldBeTrue();
         sComposed.Servers.GetChange("z").IsAdded.ShouldBeTrue();
@@ -628,7 +627,8 @@ public sealed class SparseKeyedDictChangeSetTests
         conflicted.Rebased.Items.GetChange("b").IsEdited.ShouldBeTrue();
         conflicted.Rebased.Items.GetChange("b").Edit.Name.After.Value.ShouldBe("B1");
 
-        // Dictionary: unrelated concurrent add merges; same-key conflict isolates.
+        // Dictionary: unrelated concurrent add merges; same-key conflict
+        // isolates.
         var dChanges = ScalarDictHolder.ChangeSet.Between(
             DState(new() { ["a"] = 1 }),
             DState(new() { ["a"] = 2 })

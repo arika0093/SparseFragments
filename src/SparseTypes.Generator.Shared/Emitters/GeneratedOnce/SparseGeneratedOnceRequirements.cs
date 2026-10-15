@@ -3,12 +3,7 @@ using System.Collections.Immutable;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Capability aggregation for Generated-Once helpers (track-3).</summary>
-/// <remarks>
-/// Interim seam for #178: the product generator collects these flags across
-/// explicit and promoted models and emits one shared source per family.
-/// #178 should replace the manual aggregation with its feature plan while
-/// keeping the helper identities in <see cref="SparseGeneratedOnceNames"/>.
-/// </remarks>
+/// <remarks>The generator aggregates these flags across models and emits one source per helper family.</remarks>
 internal sealed record SparseGeneratedOnceRequirements
 {
     /// <summary>Whether the shared read-only list adapter is required.</summary>
@@ -68,9 +63,8 @@ internal sealed record SparseGeneratedOnceRequirements
         ImmutableArray<SparseReadOnlyViewModel> readOnlyViewModels
     )
     {
-        // LINQ keeps the analyzer's S3267 quiet and states the capability
-        // query directly: sequences need the list adapter, dictionaries need
-        // all three (Keys reuses the list adapter; key mapping may need entries).
+        // Sequences need the list adapter, dictionaries need all three (Keys
+        // reuses the list adapter; key mapping may need entries).
         var needsCollection =
             members.Any(static member => IsSequence(member))
             || members.Any(static member => member.Collection.ValueType is not null);
@@ -108,11 +102,7 @@ internal sealed record SparseGeneratedOnceRequirements
                 or SparseCollectionKind.Set;
 
     /// <summary>Computes clone kernel needs for one model.</summary>
-    /// <remarks>
-    /// The kernel family is emitted as a unit: array/list kernels call each
-    /// other, so per-shape splitting would break cross-calls. The portable
-    /// set bridge stays conditional on read-only-set usage.
-    /// </remarks>
+    /// <remarks>The kernel family is emitted as a unit: array/list kernels call each other, so per-shape splitting would break cross-calls.</remarks>
     /// <param name="members">Model members.</param>
     /// <param name="pocoCloneModels">POCO clone models.</param>
     /// <param name="bclHashSetImplementsReadOnlySet">Whether the BCL set implements <c>IReadOnlySet{T}</c>.</param>
@@ -135,11 +125,8 @@ internal sealed record SparseGeneratedOnceRequirements
                     )
                 )
             );
-        // Portable bridge mirrors SparseFragmentCollectionCloneEmitter.RequiresPortableSetView:
-        // only IReadOnlySet members need it, and only when the BCL set lacks
-        // support. ISet-only models on old TFMs must not trigger the bridge:
-        // the shared __SparseReadOnlySet{T} names IReadOnlySet{T}, which those
-        // compilations cannot resolve (CS0234, see d7011db).
+        // Require the portable bridge only for IReadOnlySet members when the
+        // target BCL lacks support; ISet-only models do not need it.
         var needsPortableView =
             !bclHashSetImplementsReadOnlySet
             && needsClone

@@ -1,17 +1,9 @@
-# Docs sample registry (#213). Single source of truth mapping a Markdown
-# file plus sample id to its canonical compile-checked fixture.
+# Map Markdown sample IDs to canonical compile-checked fixtures.
 #
-# Format: <markdown-path> TAB <sample-id> TAB <fixture-path> [TAB <kind>]
-# Paths are repository-relative with forward slashes. Lines starting with
-# `#` and blank lines are ignored. kind defaults to `sample`; use
-# `json-specimen` for JSON output specimens owned by #212 (Markdown marker
-# `<!-- json-specimen: id -->`, fixture region `// json-specimen: id`).
+# Rows use repository-relative paths; blank and `#` lines are ignored.
+# Set kind to `json-specimen` for serialized JSON samples.
 #
-# check-docs-samples.py --registry discovers README.md plus all
-# docs/**/*.md from the filesystem, so adding a guide needs no shell edit:
-# an unregistered marker fails the build. verify-docs-samples.sh covers the
-# docs scope and verify-sparsetypes-readme.sh covers README.md, both
-# from this file; the id lists must not be duplicated anywhere else.
+# The registry covers README.md and docs/**/*.md so sample IDs stay centralized.
 README.md	readme-quickstart	tests/fixtures/consumers/package-sparse-readme/Program.cs
 docs/explanation/fragments-and-patches.md	core-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/explanation/fragments-and-patches.md	core-create	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs

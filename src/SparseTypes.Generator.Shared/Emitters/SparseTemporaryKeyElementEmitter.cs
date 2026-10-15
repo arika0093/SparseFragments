@@ -20,14 +20,8 @@ internal static class SparseTemporaryKeyElementEmitter
         bool elementNullableStruct
     )
     {
-        // Authoritative membership/order phase: the target list rebuilds
-        // from the persisted membership/order, then rebases recorded
-        // post-submit adds/removes/reorders by stable identity.
-        // Server-added rows survive, server-dropped rows disappear, clean
-        // reconciles converge to HasChanges == false, and concurrent
-        // local reorder wins deterministically over server reorder.
-        // Everything runs on the detached __working list; the live list
-        // is untouched until the writeback commit below.
+        // Rebuild from persisted membership/order, then rebase local edits by
+        // stable identity on a detached list before committing writeback.
         if (keyProp is null || tempProp is null || unassigned is null)
         {
             return;
@@ -180,7 +174,8 @@ internal static class SparseTemporaryKeyElementEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "if (__liveList is not null)");
         code.AppendLineAt(4, "{");
-        // Predecessor lookup needs indexing even when the model exposes only IEnumerable.
+        // Predecessor lookup needs indexing even when the model exposes only
+        // IEnumerable.
         code.AppendLineAt(
             5,
             "var __liveOrder = __liveList as global::System.Collections.Generic.IReadOnlyList<"
@@ -291,10 +286,7 @@ internal static class SparseTemporaryKeyElementEmitter
         bool elementNullableStruct
     )
     {
-        // Submitted-missing elements are post-submit additions and stay;
-        // submitted elements missing from the persisted model were dropped
-        // and leave; the rest replay post-submit edits onto persisted values
-        // (or adopt them when untouched).
+        // Submitted-missing elements are post-submit additions and stay.
         code.AppendLineAt(5, elementType + " __subFound = default" + (elementRef ? "!" : "") + ";");
         code.AppendLineAt(5, "bool __hasSub = false;");
         code.AppendLineAt(5, "if (__subList is not null)");
@@ -335,10 +327,8 @@ internal static class SparseTemporaryKeyElementEmitter
         code.AppendLineAt(5, "var __edit = __transition?.GetChange(__k!)?.Edit;");
         code.AppendLineAt(5, "if (__edit is null || __edit.IsEmpty)");
         code.AppendLineAt(5, "{");
-        // Element-granularity adoption: an assigned row without its own
-        // post-submit edit adopts the persisted element even when a
-        // sibling row keeps the member dirty. The member-wide clean gate
-        // would otherwise retain stale pre-save values.
+        // An assigned row without its own post-submit edit adopts the persisted
+        // element even when a sibling row keeps the member dirty.
         code.AppendLineAt(
             6,
             "if (!"
@@ -361,8 +351,7 @@ internal static class SparseTemporaryKeyElementEmitter
         code.AppendLineAt(5, "else");
         code.AppendLineAt(5, "{");
         // The edit sits on the submitted state while adoption targets the
-        // persisted state; the baseline-free temp-correlated patch carries
-        // local field values onto the persisted identity.
+        // persisted state.
         code.AppendLineAt(
             6,
             "var __applied = __edit.ToPatch().Apply(" + elementType + ".Fragment.From(__perFound));"

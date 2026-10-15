@@ -6,14 +6,7 @@ namespace EfCoreSample.Server;
 /// <summary>
 /// Maps <see cref="OrderDto" /> changes onto <see cref="OrderEntity" />.
 /// </summary>
-/// <remarks>
-/// Same-name scalars (<c>Notes</c>) are inferred. Everything else is declared
-/// here: the renamed <c>Name</c>, the normalized <c>Code</c>, the flattened
-/// <c>ShipCity</c>, the ignored <c>DisplayTotal</c>, the scoped nested
-/// <c>Address</c> mapping whose <c>City</c> stays flattened, and the keyed
-/// <c>Lines</c> collection whose child mapping, factory, removal, and order
-/// policies are scoped to this parent path.
-/// </remarks>
+/// <remarks>Same-name scalars (<c>Notes</c>) are inferred.</remarks>
 // Same-name defaults are generated; keep explicit overrides and policies here.
 [SparseFragmentMapper<OrderEntity, OrderDto>]
 public sealed partial class OrderMapper

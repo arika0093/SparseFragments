@@ -12,8 +12,8 @@ internal static class CollectionEntryAccess
         if (detectChanges)
             tracker.DetectChanges();
 
-        // Per-child detection revisits ancestors and rescans the parent collection.
-        // A single full pass preserves detection without that quadratic work.
+        // Per-child detection revisits ancestors and rescans the parent
+        // collection.
         tracker.AutoDetectChangesEnabled = false;
         try
         {

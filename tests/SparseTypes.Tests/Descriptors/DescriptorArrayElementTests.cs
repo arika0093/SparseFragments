@@ -10,9 +10,8 @@ public partial class ArrayElementHolder
 
     public string[] Labels { get; set; } = [];
 
-    // NOTE: nullable fragment elements (ObservableChild?[]) still warn CS8602 in
-    // the fragment clone emitter (pre-existing, fragment area), so only the
-    // nullable-array shape is fixture-covered here.
+    // NOTE: nullable fragment elements (ObservableChild?[]) still warn CS8602
+    // in the fragment clone emitter (pre-existing.
     [SparseMerge(MergeMode.Replace)]
     public ObservableChild[]? MaybeKids { get; set; }
 }

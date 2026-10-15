@@ -17,18 +17,8 @@ public sealed record SparseFieldBindingOptions
     public bool Disabled { get; init; }
 }
 
-/// <summary>
-/// Toolkit-agnostic typed binding over one session path and one original-model edit context.
-/// </summary>
-/// <remarks>
-/// Reads resolve live on every access so nested replacement is followed; removed
-/// keyed entries report stale instead of mutating an orphan. Writes go through
-/// the generated descriptor (the observable path) when the session exposes one
-/// and fall back to live-model reflection only for sessions without descriptors.
-/// Every successful write notifies the captured original-model <see cref="EditContext"/>;
-/// the observable proxy is never used as a context model. The binding holds no
-/// subscriptions, so replacing the session or context never leaks.
-/// </remarks>
+/// <summary>Toolkit-agnostic typed binding over one session path and one original-model edit context.</summary>
+/// <remarks>Reads resolve live on every access so nested replacement is followed.</remarks>
 /// <typeparam name="TModel">The session model type.</typeparam>
 /// <typeparam name="TValue">The addressed value type.</typeparam>
 public sealed class SparseFieldBinding<TModel, TValue>
@@ -136,14 +126,8 @@ public sealed class SparseFieldBinding<TModel, TValue>
         }
     }
 
-    /// <summary>
-    /// Gets a value expression targeting the original model for <c>InputBase</c> use.
-    /// </summary>
-    /// <remarks>
-    /// Only member-only paths expose an expression (a property chain over the
-    /// captured live root, so nested replacement stays live). Keyed, indexed, and
-    /// temporary-key segments return null instead of a fabricated tree.
-    /// </remarks>
+    /// <summary>Gets a value expression targeting the original model for <c>InputBase</c> use.</summary>
+    /// <remarks>Only member paths expose value expressions; collection paths return null instead of a fabricated expression.</remarks>
     public Expression<Func<TValue>>? ValueExpression => TryBuildValueExpression();
 
     /// <summary>Attempts to read the live typed value.</summary>

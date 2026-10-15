@@ -3,11 +3,7 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>The typed outcome of planning a rollback over mixed operations.</summary>
-/// <remarks>
-/// Write-only operations have no prior value to restore, so rollback excludes
-/// them and reports their paths instead. A plan with no skipped paths is a
-/// complete inverse; any skipped path makes incompleteness explicit.
-/// </remarks>
+/// <remarks>Write-only operations have no prior value to restore, so rollback excludes them and reports their paths instead.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed class MixedRollbackPlan
 {

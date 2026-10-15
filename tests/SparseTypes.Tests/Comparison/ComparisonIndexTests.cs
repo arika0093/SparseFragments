@@ -6,10 +6,7 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Comparison;
 
-// Regression tests for the per-compilation comparison-rule index (issue
-// #140): repeated rule-set creation shares one assembly scan, unrelated edits
-// invalidate through new compilations, and inherited precedence plus
-// ambiguity behavior match the unindexed traversal.
+// Regression tests for the per-compilation comparison-rule index (issue ).
 public sealed class ComparisonIndexTests
 {
     private const string ComparerSource = """

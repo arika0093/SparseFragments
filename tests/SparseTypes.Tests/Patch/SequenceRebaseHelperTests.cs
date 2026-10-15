@@ -9,12 +9,7 @@ public partial class SequenceSetSettings
     public IReadOnlyList<string> Values { get; set; } = [];
 }
 
-/// <summary>
-/// Scale and semantics tests for issue #59: the typed sequence rebase helpers must
-/// agree with the boxed <c>object?</c> + delegate path on success, rebased content,
-/// and conflicts across no-op, add, removal, concurrent, conflict, duplicate, and
-/// many-change layouts, with default and custom comparers.
-/// </summary>
+/// <summary>Compares typed sequence helpers with boxed results.</summary>
 public sealed class SequenceRebaseHelperTests
 {
     private static readonly Func<object?, object?, bool> BoxedEqual = (left, right) =>
@@ -111,7 +106,8 @@ public sealed class SequenceRebaseHelperTests
         rebased.ShouldContain("c");
         rebased.ShouldContain("D");
 
-        // Case-only differences are not removals or additions under the comparer.
+        // Case-only differences are not removals or additions under the
+        // comparer.
         SparseFragmentRuntime
             .TryRebaseSequenceSetUnion(
                 before,

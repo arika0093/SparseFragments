@@ -2,14 +2,8 @@ using System.ComponentModel;
 
 namespace SparseTypes;
 
-/// <summary>Deterministic mixed-operation algebra over value-free descriptors (issue #119).</summary>
-/// <remarks>
-/// The rules decide composition shapes, rollback plans, and projection gates from
-/// member paths and history kinds only. Value-level continuity checks stay with
-/// the typed ChangeSet and Patch APIs, which hold the actual before and after
-/// states. A merged operation regains complete history only when one side
-/// supplied a real baseline; history is never inferred from redacted endpoints.
-/// </remarks>
+/// <summary>Deterministic mixed-operation algebra over value-free descriptors.</summary>
+/// <remarks>The rules decide composition shapes, rollback plans, and projection gates from member paths and history kinds only.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public static class MixedChangeAlgebra
 {
@@ -17,14 +11,7 @@ public static class MixedChangeAlgebra
     public const string WholeRootPath = "$root";
 
     /// <summary>Composes two operations on the same path applied in order.</summary>
-    /// <remarks>
-    /// Transition then transition keeps continuity checks. Transition then blind
-    /// set keeps the real baseline without further checks. Blind set then
-    /// transition stays blind and still needs a value-level continuity check.
-    /// Blind set then blind set stays blind. Whole-root operations absorb
-    /// memberwise blind sets and overwrite through blind sets; anything needing
-    /// value-level whole-state continuity fails with a typed reason.
-    /// </remarks>
+    /// <remarks>Transition then transition keeps continuity checks.</remarks>
     public static MixedComposeResult Compose(
         MixedMemberOperation first,
         MixedMemberOperation second
@@ -67,7 +54,8 @@ public static class MixedChangeAlgebra
             );
         }
 
-        // A leading blind whole-root set absorbs memberwise operations that follow.
+        // A leading blind whole-root set absorbs memberwise operations that
+        // follow.
         if (first.IsWholeRoot && first.History == MixedHistoryKind.BlindSet && !second.IsWholeRoot)
         {
             return new MixedComposeResult(
@@ -140,23 +128,7 @@ public static class MixedChangeAlgebra
     }
 
     /// <summary>Composes two operation sequences applied in order.</summary>
-    /// <remarks>
-    /// Disjoint paths merge without checks. Overlapping paths follow
-    /// <see cref="Compose(MixedMemberOperation, MixedMemberOperation)"/>.
-    /// A trailing blind whole-root operation supersedes prior memberwise
-    /// operations, and a leading blind whole-root absorbs following memberwise
-    /// operations (issue #129). Entries within one input sequence coexist;
-    /// only cross-sequence overlap composes, so a root and its same-sequence
-    /// members are retained together until the other sequence arrives.
-    /// Whole-root transitions still require value-level continuity and fail
-    /// with a typed reason when unjustified. Successful overlaps that still
-    /// need before/after value verification surface in
-    /// <see cref="MixedSequenceComposition.PendingContinuityChecks"/>
-    /// (issue #173); <c>Succeeded</c> alone is not proof of semantic
-    /// composability. Output order is deterministic:
-    /// first-sequence order, then paths seen only in the second sequence,
-    /// minus entries superseded by a whole root.
-    /// </remarks>
+    /// <remarks>Disjoint paths merge without checks.</remarks>
     public static MixedSequenceComposition ComposeSequences(
         IEnumerable<MixedMemberOperation> first,
         IEnumerable<MixedMemberOperation> second
@@ -246,7 +218,8 @@ public static class MixedChangeAlgebra
                 );
             }
 
-            // Second-sequence members are absorbed; first-sequence entries stay.
+            // Second-sequence members are absorbed; first-sequence entries
+            // stay.
             var retained = new List<MixedMemberOperation>(firstByPath.Count + secondByPath.Count);
             foreach (var entry in firstByPath)
             {
@@ -449,9 +422,8 @@ public static class MixedChangeAlgebra
                 continue;
             }
 
-            // Segment-aware ancestor/descendant overlap (issue #130): a whole
-            // member operation overlaps its nested children and keyed entries.
-            // String-prefix matching is wrong ("A" does not overlap "AB").
+            // Segment-aware ancestor/descendant overlap: a whole member
+            // operation overlaps its nested children and keyed entries.
             var overlap = FindOverlap(entry.Value, secondMembers, consumedSecond);
             if (overlap.HasValue)
             {
@@ -486,8 +458,7 @@ public static class MixedChangeAlgebra
             }
 
             // Second-side entries overlapping an already-retained first entry
-            // were resolved above; check against retained first-side ancestors
-            // that were emitted without a same-key match.
+            // were resolved above.
             var overlap = FindOverlapInComposed(entry.Value, composed);
             if (overlap.HasValue)
             {
@@ -499,7 +470,8 @@ public static class MixedChangeAlgebra
 
                 if (resolution.KeepSecond)
                 {
-                    // Replace the retained ancestor when the trailing side wins.
+                    // Replace the retained ancestor when the trailing side
+                    // wins.
                     if (!resolution.KeepFirst)
                     {
                         composed.Remove(overlap.Value);
@@ -605,9 +577,7 @@ public static class MixedChangeAlgebra
             };
         }
 
-        // Both blind: whole-member granularity wins. A trailing ancestor
-        // overwrites the prior child; a leading ancestor absorbs the later
-        // child edit, so no overwritten child or orphaned edit survives.
+        // Both blind: whole-member granularity wins.
         if (firstAncestor)
         {
             return new OverlapResolution
@@ -627,11 +597,7 @@ public static class MixedChangeAlgebra
     }
 
     /// <summary>Whether either path is a strict segment ancestor of the other.</summary>
-    /// <remarks>
-    /// Segments split on '.' with bracket suffixes kept on their element
-    /// (so <c>Items["k"]</c> is one segment). <c>A</c> is not an ancestor of
-    /// <c>AB</c>; <c>Nested</c> is an ancestor of <c>Nested.Host</c>.
-    /// </remarks>
+    /// <remarks>Segments split on '.' with bracket suffixes kept on their element (so <c>Items["k"]</c> is one segment).</remarks>
     public static bool IsAncestorOrDescendant(string first, string second) =>
         IsStrictAncestor(first, second) || IsStrictAncestor(second, first);
 
@@ -722,11 +688,7 @@ public static class MixedChangeAlgebra
     }
 
     /// <summary>Whether the operations can form a baseline-aware change set.</summary>
-    /// <remarks>
-    /// Returns false and reports the blind paths when any operation lacks a
-    /// before-state. Blind operations project through a baseline-free patch
-    /// instead; they never regain history here.
-    /// </remarks>
+    /// <remarks>Returns false and reports the blind paths when any operation lacks a before-state.</remarks>
     public static bool CanFormChangeSet(
         IEnumerable<MixedMemberOperation> operations,
         out IReadOnlyList<string> blindPaths
@@ -743,7 +705,7 @@ public static class MixedChangeAlgebra
         return blind.Count == 0;
     }
 
-    /// <summary>Guards the rebase-policy seam for future strict handling (issue #120).</summary>
+    /// <summary>Guards the rebase-policy seam for future strict handling.</summary>
     /// <exception cref="ArgumentOutOfRangeException">Thrown for any policy besides pass-through.</exception>
     public static void EnsurePassthrough(RedactedBeforePolicy policy, string? parameterName = null)
     {
@@ -782,8 +744,8 @@ public static class MixedChangeAlgebra
             );
         }
 
-        // Memberwise then whole-root transition: the whole before-state is real,
-        // so the merged whole operation keeps history once values line up.
+        // Memberwise then whole-root transition: the whole before-state is
+        // real, so the merged whole operation keeps history once values line
         if (
             !first.IsWholeRoot
             && second.IsWholeRoot
@@ -801,7 +763,8 @@ public static class MixedChangeAlgebra
             );
         }
 
-        // Whole-root transition then memberwise: the whole after-state kind survives.
+        // Whole-root transition then memberwise: the whole after-state kind
+        // survives.
         if (
             first.IsWholeRoot
             && first.History == MixedHistoryKind.Transition
@@ -835,11 +798,8 @@ public static class MixedChangeAlgebra
         List<MixedComposeResult>? pending = null
     )
     {
-        // Fold repeat paths in order through Compose so earlier history is not
-        // silently discarded (issue #141). Uncomposable repeats are rejected
-        // with an explicit reason instead of keeping only the last entry.
-        // Successful folds that still need value verification join the
-        // continuity obligations (issue #173).
+        // Compose repeated paths in order to preserve history; reject invalid
+        // folds and retain value-verification obligations.
         var indexed = new Dictionary<string, MixedMemberOperation>(StringComparer.Ordinal);
         foreach (var operation in operations)
         {

@@ -136,11 +136,8 @@ public sealed partial class CollectionAndCacheTests
     [Test]
     public void SameModelBuildsIndependentMappersPerInstance()
     {
-        // Regression for the former static plan cache keyed by mapping CLR type:
-        // two mapping instances with different configuration must never share
-        // one compiled plan (the first instance's converters leaked into the
-        // second). Each Create builds and validates a fresh plan; callers reuse
-        // the returned mapper instance for repeated applies.
+        // Different mapping instances must not share plans; each Create builds
+        // a fresh plan, which callers reuse for repeated applies.
         using var connection = TestDatabases.OpenMemory();
         using var context = TestDatabases.CreateMapping(connection, new QueryCounter());
         var first = SparseEntityMapper<WidgetEntity, WidgetDto>.Create(

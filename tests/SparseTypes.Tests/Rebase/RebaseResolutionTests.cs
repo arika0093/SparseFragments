@@ -2,13 +2,8 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-/// <summary>Path-based rebase conflict resolution (issue #203).</summary>
-/// <remarks>
-/// Generic consumer coverage: every test below addresses conflicts through the
-/// canonical <see cref="SparsePath"/> (generated <c>T.SparsePath</c> fluent
-/// where typed, <see cref="SparsePath"/> factories otherwise). No per-model
-/// conflict members and no UI framework types appear.
-/// </remarks>
+/// <summary>Path-based rebase conflict resolution.</summary>
+/// <remarks>Generic consumer coverage.</remarks>
 public sealed class RebaseResolutionTests
 {
     private static ResOrder Order(
@@ -60,7 +55,8 @@ public sealed class RebaseResolutionTests
         resolution.HasConflict(MissingOrderPath()).ShouldBeFalse();
         resolution.FindConflict(MissingOrderPath()).ShouldBeNull();
 
-        // Ancestor/descendant queries around one nested-style check on flat members.
+        // Ancestor/descendant queries around one nested-style check on flat
+        // members.
         resolution.HasConflictsUnder(SparsePath.Root<ResOrder>()).ShouldBeTrue();
         resolution.HasConflictsUnder(price).ShouldBeFalse();
         resolution.HasConflictsAffecting(price).ShouldBeTrue();
@@ -134,7 +130,8 @@ public sealed class RebaseResolutionTests
             .TryBuild(out var resolved, out var failure)
             .ShouldBeTrue($"failure: {failure?.Reason}");
 
-        // Retry was a clean rebased edit; it must survive alongside both resolutions.
+        // Retry was a clean rebased edit; it must survive alongside both
+        // resolutions.
         var model = resolved!.ToPatch().Apply(OrderState(current)).Value!.ToModel();
         model.Price.ShouldBe(2m);
         model.Note.ShouldBe("c");
@@ -199,8 +196,7 @@ public sealed class RebaseResolutionTests
         Optional<ResLabels.Fragment?> State(ResLabels model) =>
             Optional<ResLabels.Fragment?>.Present(ResLabels.Fragment.From(model));
 
-        // Set conflicts stay member-level, so element presence operations have no
-        // exact conflict path and must fail fast instead of silently succeeding.
+        // Set conflicts stay member-level.
         var rebase = baseLabels.CreateChangeSet(edited).RebaseOnto(State(current));
         var resolution = ResLabels.ChangeSet.BeginResolution(rebase, current);
         SparsePath element = ResLabels.SparsePath.Labels.Element("x");

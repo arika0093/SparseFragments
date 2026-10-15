@@ -244,8 +244,8 @@ public sealed class SparseCollectionProvenanceTests
     [Test]
     public void AppendPreservesDuplicateScalarValues()
     {
-        // Scalar sequences stay atomic whole values (#3): duplicates are preserved here,
-        // unlike keyed collections where duplicate keys are invalid.
+        // Scalar sequences stay atomic whole values: duplicates are preserved
+        // here, unlike keyed collections where duplicate keys are invalid.
         var contributions = new[] { Present("a", "a"), Present("a") };
 
         SparseFragmentRuntime
@@ -446,7 +446,8 @@ public sealed class SparseCollectionProvenanceTests
             .ShouldBeTrue(reason);
         origins.Length.ShouldBe(2);
 
-        // The shared "alpha"/"ALPHA" value must come from the first contribution.
+        // The shared "alpha"/"ALPHA" value must come from the first
+        // contribution.
         var effectiveOrder = effective.ToArray();
         for (var index = 0; index < effectiveOrder.Length; index++)
         {
@@ -471,8 +472,8 @@ public sealed class SparseCollectionProvenanceTests
             Optional<IEnumerable<string>?>.Present(lower),
             Optional<IEnumerable<string>?>.Present(higher),
         };
-        // The contributions merge under OrdinalIgnoreCase, so an Ordinal effective set
-        // is a different value: the comparer is part of the set value (#5).
+        // The contributions merge under OrdinalIgnoreCase, so an Ordinal
+        // effective set is a different value.
         var effective = new HashSet<string>(StringComparer.Ordinal) { "alpha", "beta" };
 
         SparseFragmentRuntime

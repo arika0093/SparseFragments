@@ -5,12 +5,7 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Generation;
 
-/// <summary>
-/// Generated-Once read-only adapter regression tests (issue #181): two
-/// read-only models share one adapter definition per compilation, and
-/// per-model output instantiates the shared types instead of redefining
-/// the generic adapters.
-/// </summary>
+/// <summary>Generated-Once read-only adapter regression tests.</summary>
 public sealed class GeneratedOnceReadOnlyAdapterTests
 {
     private static CSharpCompilation CreateCompilation(Dictionary<string, string> files)

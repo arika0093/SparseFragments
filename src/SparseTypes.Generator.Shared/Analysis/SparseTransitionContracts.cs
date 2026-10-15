@@ -1,12 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Product-owned type names for the read-only ChangeSet transition contracts.</summary>
-/// <remarks>
-/// Shared emission references these contracts only through this configuration:
-/// no <c>global::SparseTypes.*</c> literal appears in the emitters. Null
-/// disables contract emission so products without the runtime contracts keep
-/// byte-identical output.
-/// </remarks>
+/// <remarks>Shared emission references these contracts only through this configuration.</remarks>
 internal sealed record SparseTransitionContracts(
     string ValueChangeInterfaceType,
     string ChangeSetInterfaceType,

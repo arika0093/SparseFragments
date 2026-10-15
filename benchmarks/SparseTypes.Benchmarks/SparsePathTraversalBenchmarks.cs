@@ -120,12 +120,8 @@ public partial class BenchPathCompositeHolder
     public List<BenchPathComposite> Items { get; set; } = new();
 }
 
-// Typed SparsePath traversal and lookup budgets (issue #222).
-// Uses only the public generated typed path API plus the generic
-// consumer interfaces (SparsePath, IDescriptorSet, ChangeSet.Find,
-// conflicts Find) so the numbers describe the packed surface.
-// The baseline workflow selects its 49 cases explicitly; this matrix
-// stays available through --filter for focused investigation.
+// Measure typed path traversal through the public generated API.
+// Use `--filter` for this matrix; the baseline workflow selects 49 cases.
 [MemoryDiagnoser]
 public class SparsePathTraversalBenchmarks
 {

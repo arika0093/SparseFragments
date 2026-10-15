@@ -4,13 +4,8 @@ using SparseTypes.EntityFrameworkCore.Tests.Sample;
 
 namespace SparseTypes.EntityFrameworkCore.Tests;
 
-/// <summary>Direct ChangeSet-to-entity regressions for the review findings behind #228.</summary>
-/// <remarks>
-/// Every test applies the accepted ChangeSet alone: no desired DTO is rebuilt
-/// between Rebase and Apply. Preflight validation must leave the entity graph
-/// and the ChangeTracker untouched, temporary identities stay scoped by
-/// collection path, and order/removal evidence must be complete.
-/// </remarks>
+/// <summary>Direct ChangeSet-to-entity regressions for the review findings behind.</summary>
+/// <remarks>Every test applies the accepted ChangeSet alone: no desired DTO is rebuilt between Rebase and Apply.</remarks>
 public sealed partial class DirectApplyRegressionTests
 {
     [SparseFragmentMapper<OrderEntity, OrderDto>]
@@ -250,9 +245,8 @@ public sealed partial class DirectApplyRegressionTests
         var trackedBefore = context.ChangeTracker.Entries().Count();
         counter.Reset();
 
-        // ShipCity flattens through the null Address navigation while Notes goes
-        // missing (Throw by default). Validation must fail before any write, so
-        // the null navigation is never materialized during preflight.
+        // ShipCity flattens through the null Address navigation while Notes
+        // goes missing (Throw by default).
         var current = ReadOrderDto(entity);
         var basis = Present(OrderDto.Fragment.From(current));
         var builder = basis.Value!.ToBuilder();
@@ -323,7 +317,6 @@ public sealed partial class DirectApplyRegressionTests
 
         // Null out the loaded navigation but keep it marked loaded, then submit
         // a removal for a key the (now invisible) collection cannot resolve.
-        // Planning must fail before the execution phase assigns a list.
         var lineId = entity.Lines[0].Id;
         entity.Lines = null!;
         context.Entry(entity).Collection(static order => order.Lines).IsLoaded = true;
@@ -343,9 +336,8 @@ public sealed partial class DirectApplyRegressionTests
         var incoming = new OrderDto { Lines = [] };
         var accepted = current.CreateChangeSet(incoming);
 
-        // A null but settable navigation validates against an empty preflight
-        // stand-in: the removal resolves to no tracked identity without ever
-        // assigning the navigation.
+        // The removal resolves to no tracked identity without ever assigning
+        // the navigation.
         var error = Should.Throw<SparseEntityMappingException>(() =>
             SparseEntityMapper<OrderEntity, OrderDto>
                 .Create(new OrderMapper(), context.Model)
@@ -455,7 +447,8 @@ public sealed partial class DirectApplyRegressionTests
         ReferenceEquals(active, archived).ShouldBeFalse();
         active.Qty.ShouldBe(1);
         archived.Qty.ShouldBe(2);
-        // The cross-path lookup stays ambiguous by design; path lookups are exact.
+        // The cross-path lookup stays ambiguous by design; path lookups are
+        // exact.
         result.TryGetCreated<DuoLineEntity>(shared, out _).ShouldBeFalse();
         counter.Commands.ShouldBe(0);
     }
@@ -484,8 +477,7 @@ public sealed partial class DirectApplyRegressionTests
         };
 
         // The core keyed transition itself rejects a duplicate temporary
-        // identity within one collection scope at ChangeSet construction, so
-        // the invalid state never reaches the mapper or the tracked graph.
+        // identity within one collection scope at ChangeSet construction.
         var error = Should.Throw<InvalidOperationException>(() =>
             current.CreateChangeSet(incoming)
         );
@@ -649,9 +641,7 @@ public sealed partial class DirectApplyRegressionTests
         }
 
         // A filtered Include reports the navigation loaded while one row stays
-        // invisible. The full caller order then references a child with no
-        // tracked identity here and must fail instead of reordering around
-        // unseen state. IsLoaded alone never proves completeness.
+        // invisible.
         using var context = TestDatabases.CreateSample(connection, counter);
         var entity = context
             .Orders.Include(static order => order.Lines.Where(static line => line.Quantity > 1))
@@ -690,10 +680,7 @@ public sealed partial class DirectApplyRegressionTests
             incoming.Lines.Single(static line => line.Quantity == 2).Quantity = 5;
         }
 
-        // Partial load without any order change: the edit addresses one
-        // tracked key, so validation covers only addressed state and the apply
-        // succeeds without complete membership evidence (contrast the reorder
-        // case above, which requires it).
+        // Partial load without any order change.
         using var context = TestDatabases.CreateSample(connection, counter);
         var entity = context
             .Orders.Include(static order => order.Lines.Where(static line => line.Quantity > 1))
@@ -760,9 +747,8 @@ public sealed partial class DirectApplyRegressionTests
             return OrderDto.ChangeSet.Between(basis, Present(builder.Build()));
         }
 
-        // Two instances of the same mapper CLR type carry different
-        // constructor-injected missing policies: per-instance plans cannot leak
-        // across instances (the former static type-keyed cache did exactly that).
+        // Per-instance plans cannot leak across instances (the former static
+        // type-keyed cache did exactly that).
         var strictMapper = SparseEntityMapper<OrderEntity, OrderDto>.Create(
             new FlagMapper(false),
             context.Model
@@ -942,9 +928,7 @@ public sealed partial class DirectApplyRegressionTests
         using var connection = TestDatabases.OpenMemory();
         using var context = TestDatabases.CreateSample(connection, new QueryCounter());
         // The companion emits a DeclareCollection marker for Lines, but the
-        // marker carries no synchronization behavior: creation must fail even
-        // though no change set touches the collection. Only a full
-        // Collection() mapping or Ignore() covers the path.
+        // marker carries no synchronization behavior.
         var error = Should.Throw<SparseEntityMappingException>(() =>
             SparseEntityMapper<OrderEntity, OrderDto>.Create(
                 new UnconfiguredLinesMapper(),
@@ -1019,8 +1003,7 @@ public sealed partial class DirectApplyRegressionTests
         counter.Reset();
 
         // Wholesale creation of an added element must project the nested
-        // snapshot through the DTO selector: a blind cast of the element
-        // snapshot previously threw InvalidCastException here.
+        // snapshot through the DTO selector.
         static ParcelDto Read(ParcelEntity parcel) =>
             new()
             {
@@ -1113,9 +1096,8 @@ public sealed partial class DirectApplyRegressionTests
         await context.Entry(entity).Collection(static parcel => parcel.Lines).LoadAsync();
         counter.Reset();
 
-        // The factory pre-populates nested tags absent from the After
-        // snapshot: wholesale creation must replace, never append, and an
-        // empty snapshot must clear.
+        // Wholesale creation must replace, never append, and an empty snapshot
+        // must clear.
         static ParcelDto Read(ParcelEntity parcel) =>
             new()
             {
@@ -1269,9 +1251,7 @@ public sealed partial class DirectApplyRegressionTests
         var trackedBefore = context.ChangeTracker.Entries().Count();
         counter.Reset();
 
-        // Stale caller DTO: tracked line "b" is absent without a removal, so
-        // the membership evidence is incomplete and the apply must fail before
-        // the addition mutates anything.
+        // Stale caller DTO: tracked line "b" is absent without a removal.
         var current = new SkuOrderDto { Lines = [new SkuLineDto { Sku = "a", Qty = 1 }] };
         var incoming = new SkuOrderDto
         {
@@ -1326,9 +1306,7 @@ public sealed partial class DirectApplyRegressionTests
         await context.SaveChangesAsync();
         counter.Reset();
 
-        // The flagged row stays tracked but leaves the DTO projection. The
-        // next addition must retain it instead of failing on incomplete order
-        // evidence.
+        // The flagged row stays tracked but leaves the DTO projection.
         var current = Read(entity);
         current.Lines.Count.ShouldBe(1);
         var incoming = Read(entity);
@@ -1390,8 +1368,6 @@ public sealed partial class DirectApplyRegressionTests
 
         // FlagMapper declares Object(Address) before MissingDefault: the root
         // default still governs the child scope (resolved at plan build).
-        // Street is non-nullable, so SetNull surfaces as NullNotAllowed while
-        // Throw surfaces as MissingNotHandled.
         var strictError = Should.Throw<SparseEntityMappingException>(() =>
             SparseEntityMapper<OrderEntity, OrderDto>
                 .Create(new FlagMapper(false), context.Model)
@@ -1510,9 +1486,8 @@ public sealed partial class DirectApplyRegressionTests
         var trackedBefore = context.ChangeTracker.Entries().Count();
         counter.Reset();
 
-        // The predicate proves nothing here: the omitted row was never
-        // flagged, so a stale DTO omitting an active child fails even though
-        // previously deleted rows would be tolerated.
+        // The omitted row was never flagged, so a stale DTO omitting an active
+        // child fails even though previously deleted rows would be tolerated.
         static SoftOrderDto Read(SoftOrderEntity order) =>
             new()
             {
@@ -1554,8 +1529,7 @@ public sealed partial class DirectApplyRegressionTests
         counter.Reset();
 
         // The same temporary value under two new siblings' nested collections
-        // resolves independently once scopes qualify with the parent identity;
-        // without qualification the second record falsely conflicts.
+        // resolves independently once scopes qualify with the parent identity.
         var firstLine = Guid.NewGuid();
         var secondLine = Guid.NewGuid();
         var sharedTag = Guid.NewGuid();
@@ -1729,9 +1703,7 @@ public sealed partial class DirectApplyRegressionTests
     {
         using var connection = TestDatabases.OpenMemory();
         using var context = TestDatabases.CreateKeyed(connection, new QueryCounter());
-        // Skip navigations live outside FindNavigation, so resolution checks
-        // them first and rejects many-to-many members with guidance instead of
-        // a missing-navigation report.
+        // Skip navigations live outside FindNavigation.
         var error = Should.Throw<SparseEntityMappingException>(() =>
             SparseEntityMapper<StudentEntity, StudentDto>.Create(new StudentMapper(), context.Model)
         );
@@ -1794,9 +1766,8 @@ public sealed partial class DirectApplyRegressionTests
         await context.Entry(entity).Collection(static batch => batch.Lines).LoadAsync();
         counter.Reset();
 
-        // The composite FK is optional even though BatchNo is non-nullable:
-        // requiredness comes from IForeignKey.IsRequired, never from
-        // per-property nullability inference. Detach must plan-build here.
+        // Requiredness comes from IForeignKey.IsRequired, never from
+        // per-property nullability inference.
         static BatchDto Read(BatchEntity batch) =>
             new()
             {

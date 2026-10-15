@@ -7,11 +7,7 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Shared;
 
-/// <summary>
-/// Downstream policy contract for product generators (issue #121): feature
-/// selection, member transport and rebase policies, write contracts and
-/// product-name validation, all without copying emitters.
-/// </summary>
+/// <summary>Downstream policy contract for product generators.</summary>
 public sealed class DownstreamPolicyTests
 {
     private static SparseTypeModel ScalarType(string name) =>
@@ -211,9 +207,8 @@ public sealed class DownstreamPolicyTests
         text.ShouldContain("public sealed class Observable");
         text.ShouldContain("FragmentJsonConverter");
         text.ShouldContain("public ChangePayload ToPayload()");
-        // The mixed partition seam (#118/#119) owns the baseline-free
-        // ToPatchCore even for standalone defaults; the downstream policy
-        // projection adds a strict-aware overload only when policies apply.
+        // The mixed partition seam owns the baseline-free ToPatchCore even for
+        // standalone defaults.
         text.ShouldContain("ToPatchCore");
         text.ShouldNotContain("WriteTo(global::Ns.WriteCmd)");
     }
@@ -232,7 +227,7 @@ public sealed class DownstreamPolicyTests
         text.ShouldContain("partial class ChangeSet");
         text.ShouldNotContain("public sealed class Observable");
         // Payload DTOs are omitted, though the shared rebase-options
-        // vocabulary (#120) still names caller-owned ChangePayload types.
+        // vocabulary still names caller-owned ChangePayload types.
         text.ShouldNotContain("ChangePayloadCore");
         text.ShouldNotContain("public sealed class ChangePayload");
         text.ShouldNotContain("ToPayload");

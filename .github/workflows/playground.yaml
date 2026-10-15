@@ -1,9 +1,6 @@
 name: Playground (GitHub Pages)
 
 # Builds the Blazor WebAssembly playground and deploys it to GitHub Pages.
-# Enable Pages once in the repository settings (Settings -> Pages ->
-# Source: GitHub Actions); afterwards every push touching the playground
-# (or the library it demonstrates) redeploys automatically.
 
 on:
   push:

@@ -6,15 +6,7 @@ namespace SparseTypes;
 /// <summary>
 /// Path-addressed typed editing facade for one session collection member.
 /// </summary>
-/// <remarks>
-/// A thin typed front over the member's <see cref="IArrayDescriptor"/>: every
-/// operation re-resolves the live descriptor from the session set, so a
-/// replaced or nulled collection never acts on stale state, and every
-/// mutation runs inside one <c>BatchEdit</c> so one user action raises one
-/// transition notification. The facade keeps no collection snapshot and uses
-/// no reflection. Reads return underlying models (never observable proxies);
-/// bind controls to the session <c>Observable</c> view instead.
-/// </remarks>
+/// <remarks>A thin typed front over the member's <see cref="IArrayDescriptor"/>.</remarks>
 /// <typeparam name="TElement">The collection element model type.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public class SparseCollectionEditor<TElement>

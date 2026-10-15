@@ -3,13 +3,8 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-/// <summary>Regression coverage for reconcile issues #216, #217, #218 and #221.</summary>
-/// <remarks>
-/// Each test names the issue it guards. The shared flow stays the same as
-/// <see cref="TemporaryKeyReconcileTests"/>: capture a submitted change set,
-/// answer with an app-owned persisted DTO that echoes temporary identities,
-/// then acknowledge with <c>TryReconcile</c>.
-/// </remarks>
+/// <summary>Regression coverage for reconcile  and.</summary>
+/// <remarks>Each test names the issue it guards.</remarks>
 public sealed class TemporaryKeyReconcileRegressionTests
 {
     private static TempOrderLine Assigned(int id, string name) => new() { Id = id, Name = name };
@@ -32,7 +27,7 @@ public sealed class TemporaryKeyReconcileRegressionTests
         TempCustomerHolder.ChangeSet submitted
     ) => submitted.ToPatch().Apply(TempCustomerHolder.Fragment.From(baseline)).Value!.ToModel();
 
-    // Issue #216: the same Guid reused across two keyed collection paths
+    // the same Guid reused across two keyed collection paths
     // reconciles independently instead of failing as a global duplicate.
     [Test]
     public void SameTemporaryGuidAcrossSiblingCollectionsReconciles()
@@ -111,7 +106,7 @@ public sealed class TemporaryKeyReconcileRegressionTests
             .ShouldNotBe(TempOrderBook.SparsePath.Lines.TemporaryKey(shared));
     }
 
-    // Issue #216: the same scope still rejects a duplicated Guid without
+    // the same scope still rejects a duplicated Guid without
     // touching the live session.
     [Test]
     public void DuplicateTemporaryGuidWithinOneCollectionFailsWithoutMutation()
@@ -153,7 +148,7 @@ public sealed class TemporaryKeyReconcileRegressionTests
         session.CreateChangeSet().Lines.Added.Count.ShouldBe(1);
     }
 
-    // Issue #216: sibling Orders under distinct assigned parents correlate
+    // sibling Orders under distinct assigned parents correlate
     // through scopes that include the parent key.
     [Test]
     public void SameTemporaryGuidUnderDistinctAssignedParentsReconciles()
@@ -214,7 +209,7 @@ public sealed class TemporaryKeyReconcileRegressionTests
         baseline.Customers[1].Orders.Single().Id.ShouldBe(12);
     }
 
-    // Issue #217: an untouched assigned row adopts server normalization even
+    // an untouched assigned row adopts server normalization even
     // when a sibling row keeps the member dirty.
     [Test]
     public void UntouchedAssignedRowAdoptsNormalizationInDirtyMember()
@@ -255,7 +250,7 @@ public sealed class TemporaryKeyReconcileRegressionTests
         pending.Lines.GetChange(11).IsEdited.ShouldBeTrue();
     }
 
-    // Issue #217: an edited row replays its patch while an untouched row
+    // an edited row replays its patch while an untouched row
     // adopts; both arrive at the server value through different paths.
     [Test]
     public void EditedRowReplaysWhileUntouchedRowAdopts()
@@ -285,7 +280,7 @@ public sealed class TemporaryKeyReconcileRegressionTests
         session.HasChanges.ShouldBeFalse();
     }
 
-    // Issue #217: normalization reaches nested members while the top member
+    // normalization reaches nested members while the top member
     // carries the temporary submission.
     [Test]
     public void NestedNormalizationAdoptsAlongsideTemporarySubmission()
@@ -327,7 +322,7 @@ public sealed class TemporaryKeyReconcileRegressionTests
         pending.Lines.GetChange(7).IsEmpty.ShouldBeTrue();
     }
 
-    // Issue #218: with no post-submit edits the persisted order wins and the
+    // with no post-submit edits the persisted order wins and the
     // session converges with no remaining changes.
     [Test]
     public void CleanReorderAdoptsPersistedOrderWithoutChanges()
@@ -365,7 +360,7 @@ public sealed class TemporaryKeyReconcileRegressionTests
         session.HasChanges.ShouldBeFalse();
     }
 
-    // Issue #218: server-added rows survive a clean reconcile.
+    // server-added rows survive a clean reconcile.
     [Test]
     public void ServerAddedRowSurvivesCleanReconcile()
     {
@@ -396,7 +391,7 @@ public sealed class TemporaryKeyReconcileRegressionTests
         session.HasChanges.ShouldBeFalse();
     }
 
-    // Issue #218: server-dropped rows disappear on a clean reconcile.
+    // server-dropped rows disappear on a clean reconcile.
     [Test]
     public void ServerDroppedRowDisappearsOnCleanReconcile()
     {
@@ -414,7 +409,7 @@ public sealed class TemporaryKeyReconcileRegressionTests
         session.HasChanges.ShouldBeFalse();
     }
 
-    // Issue #218: a concurrent local reorder is preserved over the server
+    // a concurrent local reorder is preserved over the server
     // order instead of being silently replaced.
     [Test]
     public void ConcurrentLocalReorderWinsOverServerOrder()
@@ -450,7 +445,7 @@ public sealed class TemporaryKeyReconcileRegressionTests
         pending.Lines.AfterOrder.ShouldBe([2, 1, 3]);
     }
 
-    // Issue #218: a post-submit insertion keeps its live position while a
+    // a post-submit insertion keeps its live position while a
     // server addition joins the authoritative membership.
     [Test]
     public void PostSubmitInsertionKeepsPositionWithServerAddition()
@@ -488,7 +483,7 @@ public sealed class TemporaryKeyReconcileRegressionTests
         pending.Lines.GetChange(100).IsEmpty.ShouldBeTrue();
     }
 
-    // Issue #221: an init-only list rejects a dirty reconcile before any
+    // an init-only list rejects a dirty reconcile before any
     // mutation, keeping contents, references, baseline and observables.
     [Test]
     public void InitOnlyListFailureLeavesEverythingUntouched()
@@ -551,7 +546,7 @@ public sealed class TemporaryKeyReconcileRegressionTests
         writableError.ShouldBeNull();
     }
 
-    // Issue #221: a late failure restores the earlier collection instead of
+    // a late failure restores the earlier collection instead of
     // leaving it partially reconciled.
     [Test]
     public void LateFailureRestoresEarlierCollection()
@@ -617,7 +612,7 @@ public sealed class TemporaryKeyReconcileRegressionTests
         session.HasChanges.ShouldBeTrue();
     }
 
-    // Issue #245: a foreign submission must not succeed merely because the
+    // a foreign submission must not succeed merely because the
     // live model happens to equal the persisted model.
     [Test]
     public void ForeignSubmissionWithMatchingLiveAndPersistedFailsWithoutMutation()
@@ -632,7 +627,8 @@ public sealed class TemporaryKeyReconcileRegressionTests
         foreignHolder.Lines.Add(Pending("foreign"));
         var foreign = foreignSession.CreateChangeSet();
 
-        // Live and authority agree on B, which the foreign submission never described.
+        // Live and authority agree on B, which the foreign submission never
+        // described.
         baseline.Lines[0].Name = "b-live";
         var persisted = new TempOrderHolder { Lines = [Assigned(1, "b-live")] };
 
@@ -647,7 +643,7 @@ public sealed class TemporaryKeyReconcileRegressionTests
         session.CreateChangeSet().Lines.GetChange(1).IsEdited.ShouldBeTrue();
     }
 
-    // Issue #245: a stale submission (baseline moved past its before-state,
+    // a stale submission (baseline moved past its before-state,
     // with a reorder) must not succeed when live equals persisted.
     [Test]
     public void StaleSubmissionWithMatchingLiveAndPersistedFailsWithoutMutation()
@@ -677,9 +673,8 @@ public sealed class TemporaryKeyReconcileRegressionTests
         session.HasChanges.ShouldBeFalse();
     }
 
-    // Issue #245: retrying the same verified submission reference while live
-    // agrees with the authority stays a success, including after the baseline
-    // moved on. Identity is by submission reference, never by state equality.
+    // retrying the same verified submission reference while live agrees with
+    // the authority stays a success, including after the baseline moved on.
     [Test]
     public void VerifiedRetryAfterBaselineMovementSucceeds()
     {

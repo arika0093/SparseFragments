@@ -8,11 +8,7 @@ public partial class BenchStreamingModel
     public IEnumerable<string> Items { get; set; } = [];
 }
 
-/// <summary>
-/// Read-only view enumeration costs over streaming vs list-backed sources (issue #172).
-/// Indexed reads over a lazy source re-enumerate per access, so a full
-/// indexed traversal is quadratic; list-backed sources index in O(1).
-/// </summary>
+/// <summary>Read-only view enumeration costs over streaming vs list-backed sources.</summary>
 [MemoryDiagnoser]
 public class ReadOnlyViewEnumerationBenchmarks
 {

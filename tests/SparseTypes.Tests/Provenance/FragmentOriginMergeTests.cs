@@ -2,7 +2,7 @@ using SparseTypes;
 
 namespace SparseTypes.Tests.Provenance;
 
-// Feature models for fragment origin attribution (issue #204). The view
+// Feature models for fragment origin attribution. The view
 // tests reuse these models; each shape below exercises one propagation rule.
 [SparseModel]
 public partial class OriginChild

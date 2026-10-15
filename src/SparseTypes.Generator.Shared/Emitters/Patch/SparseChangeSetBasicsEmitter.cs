@@ -54,9 +54,6 @@ internal static class SparseChangeSetBasicsEmitter
     internal static string NestedField(SparseMemberModel m) => "__sparse_nested_" + m.Id;
 
     // Sparse keyed/dictionary canonical storage field names.
-    // Changed keyed/dict members retain only the semantic transition
-    // (whole presence transition OR granular per-key items + key-only orders),
-    // never complete before/after member snapshots.
     internal static string KeyedWholeFlag(SparseMemberModel m) => "__sparse_kwhole_" + m.Id;
 
     internal static string KeyedWholeBefore(SparseMemberModel m) => "__sparse_kwholeBefore_" + m.Id;
@@ -70,9 +67,7 @@ internal static class SparseChangeSetBasicsEmitter
     internal static string KeyedAfterOrder(SparseMemberModel m) => "__sparse_kafterOrder_" + m.Id;
 
     // Temporary-identity orders for tempkey members: complete Guid sequences
-    // parallel to the sentinel slots of the key orders above. Stored (not
-    // derived from items) so composition continuity stays exact even when
-    // unchanged temp elements leave no items behind.
+    // parallel to the sentinel slots of the key orders above.
     internal static string KeyedTempBeforeOrder(SparseMemberModel m) =>
         "__sparse_ktempbeforeOrder_" + m.Id;
 
@@ -96,9 +91,8 @@ internal static class SparseChangeSetBasicsEmitter
         SparseChangeSetStorageLayout storage
     )
     {
-        // Canonical sparse storage is private; the nested ChangeSet.__Core reads
-        // it directly. Cross-family seams use typed facades or narrow internal
-        // bridges, never direct field access.
+        // Canonical sparse storage is private; the nested ChangeSet.__Core
+        // reads it directly.
         code.AppendLineAt(2, "private readonly bool __sparse_hasWhole;");
         storage.AppendFields(code, "__sparse_wholeBefore", "Fragment?", true);
         storage.AppendFields(code, "__sparse_wholeAfter", "Fragment?", true);
@@ -320,12 +314,7 @@ internal static class SparseChangeSetBasicsEmitter
     }
 
     /// <summary>Aliases canonical facade state as locals for relocated bodies.</summary>
-    /// <remarks>
-    /// Relocated ChangeSet operations take the facade as an explicit
-    /// <c>self</c> parameter. These aliases let moved bodies keep their
-    /// original field references verbatim; ChangeSet state is immutable, so
-    /// plain locals preserve the legacy read semantics exactly.
-    /// </remarks>
+    /// <remarks>Relocated ChangeSet operations take the facade as an explicit <c>self</c> parameter.</remarks>
     internal static void AppendSelfAliases(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
@@ -636,10 +625,7 @@ internal static class SparseChangeSetBasicsEmitter
     }
 
     /// <summary>Appends canonical keyed ChangeSet constructor arguments for one member.</summary>
-    /// <remarks>
-    /// Centralizes the temp-order tail so every ChangeSet construction site
-    /// stays consistent: temporary orders travel only for tempkey members.
-    /// </remarks>
+    /// <remarks>Centralizes the temp-order tail so every ChangeSet construction site stays consistent.</remarks>
     internal static void AddKeyedChangeSetArgs(
         List<string> args,
         SparseMemberModel member,

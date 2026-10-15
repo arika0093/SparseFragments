@@ -117,9 +117,8 @@ public sealed class PlaygroundEfContext : DbContext
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // The stable key is Id, so no alternate keys are declared: they would
-        // protect those writes and reject the generated same-name defaults
-        // at mapper creation.
+        // They would protect those writes and reject the generated same-name
+        // defaults at mapper creation.
         modelBuilder.Entity<PlaygroundOrderLineEntity>(entity =>
         {
             entity.HasKey(line => line.Id);

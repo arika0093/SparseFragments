@@ -1,16 +1,10 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Emits dictionary patch mutators.</summary>
-/// <remarks>Extracted from <c>SparseDictionaryPatchEmitter</c> to keep that file under the size guideline; it owns only the SetEntry/RemoveEntry/Edit/UpdateEntry surface split with no semantic changes.</remarks>
 internal static class SparseDictionaryMutatorsEmitter
 {
     /// <summary>Emits the dictionary mutators (SetEntry/RemoveEntry/Edit/UpdateEntry).</summary>
-    /// <remarks>
-    /// With a null split the mutators stay instance members of the nested
-    /// patch (legacy single-file emission). Otherwise thin stubs stay on the
-    /// facade while the bodies move into the member operation class,
-    /// aliasing facade fields by reference so mutation semantics match.
-    /// </remarks>
+    /// <remarks>With a null split the mutators stay instance members of the nested patch (legacy single-file emission).</remarks>
     internal static void EmitDictionaryMutators(
         SharedIndentedBuilder code,
         SparseMemberModel member,

@@ -6,11 +6,8 @@ using SparseTypes.Generator;
 
 namespace SparseTypes.Tests.Generation;
 
-// Generator-driver and cross-assembly acceptance for the
-// compilation-scoped emission plane (issue #180): exactly one helper
-// definition per compilation, absent-when-unused, deterministic and
-// incremental outputs, hidden implementations behind public contracts.
-// Downstream-dialect behavior probes live in GeneratedOnceConformanceTests.
+// Verify one helper definition per compilation, omission when unused,
+// deterministic incremental output, and public contracts.
 public sealed class GeneratedOnceDriverTests
 {
     private sealed record Probe(
@@ -529,7 +526,8 @@ public sealed class GeneratedOnceDriverTests
             )
             .ShouldBeEmpty();
 
-        // A separate assembly consumes only the public contracts and executes behavior.
+        // A separate assembly consumes only the public contracts and executes
+        // behavior.
         var check = CSharpSyntaxTree.ParseText(
             """
             using System.Collections.Generic;

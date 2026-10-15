@@ -2,7 +2,7 @@ using SparseTypes.Generated;
 
 namespace SparseTypes.Tests;
 
-/// <summary>Collection-view Model access must not bypass raw-model safeguards (#145).</summary>
+/// <summary>Collection-view Model access must not bypass raw-model safeguards.</summary>
 public sealed class ObservableModelGuardTests
 {
     [Test]

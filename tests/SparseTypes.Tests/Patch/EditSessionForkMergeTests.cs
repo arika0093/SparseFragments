@@ -1,6 +1,6 @@
 namespace SparseTypes.Tests;
 
-/// <summary>Fork and non-destructive merge using the generated EditSession type (issue #205).</summary>
+/// <summary>Fork and non-destructive merge using the generated EditSession type.</summary>
 public sealed class EditSessionForkMergeTests
 {
     private static T Raw<T>(ISparseEditSession<T> session)

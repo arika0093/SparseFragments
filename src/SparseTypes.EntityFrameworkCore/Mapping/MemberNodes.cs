@@ -6,9 +6,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace SparseTypes.EntityFrameworkCore.Mapping;
 
-/// <summary>
-/// One mapped DTO member: resolved once against EF metadata, then applied per change set.
-/// </summary>
+/// <summary>One mapped DTO member: resolved once against EF metadata, then applied per change set.</summary>
 internal abstract class MemberNode
 {
     protected MemberNode(string dtoName)
@@ -265,8 +263,8 @@ internal sealed class ScalarNode<TDto, TEntity, TDtoValue, TEntityValue> : Membe
                         state.Entity,
                         state.DisplayPath(DtoName)
                     );
-                    // Preflight must not mutate the graph: intermediate creation
-                    // and tracking happen inside the queued execution action.
+                    // Intermediate creation and tracking happen inside the
+                    // queued execution action.
                     if (state.TracksAppliedPaths)
                     {
                         actions.Add(() =>
@@ -353,8 +351,8 @@ internal sealed class ScalarNode<TDto, TEntity, TDtoValue, TEntityValue> : Membe
             }
         }
 
-        // Run user conversion during preflight so invalid values fail before any
-        // mutation, but defer navigation materialization to execution.
+        // Run user conversion during preflight so invalid values fail before
+        // any mutation, but defer navigation materialization to execution.
         TEntityValue? converted;
         try
         {

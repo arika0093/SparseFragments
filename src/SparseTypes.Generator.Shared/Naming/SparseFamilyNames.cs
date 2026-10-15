@@ -1,16 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Product-owned public names for the generated state, operation, and view families.</summary>
-/// <remarks>
-/// Shared analysis and emitters describe what a generated type means through
-/// semantic roles (state, operation, transition, payload, observable view,
-/// read-only view). This record carries the product-specific names bound to
-/// those roles. The standalone defaults preserve the existing
-/// <c>Fragment</c>/<c>Patch</c>/<c>ChangeSet</c> vocabulary; a downstream
-/// generator supplies its own names and the shared reference resolver
-/// (<see cref="SparseSemanticReference"/>) derives every nested and child
-/// reference from them instead of rebuilding product literals in emitters.
-/// </remarks>
+/// <remarks>Shared analysis and emitters describe what a generated type means through semantic roles (state.</remarks>
 internal sealed record SparseFamilyNames
 {
     public SparseFamilyNames(

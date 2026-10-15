@@ -96,9 +96,7 @@ internal static class SparseFragmentPatchCoreEmitter
     }
 
     /// <summary>Emits private patch backing fields trailing the public surface.</summary>
-    /// <remarks>State-bound bodies live in the private nested <c>__Core</c>, which
-    /// reads private facade state directly; cross-family callers use the public
-    /// typed surface or the narrow internal <c>__Sparse*</c> bridges below.</remarks>
+    /// <remarks>State-bound bodies live in the private nested <c>__Core</c>.</remarks>
     /// <param name="code">Target builder.</param>
     /// <param name="members">Analyzed members.</param>
     /// <param name="dialect">Patch dialect.</param>
@@ -228,9 +226,7 @@ internal static class SparseFragmentPatchCoreEmitter
     }
 
     /// <summary>Emits private whole-operation storage trailing the public surface.</summary>
-    /// <remarks>Whole storage is private to the facade; the nested <c>__Core</c>
-    /// reads it directly. The <c>__Sparse*</c> members below stay internal as
-    /// the narrow cross-family seams (Patch/ChangeSet, payload, collection).</remarks>
+    /// <remarks>Whole storage is private to the facade; the nested <c>__Core</c> reads it directly.</remarks>
     /// <param name="code">Target builder.</param>
     /// <param name="modelType">Model type name.</param>
     /// <param name="members">Analyzed members.</param>
@@ -437,11 +433,7 @@ internal static class SparseFragmentPatchCoreEmitter
     }
 
     /// <summary>Aliases patch facade state as locals for relocated bodies.</summary>
-    /// <remarks>
-    /// Relocated Patch operations take the facade as an explicit
-    /// <c>self</c> parameter. Payload projection bodies only read patch
-    /// state, so plain locals preserve the legacy read semantics exactly.
-    /// </remarks>
+    /// <remarks>Relocated Patch operations take the facade as an explicit <c>self</c> parameter.</remarks>
     internal static void AppendPatchSelfAliases(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,

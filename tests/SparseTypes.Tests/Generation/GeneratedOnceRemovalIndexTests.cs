@@ -6,12 +6,7 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Generation;
 
-/// <summary>
-/// Generated-Once removal-index regression tests (issue #183): dictionary
-/// and keyed-sequence patches share one ordered-removal kernel definition,
-/// and per-patch output calls the shared kernels instead of redefining the
-/// slot/cancel/rebuild mechanics.
-/// </summary>
+/// <summary>Generated-Once removal-index regression tests.</summary>
 public sealed class GeneratedOnceRemovalIndexTests
 {
     private static CSharpCompilation CreateCompilation(Dictionary<string, string> files)

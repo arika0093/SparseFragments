@@ -1,6 +1,6 @@
 namespace SparseTypes.Tests;
 
-/// <summary>Models for opt-in edit history tests (issue #252).</summary>
+/// <summary>Models for opt-in edit history tests.</summary>
 [SparseModel]
 public partial class HistoryScalarModel
 {

@@ -341,14 +341,8 @@ internal static class SparseKeyedSequenceApplyEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "else");
         code.AppendLineAt(4, "{");
-        // The final key set is exactly map.Keys (source minus removals plus adds),
-        // so map.Count is the exact result capacity: no re-enumeration of source
-        // via Enumerable.Count. The added loop keeps its duplicate guard but
-        // resolves it through an O(1) comparer-correct set instead of the former
-        // O(N) result.Exists scan per added element (former O(N x K) behavior).
-        // The set is built only when adds exist, so pure edit/remove applies pay
-        // nothing extra; for valid patches the guard never fires because Apply
-        // already rejected added keys that collide with the map.
+        // map.Count is the exact result capacity. Check added keys with a
+        // comparer-aware set to avoid repeated linear scans.
         code.AppendLineAt(
             5,
             "result = new global::System.Collections.Generic.List<" + elementType + ">(map.Count);"
@@ -361,10 +355,7 @@ internal static class SparseKeyedSequenceApplyEmitter
         );
         if (hasTempApply)
         {
-            // Temporary baselines survive through their own map; assigned
-            // entries keep the key-map walk, except assigned entries echoing
-            // a temporary identity prefer their temp-map entry so a replayed
-            // temp edit onto persisted state is not lost.
+            // Temporary baselines survive through their own map.
             code.AppendLineAt(
                 6,
                 "if ("
@@ -537,13 +528,8 @@ internal static class SparseKeyedSequenceApplyEmitter
                 + facade
                 + ".AreEqual((object?)before.Value, (object?)after.Value)) return patch;"
         );
-        // Build maps with duplicate detection. Each collection is enumerated exactly
-        // once: the before pass collects the map and the order list together, and
-        // the added pass reuses afterOrder/afterMap instead of re-enumerating
-        // after.Value and recomputing keys. Capacity hints come from a
-        // netstandard2.0-safe ICollection/IReadOnlyCollection probe (0 when the
-        // member shape exposes no Count); duplicate-key validation and all
-        // comparer/key semantics are unchanged.
+        // Build each key map and order list in one pass, reusing afterMap for
+        // additions while preserving duplicate and comparer validation.
         code.AppendLineAt(
             4,
             "var __beforeCapacity = before.GetValueOrDefault() is global::System.Collections.Generic.ICollection<"
@@ -576,7 +562,8 @@ internal static class SparseKeyedSequenceApplyEmitter
         );
         if (hasTempBetween)
         {
-            // Temporary baselines correlate by Guid; assigned entries keep the key map.
+            // Temporary baselines correlate by Guid; assigned entries keep the
+            // key map.
             code.AppendLineAt(
                 5,
                 "if ("
@@ -677,9 +664,8 @@ internal static class SparseKeyedSequenceApplyEmitter
             4,
             "foreach (var k in beforeMap.Keys) if (!afterMap.ContainsKey(k)) removed.Add(k);"
         );
-        // Added entries are derived from afterOrder/afterMap (after-order, no key
-        // recomputation, no second enumeration of after.Value). The capacity is
-        // the exact upper bound |after| - |before intersect after|.
+        // Added entries are derived from afterOrder/afterMap (after-order, no
+        // key recomputation, no second enumeration of after.Value).
         code.AppendLineAt(
             4,
             "var added = new global::System.Collections.Generic.List<"
@@ -801,8 +787,7 @@ internal static class SparseKeyedSequenceApplyEmitter
                 + ")"
         );
         code.AppendLineAt(4, "{");
-        // Order-only change? Before/after equal as sets but order differs -> still need order patch.
-        // beforeOrder was already collected in the single before pass above.
+        // Order-only change?
         code.AppendLineAt(
             5,
             "if ("

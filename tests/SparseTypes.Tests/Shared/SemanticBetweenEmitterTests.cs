@@ -4,11 +4,7 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Shared;
 
-/// <summary>
-/// Direct unit tests for the product-neutral semantic Between emitter
-/// (issue #31): root transitions, scalar changes, nested members, unchanged
-/// members and explicit nulls.
-/// </summary>
+/// <summary>Direct unit tests for the product-neutral semantic Between emitter root transitions.</summary>
 public sealed class SemanticBetweenEmitterTests
 {
     private static SparseTypeModel ScalarType(string name) =>

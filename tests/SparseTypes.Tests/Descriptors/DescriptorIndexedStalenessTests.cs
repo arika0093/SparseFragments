@@ -127,7 +127,8 @@ public sealed class DescriptorIndexedStalenessTests
         same0!.TryGet(nameof(ObservableListChild.Name), out var sameName0).ShouldBeTrue();
 
         sameArray.TryMove(0, 1).ShouldBeTrue();
-        // Both positions still denote the same instance: no wrong-row edit exists.
+        // Both positions still denote the same instance: no wrong-row edit
+        // exists.
         sameName0.TrySetValue("edited").ShouldBeTrue();
         shared.Name.ShouldBe("edited");
     }

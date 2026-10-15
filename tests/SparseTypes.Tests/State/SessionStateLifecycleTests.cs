@@ -2,7 +2,7 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-/// <summary>State queries against Accept/Revert/Reload/reconcile baselines (issue #250).</summary>
+/// <summary>State queries against Accept/Revert/Reload/reconcile baselines.</summary>
 public sealed class SessionStateLifecycleTests
 {
     [Test]
@@ -128,7 +128,8 @@ public sealed class SessionStateLifecycleTests
         model.Lines.Select(item => item.Id).ShouldBe([1001, 0]);
         model.Lines.Select(item => item.Name).ShouldBe(["ONE", "two"]);
 
-        // The persisted model is the new baseline: only post-submit edits remain.
+        // The persisted model is the new baseline: only post-submit edits
+        // remain.
         var view = session.CollectionState(TempOrderHolder.SparsePath.Lines);
         view.IsChanged.ShouldBeTrue();
         view.GetItemState(1001).IsEmpty.ShouldBeTrue();

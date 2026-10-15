@@ -2,13 +2,8 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-/// <summary>DTO-based reconcile for temporary identities (issue #207).</summary>
-/// <remarks>
-/// The flow under test: submit a change set, let an app-owned server assign
-/// permanent keys while echoing temporary identities on the ordinary response
-/// DTO, then acknowledge with <c>TryReconcile</c> while post-submit local
-/// edits are preserved.
-/// </remarks>
+/// <summary>DTO-based reconcile for temporary identities.</summary>
+/// <remarks>The flow under test: submit a change set.</remarks>
 public sealed class TemporaryKeyReconcileTests
 {
     private static TempOrderLine Assigned(int id, string name) => new() { Id = id, Name = name };
@@ -97,8 +92,7 @@ public sealed class TemporaryKeyReconcileTests
 
         baseline.Lines.Count.ShouldBe(3);
         // Fake-store ids come from a process-wide counter shared with other
-        // tests, so compare against the persisted response instead of
-        // hard-coding values.
+        // tests.
         baseline.Lines.Select(item => item.Id).ShouldBe(persisted.Lines.Select(item => item.Id));
         baseline.Lines.Select(item => item.Name).ShouldBe(["EXISTING", "FIRST", "SECOND"]);
     }
@@ -130,11 +124,8 @@ public sealed class TemporaryKeyReconcileTests
         session.TryReconcile(submitted, persisted, out var error).ShouldBeTrue();
         error.ShouldBeNull();
 
-        // Assigned keys landed; the dropped row stays dropped; the late row
-        // stays pending with its temporary identity. The untouched assigned
-        // row adopts the server-normalized value (issue #217): it had no
-        // post-submit edit, so the persisted value wins despite the dirty
-        // member.
+        // Assigned and dropped rows reconcile; the late row remains pending.
+        // Untouched values adopt server normalization.
         var pending = session.CreateChangeSet();
         pending.IsEmpty.ShouldBeFalse();
         baseline.Lines.Select(item => item.Name).ShouldBe(["EXISTING", "first v2", "late"]);
@@ -142,7 +133,8 @@ public sealed class TemporaryKeyReconcileTests
         assigned.Id.ShouldNotBe(0);
         pending.Lines.GetChange(assigned.Id).IsEdited.ShouldBeTrue();
         pending.Lines.GetTemporaryChange(late.TemporaryId!.Value).IsAdded.ShouldBeTrue();
-        // The server-side row for the dropped submission is recorded as removed.
+        // The server-side row for the dropped submission is recorded as
+        // removed.
         var droppedId = persisted.Lines.Single(item => item.TemporaryId == doomed.TemporaryId).Id;
         pending.Lines.GetChange(droppedId).IsRemoved.ShouldBeTrue();
     }
@@ -240,7 +232,8 @@ public sealed class TemporaryKeyReconcileTests
         baseline.Lines.Add(Pending("first"));
         var submitted = session.CreateChangeSet();
 
-        // An overlapping acknowledgement moves the baseline past the submission.
+        // An overlapping acknowledgement moves the baseline past the
+        // submission.
         baseline.Lines.Single(item => item.Id == 7).Name = "intervening";
         session.AcceptChanges(session.CreateChangeSet());
 
@@ -312,7 +305,7 @@ public sealed class TemporaryKeyReconcileTests
     [Test]
     public void ReconcileRetargetsUneditedSubmittedRowsInDirtyMember()
     {
-        // Issue #215: when a keyed member carries other pending changes, rows
+        // when a keyed member carries other pending changes, rows
         // without their own edit must still adopt the server-assigned identity.
         var baseline = new TempOrderHolder { Lines = [Assigned(7, "existing")] };
         var session = baseline.CreateEditSession();
@@ -348,7 +341,8 @@ public sealed class TemporaryKeyReconcileTests
         session.TryReconcile(submitted, persisted, out var error).ShouldBeTrue();
         error.ShouldBeNull();
 
-        // The edited row replays its post-submit value onto the assigned identity.
+        // The edited row replays its post-submit value onto the assigned
+        // identity.
         var edited = baseline.Lines.Single(item => item.TemporaryId == first.TemporaryId);
         edited.Id.ShouldBe(11);
         edited.Name.ShouldBe("first v2");

@@ -129,9 +129,7 @@ internal static class SparseAttributeSource
             return boolean ? "true" : "false";
         }
 
-        // Nonfinite float/double constants have no literal form. Invariant
-        // Convert.ToString would emit tokens such as NaND or InfinityF, so
-        // name the runtime fields instead.
+        // Nonfinite float/double constants have no literal form.
         if (value is float single)
         {
             if (float.IsNaN(single))

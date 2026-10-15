@@ -3,7 +3,7 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-/// <summary>Wide model proving ChangeSet payload scales with the change (issue #96).</summary>
+/// <summary>Wide model proving ChangeSet payload scales with the change.</summary>
 [SparseModel]
 public partial class WideWidget
 {
@@ -26,7 +26,7 @@ public partial class WideWidget
     public Nested? Nested { get; set; }
 }
 
-/// <summary>Keyed member alongside an untouched scalar sibling (issue #96).</summary>
+/// <summary>Keyed member alongside an untouched scalar sibling.</summary>
 [SparseModel]
 public partial class ServerGroupHolder
 {
@@ -35,13 +35,8 @@ public partial class ServerGroupHolder
     public List<KeyedServer> Servers { get; set; } = new();
 }
 
-/// <summary>ChangeSet sparse semantic-transition storage (issue #96).</summary>
-/// <remarks>
-/// Proves unchanged members are neither retained in state nor serialized:
-/// scalar/nested/keyed transitions carry only changed paths, Missing/null/value
-/// round-trip exactly, and Between/FromPatch normalize equivalently with
-/// ToPatch/Invert/Compose/Rebase preserved across serialization.
-/// </remarks>
+/// <summary>ChangeSet sparse semantic-transition storage.</summary>
+/// <remarks>Proves unchanged members are neither retained in state nor serialized.</remarks>
 public sealed class SparseChangeSetStorageTests
 {
     private static Optional<WideWidget.Fragment?> WideState(

@@ -6,12 +6,7 @@ namespace SparseTypes.EntityFrameworkCore.Mapping;
 /// <summary>
 /// The per-level inputs for wholesale writes (null to object transitions).
 /// </summary>
-/// <remarks>
-/// Unlike <see cref="PlanApplyState" />, this carries no change set: every
-/// mapped member writes from the explicit After snapshot carried by the
-/// ChangeSet transition (keyed <c>Added</c> elements or a nested whole-object
-/// record), never a reconstructed root DTO.
-/// </remarks>
+/// <remarks>Unlike <see cref="PlanApplyState" />, this carries no change set.</remarks>
 internal sealed class PlanWriteState
 {
     private readonly List<SparseEntityAppliedPath>? _appliedPaths;
@@ -62,11 +57,7 @@ internal sealed class PlanWriteState
 
     public EntityEntry Entry { get; }
 
-    /// <summary>
-    /// Gets the explicit After snapshot this wholesale write copies from.
-    /// For keyed additions this is the <c>Added</c> element; for nested adds it
-    /// is the whole-object record's After value.
-    /// </summary>
+    /// <summary>Gets the explicit After snapshot this wholesale write copies from.</summary>
     public object AfterSnapshot { get; }
 
     /// <summary>Gets the path-scoped temporary-identity correlation when a result is requested.</summary>
@@ -150,11 +141,7 @@ internal sealed class PlanWriteState
     }
 
     /// <summary>Records a created child entity under its path-scoped temporary identity.</summary>
-    /// <remarks>
-    /// The legacy path-string bucket keeps its exact contents for compatible
-    /// reads, but duplicate detection now runs on the parent-scoped record:
-    /// parents whose display keys collide keep independent correlations.
-    /// </remarks>
+    /// <remarks>The legacy path-string bucket keeps its exact contents for compatible reads.</remarks>
     public void RecordTemporary(string path, Guid temporaryKey, object entity)
     {
         ArgumentNullException.ThrowIfNull(path);

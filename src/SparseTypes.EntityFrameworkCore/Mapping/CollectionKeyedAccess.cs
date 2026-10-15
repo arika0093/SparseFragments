@@ -111,13 +111,7 @@ internal sealed class KeyedCollectionView<TDtoChild>
 /// <summary>
 /// Closes typed keyed-transition dispatch once per plan build.
 /// </summary>
-/// <remarks>
-/// The ordinary <c>SparseTypes.Generator</c> emits the per-member keyed
-/// transition types consumed here; no separate EF generator exists. Closing the
-/// generic fetch over the emitted <c>ISparseKeyedChange&lt;,,&gt;</c> shape is
-/// plan-build metadata work, so per-apply dispatch runs compiled typed calls
-/// with no reflection and no implicit child-mapping discovery.
-/// </remarks>
+/// <remarks>The ordinary <c>SparseTypes.Generator</c> emits the per-member keyed transition types consumed here.</remarks>
 internal static class KeyedCollectionView
 {
     private static readonly MethodInfo FetcherFactory =

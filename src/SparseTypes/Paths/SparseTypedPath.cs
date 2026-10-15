@@ -3,13 +3,7 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>A compile-time typed <see cref="SparsePath"/> for one root model and value type.</summary>
-/// <remarks>
-/// Generated fluent builders (for example <c>Order.SparsePath.Items.Key(id).Price</c>)
-/// produce these paths, so wrong key, value, or root types fail at compile time on
-/// typed APIs. The path converts implicitly to <see cref="SparsePath"/> for
-/// model-agnostic storage, comparison, and lookup.
-/// The default value addresses the root of <typeparamref name="TModel"/>.
-/// </remarks>
+/// <remarks>Generated fluent builders (for example <c>Order.SparsePath.Items.Key(id).Price</c>) produce these paths.</remarks>
 /// <typeparam name="TModel">The root model type.</typeparam>
 /// <typeparam name="TValue">The addressed value type.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Advanced)]

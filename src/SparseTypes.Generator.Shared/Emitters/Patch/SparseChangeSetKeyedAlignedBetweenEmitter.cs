@@ -52,7 +52,8 @@ internal static class SparseChangeSetKeyedAlignedBetweenEmitter
                 + key
                 + ">.Default;"
         );
-        // Reject nonaligned inputs before allocating or comparing element values.
+        // Reject nonaligned inputs before allocating or comparing element
+        // values.
         code.AppendLineAt(6, "for (var i = 0; i < count; i++)");
         code.AppendLineAt(6, "{");
         code.AppendLineAt(7, "if ((object?)b[i] is null || (object?)a[i] is null) return false;");
@@ -215,7 +216,8 @@ internal static class SparseChangeSetKeyedAlignedBetweenEmitter
                 + " __aTO"
                 + id;
         }
-        // Give the general path its own JIT profile instead of leaving it cold behind alignment.
+        // Give the general path its own JIT profile instead of leaving it cold
+        // behind alignment.
         code.AppendLineAt(
             6,
             "static (bool Has, "

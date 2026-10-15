@@ -2,12 +2,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace SparseTypes.EntityFrameworkCore.Tests;
 
-/// <summary>Parent key with a non-injective display form (issue #246).</summary>
-/// <remarks>
-/// Value equality distinguishes instances, but the default
-/// <see cref="ValueType.ToString" /> returns the type name for every value, so
-/// scope paths built from display text alone cannot tell two bins apart.
-/// </remarks>
+/// <summary>Parent key with a non-injective display form.</summary>
+/// <remarks>Value equality distinguishes instances.</remarks>
 public readonly struct BinCode : IEquatable<BinCode>
 {
     /// <summary>Creates a bin code.</summary>

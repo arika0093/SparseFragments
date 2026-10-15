@@ -58,13 +58,9 @@ internal static class SparseObservableDescriptorEmitter
         var path = "pathPrefix.Member(" + literal + ")";
         var canWrite = !member.Property.IsReadOnly && !member.Property.IsInitOnly;
         var viewType = ViewTypeName(member, runtimeNamespace);
-        // The INotifyPropertyChanged event occupies the PropertyChanged name, so its
-        // descriptor targets the underlying model directly with the same
-        // notification behavior a proxy would produce. Non-scalar shapes with
-        // this name stay omitted (documented limitation).
+        // The INotifyPropertyChanged event occupies the PropertyChanged name.
         var eventCollision = member.Property.Name == "PropertyChanged";
-        // Raw mutable values escape without a notifying view; route the read
-        // through the session's raw-access callback so cached HasChanges is dropped.
+        // Raw mutable values escape without a notifying view.
         var receiver = eventCollision ? "__model." + property : "this." + property;
         var getValue = SparseObservableEmitter.ExposesRawMutableReference(member)
             ? "() => { __onRawModelAccess?.Invoke(); return " + receiver + "; }"
@@ -182,7 +178,8 @@ internal static class SparseObservableDescriptorEmitter
 
     private static string ViewTypeName(SparseMemberModel member, string runtimeNamespace)
     {
-        // The colliding member has no proxy or view; reads observe model values.
+        // The colliding member has no proxy or view; reads observe model
+        // values.
         if (member.Property.Name == "PropertyChanged")
         {
             return member.Property.Type.NonNullableName;
@@ -227,8 +224,7 @@ internal static class SparseObservableDescriptorEmitter
 
         if (eventCollision)
         {
-            // No observable proxy exists for this name; scalar members assign the
-            // model directly with identical equality and notification behavior.
+            // No observable proxy exists for this name.
             if (
                 member.ChildModel is not null
                 || SparseObservableEmitter.IsObservableList(member)
@@ -299,9 +295,8 @@ internal static class SparseObservableDescriptorEmitter
                 SparseObservableEmitter.CollectionNames(member),
                 runtimeNamespace
             );
-            // The trusted accessor skips the raw-model notification: replacement below
-            // raises the change itself, so reading the incoming view must not
-            // invalidate the session cache as a side effect.
+            // Replacement below raises the change itself, so reading the
+            // incoming view must not invalidate the session cache as a side
             return "value => { if (value is "
                 + viewType
                 + " view) { this."

@@ -34,10 +34,7 @@ internal static class SparseMergeValidation
             _ => mode.ToString(),
         };
 
-    /// <summary>
-    /// Validates a custom merge strategy type, parameterized by the configured
-    /// merge-strategy base metadata name so downstream generators share the rule.
-    /// </summary>
+    /// <summary>Validates a custom merge strategy type.</summary>
     public static bool IsValidCustomStrategy(
         INamedTypeSymbol strategyType,
         ITypeSymbol memberType,
@@ -92,15 +89,8 @@ internal static class SparseMergeValidation
         return false;
     }
 
-    /// <summary>
-    /// Validates a member-level rebase policy type against the configured
-    /// rebase-policy base metadata name so downstream generators share the rule.
-    /// </summary>
-    /// <remarks>
-    /// Policies apply to scalar and whole-replace members only. Nested models
-    /// and granular keyed, dictionary, and merge-collection members reconcile
-    /// member by member, so a whole-member policy cannot target them.
-    /// </remarks>
+    /// <summary>Validates a member policy against the configured rebase-policy base type.</summary>
+    /// <remarks>Policies apply to scalar and whole-replace members only.</remarks>
     public static bool IsValidRebasePolicy(
         SparseSymbolMemberModel symbolMember,
         SparseMemberModel member,

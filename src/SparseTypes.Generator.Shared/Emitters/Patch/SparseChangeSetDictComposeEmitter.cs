@@ -20,11 +20,7 @@ using static SparseTypes.Generator.Shared.SparseChangeSetTransitionEmitter;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Per-key sparse compose for dictionaries.</summary>
-/// <remarks>
-/// Merge-time seam (#188): pure entry-set composition delegates to the
-/// Generated-Once kernel helpers; sparse canonical transitions and ownership
-/// stay model-specific here.
-/// </remarks>
+/// <remarks>Merge-time seam: pure entry-set composition delegates to the Generated-Once kernel helpers.</remarks>
 internal static class SparseChangeSetDictComposeEmitter
 {
     /// <summary>Emits per-key sparse compose for a dictionary member.</summary>
@@ -161,8 +157,8 @@ internal static class SparseChangeSetDictComposeEmitter
         code.AppendLineAt(5, "}");
         code.AppendLineAt(5, "else");
         code.AppendLineAt(5, "{");
-        // Mixed whole/granular member transitions are out of the sparse fast path;
-        // require endpoint contiguity via the canonical patch composition.
+        // Mixed whole/granular member transitions are out of the sparse fast
+        // path.
         code.AppendLineAt(
             6,
             "throw new global::System.InvalidOperationException(\"ChangeSet composition requires the first after-state to equal the second before-state.\");"
@@ -233,8 +229,8 @@ internal static class SparseChangeSetDictComposeEmitter
                 + ");"
         );
         code.AppendLineAt(5, "__keys" + id + ".UnionWith(__map2" + id + ".Keys);");
-        // Keys present in only one input always survive composition.
-        // Reserve their count without allocating for fully overlapping cancellations.
+        // Keys present in only one input always survive composition. Reserve
+        // their count without allocating for fully overlapping cancellations.
         code.AppendLineAt(
             5,
             "var __capacity"

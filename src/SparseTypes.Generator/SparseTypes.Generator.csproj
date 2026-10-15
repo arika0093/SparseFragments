@@ -34,7 +34,7 @@
       LogicalName="SparseTypes.Generator.Shared.Sessions.SparseEditSessionWithCurrentCore.template"
       Type="Non-Resx"
     />
-    <!-- Shared generator sources are always compiled in-repo (#21).
+    <!-- Shared generator sources are always compiled in-repo.
       There is no NuGet fallback: the sibling Shared project is the single
       source of truth, so local and shipped generator behavior cannot diverge. -->
     <Compile

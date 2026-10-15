@@ -6,12 +6,7 @@ namespace SparseTypes.Generator.Shared;
 /// <summary>
 /// Product-neutral dialect for semantic <c>Between</c> emission.
 /// </summary>
-/// <remarks>
-/// The algorithm (whole-state transitions, scalar member presence/value changes,
-/// nested recursion) is shared; each generator supplies its naming and member
-/// expression hooks. Public API decisions stay separate: generators may use the
-/// emitted helper internally without exposing a public <c>Between</c> method.
-/// </remarks>
+/// <remarks>The algorithm (whole-state transitions.</remarks>
 internal readonly record struct SparseBetweenDialect(
     string RuntimeNamespace,
     string OptionalFragmentType,
@@ -25,14 +20,8 @@ internal readonly record struct SparseBetweenDialect(
     Func<SparseMemberModel, string, string, string> NestedBetween
 );
 
-/// <summary>
-/// Emits a semantic sparse patch between two presence-aware contribution states.
-/// </summary>
-/// <remarks>
-/// Handles whole-state transitions (missing/present-null/present-value),
-/// per-member scalar presence/value changes, and nested recursion through the
-/// dialect's member hooks; unchanged members yield empty operations.
-/// </remarks>
+/// <summary>Emits a semantic sparse patch between two presence-aware contribution states.</summary>
+/// <remarks>Handles whole-state transitions (missing/present-null/present-value).</remarks>
 internal static class SparseSemanticBetweenEmitter
 {
     public static void AppendBetweenMethod(

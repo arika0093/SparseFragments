@@ -2,11 +2,7 @@ using System;
 using System.Collections.Generic;
 using SparseTypes;
 
-// Canonical compile-checked mirror of docs/merge-strategies.md (#45).
-// Covers the built-in modes users configure per member (explicit Replace,
-// Deep for nested models, Append, SetUnion; unconfigured members use
-// MergeMode.Default with the same type-dependent behavior) and the custom
-// FragmentMergeStrategy<T> extension point.
+// Compile-checked samples for built-in merge modes and custom strategies.
 public static class MergeStrategiesSamples
 {
     public static void Run()
@@ -108,8 +104,7 @@ public partial class MergeDocsChild
 }
 
 // Custom per-member algebra: delegates to FragmentMergeStrategy<T> via
-// [SparseMerge(typeof(...))]. Instances are shared by generated code, so the
-// strategy stays stateless.
+// [SparseMerge(typeof(...))].
 public sealed class DocsLastWriteStrategy : FragmentMergeStrategy<string?>
 {
     public override Optional<string?> Merge(

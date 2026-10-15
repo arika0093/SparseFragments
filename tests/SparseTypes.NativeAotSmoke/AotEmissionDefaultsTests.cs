@@ -2,19 +2,14 @@ using SparseTypes.NativeAotFixtures;
 
 namespace SparseTypes.NativeAotSmoke;
 
-/// <summary>
-/// Standalone emission defaults under NativeAOT (issue #121).
-/// The default feature selection emits every family without extra
-/// configuration; these types resolve at compile time only then.
-/// </summary>
+/// <summary>Standalone emission defaults under NativeAOT.</summary>
 public sealed class AotEmissionDefaultsTests
 {
     [Test]
     public async Task StandaloneDefaults_ExposeEveryFamily()
     {
         // Compile-time presence: fragment families and UI/editing types stay
-        // nested; builders, paths, and operation implementations live in the
-        // configured generated namespace.
+        // nested.
         _ = typeof(PayloadRoot.Fragment);
         _ = typeof(PayloadRoot.Patch);
         _ = typeof(PayloadRoot.ChangeSet);
@@ -31,9 +26,6 @@ public sealed class AotEmissionDefaultsTests
             )
             .IsTrue();
         // NOTE: no typeof(PayloadRoot).GetNestedTypes() enumeration here.
-        // Enumerating nested types roots every nested type (including the
-        // fragment JSON converter and ChangePayload enum converters) and
-        // surfaces transitive IL2026/IL3050 diagnostics under PublishAot.
         var session = new PayloadRoot { Label = "a" }.CreateEditSession();
         await Assert
             .That(session.Observable.GetType().Namespace!.StartsWith("SparseTypes"))

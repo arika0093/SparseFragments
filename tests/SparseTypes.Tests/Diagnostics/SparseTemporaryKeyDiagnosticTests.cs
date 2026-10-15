@@ -6,12 +6,7 @@ using SparseTypes.Generator;
 namespace SparseTypes.Tests.Diagnostics;
 
 /// <summary>Generator diagnostic tests for the temporary-identity declaration.</summary>
-/// <remarks>
-/// A keyed element type may declare exactly one parameterless
-/// <c>[SparseTemporaryKey]</c> property of type <c>Guid?</c>, and its key must
-/// have unassigned semantics. Explicit initializers warn (SPF032) but still
-/// generate.
-/// </remarks>
+/// <remarks>A keyed element type may declare exactly one parameterless <c>[SparseTemporaryKey]</c> property of type <c>Guid?</c>.</remarks>
 public sealed class SparseTemporaryKeyDiagnosticTests
 {
     private static (
@@ -109,13 +104,8 @@ public sealed class SparseTemporaryKeyDiagnosticTests
     [Test]
     public void InitOnlyTemporaryKeyKeepsDeclarationValid()
     {
-        // Init-only identities are assigned at construction (object
-        // initializers) while generated code only reads them, so the
-        // declaration itself stays valid: no SPF031/SPF032. The init member
-        // still makes the structural element non-overlayable, which clone
-        // analysis reports as SPF008 on the holder. Post-construction writers
-        // (such as the EF Core mapper's setter delegate) guard IsInitOnly on
-        // their own side.
+        // Init-only identities remain readable but make the element
+        // non-overlayable, so clone analysis reports SPF008 on the holder.
         const string element = """
             public partial class TempKeyed
             {

@@ -4,11 +4,8 @@ using System.Linq;
 using System.Text.Json;
 using SparseTypes;
 
-// C# 9.0 minimum-language gate (#116). This source must stay C# 9-compatible:
-// block-scoped namespace, explicit usings, no collection expressions, no
-// record structs. The models below cover the representative generated
-// surface: ordinary and nested partial models, nullable members, an init-only
-// member, merge collections, a keyed collection, and ChangeSet JSON payloads.
+// Keep this consumer C# 9-compatible to guard the minimum language version.
+// Models cover generated APIs for nullable, nested, keyed, and JSON shapes.
 namespace LangVersionProbe
 {
     public static class LangVersionCheck
@@ -42,7 +39,8 @@ namespace LangVersionProbe
             // Init-only members round-trip through From/ToModel.
             Require(original.ToModel().Code == "v1", "init-only member round-trip");
 
-            // Layered merge: Append concatenates, SetUnion unions, Deep merges nested.
+            // Layered merge: Append concatenates, SetUnion unions, Deep merges
+            // nested.
             var higher = new ProbeSettings.Fragment
             {
                 Child = new ProbeChild.Fragment { Count = 9 },
@@ -107,7 +105,8 @@ namespace LangVersionProbe
                     && questChanges.Quests.Edited["b"].Title.After.Value == "B2",
                 "keyed Edited carries nested transition");
 
-            // Patch algebra: compose, invert, sparse Between, structured rebase.
+            // Patch algebra: compose, invert, sparse Between, structured
+            // rebase.
             var basis = Optional<ProbeSettings.Fragment?>.Present(original);
             var edits = new ProbeSettings.Patch { Label = (string?)null };
             edits.Child.Host = "edited";

@@ -2,12 +2,7 @@ using SparseTypes.CompilerServices;
 
 namespace SparseTypes.Tests;
 
-/// <summary>
-/// Scale equivalence tests for issue #57: the optimized provenance implementation
-/// (origins derived while building the union) must agree with the naive
-/// per-element scan reference on success, origins, and failure across
-/// contribution layouts, duplicate densities, comparers, and resets.
-/// </summary>
+/// <summary>Compares optimized and reference provenance.</summary>
 public sealed class ProvenanceScaleEquivalenceTests
 {
     private static readonly IEqualityComparer<string>[] Comparers =
@@ -137,9 +132,7 @@ public sealed class ProvenanceScaleEquivalenceTests
     [Test]
     public void LargeLowDuplicateUnionExplainsWithFirstOrigins()
     {
-        // Scale smoke: 8 x 2048 distinct values. The naive reference needs
-        // ~134M comparisons here; the optimized path must stay near-linear and
-        // still attribute every element to its first contribution.
+        // Scale smoke: 8 x 2048 distinct values.
         const int contributions = 8;
         const int size = 2048;
         var lists = new List<List<string>>(contributions);
@@ -256,8 +249,8 @@ public sealed class ProvenanceScaleEquivalenceTests
         IEqualityComparer<string> comparer
     )
     {
-        // Sets cannot carry a present-null reset in this helper; resets are covered
-        // by dedicated tests. Duplicates collapse under the comparer like HashSet.
+        // Sets cannot carry a present-null reset in this helper; resets are
+        // covered by dedicated tests.
         var count = random.Next(1, 6);
         var domain = new[] { "a", "b", "c", "d", "e", "A", "B" };
         var result = new List<List<string>>(count);

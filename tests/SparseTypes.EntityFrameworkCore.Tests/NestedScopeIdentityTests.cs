@@ -2,13 +2,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace SparseTypes.EntityFrameworkCore.Tests;
 
-/// <summary>Nested scope identity without display-text correlation (issue #246).</summary>
-/// <remarks>
-/// Nested temporary-identity correlation resolves by parent scope (stable key
-/// or temporary identity with the configured comparer), never by
-/// <c>ToString()</c> display text. Parents with identical display keys,
-/// delimiters, or cross-type equal text keep independent correlations.
-/// </remarks>
+/// <summary>Nested scope identity without display-text correlation.</summary>
+/// <remarks>Nested temporary-identity correlation resolves by parent scope (stable key or temporary identity with the configured comparer).</remarks>
 public sealed class NestedScopeIdentityTests
 {
     private static BinHolderDto ReadBins(BinHolderEntity holder) =>
@@ -72,8 +67,7 @@ public sealed class NestedScopeIdentityTests
         counter.Reset();
 
         // Every BinCode renders the same display text (default ValueType
-        // ToString), so path strings alone cannot tell the bins apart. The
-        // same temporary Guid under both bins must still resolve per parent.
+        // ToString), so path strings alone cannot tell the bins apart.
         var shared = Guid.NewGuid();
         var current = ReadBins(entity);
         var incoming = ReadBins(entity);
@@ -171,9 +165,7 @@ public sealed class NestedScopeIdentityTests
         await context.Entry(entity).Collection(static parcel => parcel.Lines).LoadAsync();
         counter.Reset();
 
-        // Both parents are unassigned at apply time, so nested scopes record
-        // under their temporary identities; after the save the authority
-        // carries assigned keys and the lookup falls back through them.
+        // Both parents are unassigned at apply time.
         var parentA = Guid.NewGuid();
         var parentB = Guid.NewGuid();
         var nested = Guid.NewGuid();

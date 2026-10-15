@@ -1,12 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Temporary-identity fragments for keyed-sequence ChangeSet rebase.</summary>
-/// <remarks>
-/// Correlates temporary-keyed change items against the current state's
-/// temporary map instead of the assigned-key map. Current orders interleave
-/// sentinel slots for temps so the assigned order reconciliation below keeps
-/// working unchanged.
-/// </remarks>
+/// <remarks>Correlates temporary-keyed change items against the current state's temporary map instead of the assigned-key map.</remarks>
 internal static class SparseChangeSetKeyedTempRebaseEmitter
 {
     /// <summary>Emits the temp-aware current-state walk for a keyed rebase.</summary>
@@ -88,7 +83,8 @@ internal static class SparseChangeSetKeyedTempRebaseEmitter
         );
         code.AppendLineAt(6, "{");
         code.AppendLineAt(6, "var __tt = __it.TemporaryKey.Value;");
-        // Added: replay when absent; already-applied when equal; conflict otherwise.
+        // Added: replay when absent; already-applied when equal; conflict
+        // otherwise.
         code.AppendLineAt(6, "if (__it.IsAdded)");
         code.AppendLineAt(6, "{");
         code.AppendLineAt(
@@ -152,7 +148,8 @@ internal static class SparseChangeSetKeyedTempRebaseEmitter
                 + ".Count, true, false, false, false, __tuedit, false)); }"
         );
         code.AppendLineAt(6, "}");
-        // Removed: already-applied when absent; replay when still base; conflict otherwise.
+        // Removed: already-applied when absent; replay when still base;
+        // conflict otherwise.
         code.AppendLineAt(6, "else if (__it.IsRemoved)");
         code.AppendLineAt(6, "{");
         code.AppendLineAt(6, "if (!__tcur" + id + ".ContainsKey(__tt)) { }");

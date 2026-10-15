@@ -6,7 +6,7 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Generation;
 
-/// <summary>Placement checks for relocated UI/editing types (issue #190).</summary>
+/// <summary>Placement checks for relocated UI/editing types.</summary>
 public sealed class RelocatedUiPlacementTests
 {
     private static (
@@ -170,10 +170,7 @@ public sealed class RelocatedUiPlacementTests
     [Test]
     public void CollisionNamesAndTrickyLiteralsStayIntact()
     {
-        // Hardening for the string-based relocation rewrites (#190/#191): a
-        // member colliding with rewritten identifiers (observable, pathPrefix)
-        // plus a string literal carrying this./__model./child-ref text must
-        // compile, with code rewritten and literals verbatim.
+        // Hardening for the string-based relocation rewrites.
         const string source = """
             using SparseTypes;
             using System.ComponentModel;

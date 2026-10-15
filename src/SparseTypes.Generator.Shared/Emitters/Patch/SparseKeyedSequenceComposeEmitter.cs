@@ -1,11 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Emits keyed-sequence Compose algebra.</summary>
-/// <remarks>
-/// Merge-time seam (#188): pure key-set composition delegates to the
-/// Generated-Once kernel helpers (see <see cref="SparsePatchKernelCapabilities"/>);
-/// typed nested patches, canonical storage and ownership stay here.
-/// </remarks>
+/// <remarks>Delegates key-set composition to shared kernel helpers.</remarks>
 internal static class SparseKeyedSequenceComposeEmitter
 {
     internal static void EmitKeyedCompose(
@@ -105,8 +101,8 @@ internal static class SparseKeyedSequenceComposeEmitter
         code.AppendLineAt(5, "result.__whole = " + operation + ".Set(applied.Value!);");
         code.AppendLineAt(5, "return result;");
         code.AppendLineAt(4, "}");
-        // Granular + granular: merge key operation logs preserving sequential semantics.
-        // Added keys.
+        // Granular + granular: merge key operation logs preserving sequential
+        // semantics. Added keys.
         var hasTempPatchCompose = SparseKeyedCollectionEmitter.HasTemporaryKey(member);
         if (hasTempPatchCompose)
         {
@@ -141,7 +137,8 @@ internal static class SparseKeyedSequenceComposeEmitter
         );
         if (SparseKeyedCollectionEmitter.HasUnassignedKey(member))
         {
-            // Temporary adds merge by Guid below; legacy temp-less adds keep positional flow.
+            // Temporary adds merge by Guid below; legacy temp-less adds keep
+            // positional flow.
             var partitionFilter = hasTempPatchCompose
                 ? "if ("
                     + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "k")
@@ -237,10 +234,7 @@ internal static class SparseKeyedSequenceComposeEmitter
                 + comparer
                 + ");"
         );
-        // Net removals: removed by either, minus re-added later. netRemoved keeps
-        // insertion order (this removals, then next removals) while
-        // __netRemovedSet gives O(1) comparer-correct dedup instead of the
-        // former O(K^2) Enumerable.Contains scan per candidate key.
+        // Net removals: removed by either.
         code.AppendLineAt(
             4,
             "var netRemoved = new global::System.Collections.Generic.List<"
@@ -263,7 +257,8 @@ internal static class SparseKeyedSequenceComposeEmitter
             4,
             "foreach (var k in nextRemoved) if ((!thisAdded.ContainsKey(k) || thisRemoved.Contains(k)) && __netRemovedSet.Add(k)) netRemoved.Add(k);"
         );
-        // Net adds: this-added surviving next-removal (with next edits applied), plus next-added.
+        // Net adds: this-added surviving next-removal (with next edits
+        // applied), plus next-added.
         code.AppendLineAt(
             4,
             "var netAdded = new global::System.Collections.Generic.List<" + elementType + ">();"
@@ -431,8 +426,8 @@ internal static class SparseKeyedSequenceComposeEmitter
             code.AppendLineAt(4, "if (netEdited.Count > 0) result.__edited = netEdited;");
         }
 
-        // Order: next order wins when present (filtered to net keys), else this order filtered.
-        // Temporary members rebuild both orders in lockstep instead.
+        // Order: next order wins when present (filtered to net keys), else this
+        // order filtered.
         if (hasTempPatchCompose)
         {
             SparseKeyedSequenceTempPatchMergeEmitter.AppendPatchOrderTempMerge(
@@ -457,7 +452,8 @@ internal static class SparseKeyedSequenceComposeEmitter
                 5,
                 "if (next.__added is not null) foreach (var item in next.__added) { var __ak = "
                     + SparseKeyedCollectionEmitter.KeyOfMethod(member)
-                    // Static Enumerable call: generated code cannot assume "using System.Linq".
+                    // Static Enumerable call: generated code cannot assume
+                    // "using System.Linq".
                     + "(item); if (!global::System.Linq.Enumerable.Contains(__nextOrder, __ak, "
                     + comparer
                     + ")) __nextOrder.Add(__ak); }"

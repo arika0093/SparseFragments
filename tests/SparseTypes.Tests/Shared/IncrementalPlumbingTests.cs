@@ -5,10 +5,7 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Shared;
 
-/// <summary>
-/// Direct unit tests for the shared incremental-generator plumbing (issue #30):
-/// location snapshots, multi-argument diagnostic payloads and IsExternalInit.
-/// </summary>
+/// <summary>Location snapshots, multi-argument diagnostic payloads and IsExternalInit.</summary>
 public sealed class IncrementalPlumbingTests
 {
     [Test]

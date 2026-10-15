@@ -203,14 +203,7 @@ public sealed class SparseDescriptorSet : IDescriptorSet
 }
 
 /// <summary>Implements one model property descriptor using generated observable accessors.</summary>
-/// <remarks>
-/// Also exposes the separated contracts: static metadata through
-/// <see cref="ISparsePropertyMetadata"/> (<c>DeclaredType</c> aliases
-/// <c>Type</c>; all other static members are shared) and live access through
-/// <see cref="ISparseInstanceAccess"/>. Static entries cached in
-/// <see cref="SparseStaticPropertyMetadata"/> stay reference-shared across
-/// accesses; bridges keep reading live observable state.
-/// </remarks>
+/// <remarks>Also exposes the separated contracts.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed class SparseDescriptor : IDescriptor, ISparsePropertyMetadata, ISparseInstanceAccess
 {
@@ -333,11 +326,7 @@ public sealed class SparseDescriptor : IDescriptor, ISparsePropertyMetadata, ISp
     /// <summary>Creates an instance-bound view that fails safely once stale.</summary>
     /// <param name="inner">The live descriptors to guard.</param>
     /// <param name="isLive">Whether the captured instance is still current.</param>
-    /// <remarks>
-    /// Reads observe the captured instance; <c>TrySetValue</c> returns false and
-    /// structural accessors return null after <paramref name="isLive" /> fails,
-    /// so retained descriptors never silently mutate an orphan.
-    /// </remarks>
+    /// <remarks>Reads observe the captured instance.</remarks>
     public static IDescriptor Guarded(IDescriptor inner, Func<bool> isLive) =>
         new GuardedDescriptor(inner, isLive);
 
@@ -583,11 +572,8 @@ public sealed class SparseArrayDescriptor : IArrayDescriptor
     /// <summary>Creates an instance-bound view that fails safely once stale.</summary>
     /// <param name="inner">The live sequence to guard.</param>
     /// <param name="isLive">Whether the captured collection is still current.</param>
-    /// <remarks>
-    /// Mutations return false after <paramref name="isLive" /> fails. Item
-    /// descriptors additionally verify the index still resolves to the captured
-    /// model when the access bag provides <c>GetItemModel</c>.
-    /// </remarks>
+    /// <remarks>Mutations return false after
+    /// <paramref name="isLive" /> fails.</remarks>
     public static IArrayDescriptor Guarded(IArrayDescriptor inner, Func<bool> isLive) =>
         new GuardedArrayDescriptor(inner, isLive);
 
@@ -833,11 +819,8 @@ public sealed class SparseDictionaryDescriptor : IDictDescriptor
     /// <summary>Creates an instance-bound view that fails safely once stale.</summary>
     /// <param name="inner">The live dictionary to guard.</param>
     /// <param name="isLive">Whether the captured collection is still current.</param>
-    /// <remarks>
-    /// Mutations return false after <paramref name="isLive" /> fails. Value
-    /// descriptors additionally verify the key still resolves to the captured
-    /// model when the access bag provides <c>GetValueModel</c>.
-    /// </remarks>
+    /// <remarks>Mutations return false after
+    /// <paramref name="isLive" /> fails.</remarks>
     public static IDictDescriptor Guarded(IDictDescriptor inner, Func<bool> isLive) =>
         new GuardedDictionaryDescriptor(inner, isLive);
 

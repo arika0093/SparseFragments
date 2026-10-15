@@ -5,13 +5,7 @@ using SparseTypes.Generator;
 
 namespace SparseTypes.Tests.Generation;
 
-/// <summary>
-/// Incremental-generator regression tests for the promoted-model pipeline
-/// (issue #18). Covers the scale matrix from the issue — many independent
-/// roots, many roots sharing one promoted partial type, an edit to a single
-/// unrelated root, and an edit to the shared promoted type — using Roslyn
-/// incremental tracking to observe which stages rerun.
-/// </summary>
+/// <summary>Incremental-generator regression tests for the promoted-model pipeline Covers the scale matrix from the issue.</summary>
 public sealed class PromotedIncrementalTests
 {
     private sealed record Probe(
@@ -193,9 +187,8 @@ public sealed class PromotedIncrementalTests
             .ShouldBe(beforeSources.Keys.OrderBy(static key => key));
         // The shared promoted output is byte-identical.
         afterSources[promotedHint].ShouldBe(beforeSources[promotedHint]);
-        // Untouched roots are byte-identical; the edited root reflects the edit.
-        // Single-file emission: each root owns one merged file; all stay
-        // isolated per model.
+        // Untouched roots are byte-identical; the edited root reflects the
+        // edit.
         foreach (var root in new[] { "InvRoot2", "InvRoot3" })
         {
             var hints = afterSources
@@ -404,9 +397,8 @@ public sealed class PromotedIncrementalTests
     [Test]
     public void LargeProject_ManyIndependentRoots_MeetsEnvelope()
     {
-        // Large-project envelope: 100 independent roots must generate
-        // completely (cold) and keep unrelated outputs stable across a
-        // single-file incremental edit.
+        // 100 independent roots must generate completely (cold) and keep
+        // unrelated outputs stable across a single-file incremental edit.
         const int rootCount = 100;
         var files = new Dictionary<string, string>(StringComparer.Ordinal);
         for (var index = 0; index < rootCount; index++)

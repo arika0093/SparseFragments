@@ -2,15 +2,8 @@ using System.Threading;
 
 namespace SparseTypes.Generator.Shared;
 
-/// <summary>Builds the compilation-scoped read-only adapter source (#181).</summary>
-/// <remarks>
-/// Ports the model-independent streaming adapters out of
-/// <c>SparseReadOnlyAdapterEmitter</c> verbatim: the list adapter keeps its
-/// O(1)/re-enumerating Count/indexer contract (issue #172), the dictionary
-/// adapter maps values lazily, and the entries adapter maps keys and values.
-/// Per-model <c>ReadOnlyView</c> output instantiates these shared types with
-/// model-specific mappings instead of redefining them.
-/// </remarks>
+/// <summary>Builds the compilation-scoped read-only adapter source.</summary>
+/// <remarks>Ports the model-independent streaming adapters out of <c>SparseReadOnlyAdapterEmitter</c> verbatim.</remarks>
 internal static class SparseGeneratedOnceReadOnlyAdapters
 {
     /// <summary>Builds the shared adapter source for the explicit namespace.</summary>
@@ -139,7 +132,8 @@ internal static class SparseGeneratedOnceReadOnlyAdapters
                 + "<TKey, TSource, TView> : global::System.Collections.Generic.IReadOnlyDictionary<TKey, TView> where TKey : notnull"
         );
         code.AppendLineAt(1, "{");
-        // Public-first ordering: constructor and public members precede private state.
+        // Public-first ordering: constructor and public members precede private
+        // state.
         code.AppendLineAt(
             2,
             "public "
@@ -203,7 +197,8 @@ internal static class SparseGeneratedOnceReadOnlyAdapters
                 + "<TKey, TSource, TKeyView, TValueView> : global::System.Collections.Generic.IReadOnlyCollection<global::System.Collections.Generic.KeyValuePair<TKeyView, TValueView>> where TKey : notnull"
         );
         code.AppendLineAt(1, "{");
-        // Public-first ordering: constructor and public members precede private state.
+        // Public-first ordering: constructor and public members precede private
+        // state.
         code.AppendLineAt(
             2,
             "public "

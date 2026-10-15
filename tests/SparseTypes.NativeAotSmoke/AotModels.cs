@@ -25,7 +25,7 @@ public partial class AotNested
 }
 
 // Concrete collection shapes for the NativeAOT comparison regression
-// coverage (#9): value-type sequence/set/dictionary members.
+// coverage: value-type sequence/set/dictionary members.
 [SparseModel]
 public partial class AotIntCollections
 {

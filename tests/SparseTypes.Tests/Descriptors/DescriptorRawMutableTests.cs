@@ -102,8 +102,7 @@ public sealed class DescriptorRawMutableTests
         session.HasChanges.ShouldBeFalse();
         cached = snapshots;
 
-        // The hand-built core has no generated EditSession subclass; resolve the
-        // session-bound descriptor set through the observable's internal accessor.
+        // The hand-built core has no generated EditSession subclass.
         var accessor = typeof(RawObservable)
             .GetMethods(
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance
@@ -118,7 +117,8 @@ public sealed class DescriptorRawMutableTests
         session.HasChanges.ShouldBeFalse();
         snapshots.ShouldBe(cached);
 
-        // Raw mutable reads invalidate the cache but claim no change on their own.
+        // Raw mutable reads invalidate the cache but claim no change on their
+        // own.
         sets.TryGet(nameof(RawMutableHolder.Numbers), out var numbers).ShouldBeTrue();
         _ = numbers.GetValue();
         session.HasChanges.ShouldBeFalse();
@@ -135,7 +135,8 @@ public sealed class DescriptorRawMutableTests
         var session = model.CreateEditSession();
 
         session.Descriptors.TryGet(nameof(RawPocoHolder.Poco), out var descriptor).ShouldBeTrue();
-        // No notifying view exists for the POCO: the read is the live reference.
+        // No notifying view exists for the POCO: the read is the live
+        // reference.
         ReferenceEquals(descriptor.GetValue(), model.Poco).ShouldBeTrue();
         descriptor.Type.ShouldBe(typeof(RawMutablePoco));
         descriptor.ViewType.ShouldBe(typeof(RawMutablePoco));

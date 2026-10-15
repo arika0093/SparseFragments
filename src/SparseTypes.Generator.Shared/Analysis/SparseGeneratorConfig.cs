@@ -136,17 +136,11 @@ internal sealed record SparseGeneratorConfig
     /// <summary>Product-owned names for the generated edit-session implementation.</summary>
     public SparseEditSessionDialect? EditSessionDialect { get; init; }
 
-    /// <summary>
-    /// Trusted model-accessor interface implemented by generated model sessions, or null when disabled.
-    /// </summary>
+    /// <summary>Trusted model-accessor interface implemented by generated model sessions, or null when disabled.</summary>
     public string? EditSessionModelAccessorInterfaceMetadataName { get; init; }
 
     /// <summary>Typed path-provider interface implemented by generated root sessions, or null when disabled.</summary>
-    /// <remarks>
-    /// Names the product-owned <c>ISparseEditSessionWithPaths&lt;TModel, TPaths&gt;</c>
-    /// contract. Null keeps sessions without the <c>Paths</c> member so
-    /// downstream products without the contract keep byte-identical output.
-    /// </remarks>
+    /// <remarks>Null disables the <c>Paths</c> member for products without this session contract.</remarks>
     public string? EditSessionWithPathsInterfaceMetadataName { get; init; }
 
     /// <summary>Typed child-path factory interface implemented by generated model paths, or null when disabled.</summary>
@@ -165,29 +159,15 @@ internal sealed record SparseGeneratorConfig
     public SparseDescriptorDialect? DescriptorDialect { get; init; }
 
     /// <summary>Explicit per-model implementation namespace, or null for single-file emission.</summary>
-    /// <remarks>
-    /// Stages that relocate generated machinery outside the attributed model
-    /// require an explicit namespace from the owning generator. Shared code
-    /// provides no implicit fallback.
-    /// </remarks>
+    /// <remarks>Stages that relocate generated machinery outside the attributed model require an explicit namespace from the owning generator.</remarks>
     public string? GeneratedImplementationNamespace { get; init; }
 
     /// <summary>Product-owned generated family names, or null for the standalone vocabulary.</summary>
-    /// <remarks>
-    /// Shared semantic roles (state, operation, transition, payload, views)
-    /// bind to these names through <see cref="SparseSemanticReference"/>.
-    /// Null keeps the existing <c>Fragment</c>/<c>Patch</c>/<c>ChangeSet</c>
-    /// vocabulary; downstream products supply their own bindings.
-    /// </remarks>
+    /// <remarks>Products may rename shared semantic roles.</remarks>
     public SparseFamilyNames? FamilyNames { get; init; }
 
     /// <summary>Product-owned implementation hint-name suffix, or null for the shared default.</summary>
-    /// <remarks>
-    /// Stages that relocate generated machinery into per-model implementation
-    /// files resolve the suffix through <see cref="SparseGeneratedPlacement"/>
-    /// so hint splitting stays product-neutral. Shared provides the default;
-    /// products override only to match their own hint conventions.
-    /// </remarks>
+    /// <remarks>Relocated implementation hints use this suffix.</remarks>
     public string? GeneratedImplementationSuffix { get; init; }
 
     /// <summary>Attribute marking the temporary-identity property, or null when the product has none.</summary>
@@ -198,21 +178,11 @@ internal sealed record SparseGeneratorConfig
     public string? TemporaryKeyAttributeMetadataName { get; init; }
 
     /// <summary>Whether the consumer language version allows file-scoped types.</summary>
-    /// <remarks>
-    /// False keeps the legacy <c>internal</c> helpers so downstream products
-    /// without C# 11 keep byte-identical output. True narrows same-file-only
-    /// helpers (per-model Fragment operations) to <c>file</c>.
-    /// </remarks>
+    /// <remarks>False keeps the legacy <c>internal</c> helpers so downstream products without C# 11 keep byte-identical output.</remarks>
     public bool AllowFileScopedTypes { get; init; }
 
     /// <summary>System.Text.Json surface available to generated code, or null for the full surface.</summary>
-    /// <remarks>
-    /// Null keeps the historical unconditional JSON emission so downstream
-    /// products that never probe the compilation keep byte-identical output.
-    /// The owning generator overrides this per compilation with
-    /// <see cref="SparseStjCapabilityDetector"/> results; see
-    /// <see cref="EffectiveStjCapabilities"/>.
-    /// </remarks>
+    /// <remarks>Null preserves unconditional JSON emission for products that do not inspect the compilation.</remarks>
     public SparseStjCapabilities? StjCapabilities { get; init; }
 
     /// <summary>Effective JSON surface, defaulting to the full historical set.</summary>
@@ -220,12 +190,7 @@ internal sealed record SparseGeneratorConfig
         StjCapabilities ?? SparseStjCapabilities.All;
 
     /// <summary>Whether generated JSON artifacts may be emitted for this configuration.</summary>
-    /// <remarks>
-    /// The effective choice intersects the requested
-    /// <see cref="SparseEmissionFeatures.EmitJsonConverters"/> family with the
-    /// probed compilation surface: absent or partial System.Text.Json support
-    /// suppresses the JSON artifacts instead of emitting uncompilable code.
-    /// </remarks>
+    /// <remarks>Emission also requires V1 wire-format support.</remarks>
     public bool EffectiveEmitJson =>
         EffectiveEmissionFeatures.EmitJsonConverters && EffectiveStjCapabilities.SupportsV1Wire;
 
@@ -397,7 +362,7 @@ internal sealed record SparseRuntimeDialect
 
     public string ReferenceComparer { get; init; }
 
-    /// <summary>Optional parameterless factory for a disposable scope exposing a reference-identity Dictionary&lt;object, object&gt; through Context.</summary>
+    /// <summary>Optional parameterless factory for a disposable scope exposing a reference-identity Dictionary&lt.</summary>
     public string? CloneContextScopeFactory { get; init; }
 
     public string ValueComparer { get; init; }
@@ -443,11 +408,7 @@ internal sealed record SparseEditSessionDialect
     public string CurrentCoreHintName { get; init; }
 
     /// <summary>Optional opt-in history type, or null when history is not emitted.</summary>
-    /// <remarks>
-    /// Product-owned reusable history core (for example
-    /// <c>global::SparseTypes.SparseEditHistory</c>). Null keeps sessions
-    /// byte-identical without any history factory.
-    /// </remarks>
+    /// <remarks>Product-owned reusable history core (for example <c>global::SparseTypes.SparseEditHistory</c>).</remarks>
     public string? HistoryType { get; init; }
 
     /// <summary>Optional history options type, or null when history is not emitted.</summary>
@@ -457,13 +418,7 @@ internal sealed record SparseEditSessionDialect
     public string? HistoryHooksType { get; init; }
 
     /// <summary>Optional non-generic history control contract, or null for the legacy factory only.</summary>
-    /// <remarks>
-    /// Product-owned framework-neutral contract (for example
-    /// <c>global::SparseTypes.ISparseEditHistory</c>). When set together
-    /// with the history binding, sessions additionally gain the single-owned
-    /// <c>EnableHistory</c> API. Null keeps the legacy <c>CreateHistory</c>
-    /// factory only, so existing consumers stay byte-identical.
-    /// </remarks>
+    /// <remarks>Product-owned framework-neutral contract (for example <c>global::SparseTypes.ISparseEditHistory</c>).</remarks>
     public string? HistoryContractType { get; init; }
 
     /// <summary>Whether the dialect carries a complete history binding.</summary>

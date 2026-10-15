@@ -5,11 +5,7 @@ using System.ComponentModel;
 namespace SparseTypes.Generated;
 
 /// <summary>Static declared metadata for one model property.</summary>
-/// <remarks>
-/// Instance-independent: names, declared types, attributes and shape can be
-/// inspected without creating an observable. Instance-bound reads/writes live
-/// on <see cref="ISparseInstanceAccess"/> instead.
-/// </remarks>
+/// <remarks>Instance-independent: names, declared types, attributes and shape can be inspected without creating an observable.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public interface ISparsePropertyMetadata
 {
@@ -45,11 +41,7 @@ public interface ISparsePropertyMetadata
 }
 
 /// <summary>Static declared metadata for one generated model.</summary>
-/// <remarks>
-/// Inspectable without an observable instance. Per-model generated code owns
-/// the single cached instance; invariant entries are shared, never rebuilt
-/// per access.
-/// </remarks>
+/// <remarks>Inspectable without an observable instance.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public interface ISparseModelMetadata
 {
@@ -64,10 +56,7 @@ public interface ISparseModelMetadata
 }
 
 /// <summary>Instance-bound value and structural access for one property.</summary>
-/// <remarks>
-/// Separated from <see cref="ISparsePropertyMetadata"/> so static metadata can
-/// be cached and shared while each access observes live observable state.
-/// </remarks>
+/// <remarks>Stores model-level metadata used by generated operations.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public interface ISparseInstanceAccess
 {
@@ -111,11 +100,7 @@ public enum SparseChangeKind
 }
 
 /// <summary>A model-independent flattened change entry.</summary>
-/// <remarks>
-/// Mirrors the per-model <c>ChangeInfo</c> shape (path plus presence-aware
-/// before/after) without naming generated CLR types, so diff inspection tools
-/// work across models and assemblies. AOT-safe: plain data, no reflection.
-/// </remarks>
+/// <remarks>Mirrors the per-model <c>ChangeInfo</c> shape (path plus presence-aware before/after) without naming generated CLR types.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed class SparseChangeRecord
 {
@@ -150,12 +135,7 @@ public sealed class SparseChangeRecord
 }
 
 /// <summary>Model-independent change enumeration over Patch/ChangeSet state.</summary>
-/// <remarks>
-/// Implemented by model-bound projections; consumers inspect
-/// <see cref="SparseChangeRecord"/> entries without referencing generated
-/// CLR types. Per-model <c>EnumerateChanges()</c> results project into this
-/// contract (see the descriptor capability seam for generator wiring).
-/// </remarks>
+/// <remarks>Implemented by model-bound projections.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public interface ISparseChangeInspector
 {
@@ -164,11 +144,7 @@ public interface ISparseChangeInspector
 }
 
 /// <summary>Cached invariant property metadata shared across accesses.</summary>
-/// <remarks>
-/// Emitted once per model (see the #176 DescriptorFactory seam); every
-/// instance bridge references the same entry instead of reallocating
-/// attributes and shape per access. AOT-safe: no reflection.
-/// </remarks>
+/// <remarks>Emitted once per model (see the DescriptorFactory seam).</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed class SparseStaticPropertyMetadata : ISparsePropertyMetadata
 {

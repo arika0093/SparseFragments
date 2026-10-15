@@ -241,10 +241,7 @@ public static class PlaygroundSnippets
         return sb.ToString();
     }
 
-    /// <summary>
-    /// One-line diff summary projected from an already-computed roster ChangeSet.
-    /// Presentation formatting only; semantic detection stays in the typed transition.
-    /// </summary>
+    /// <summary>One-line diff summary projected from an already-computed roster ChangeSet.</summary>
     public static string RosterSummary(PlaygroundRoster.ChangeSet changes)
     {
         var quests = changes.Quests;
@@ -260,12 +257,7 @@ public static class PlaygroundSnippets
         return $"add: [{string.Join(", ", added)}] | remove: [{string.Join(", ", removed)}] | edit: [{string.Join(", ", edited)}] | order: [{string.Join("→", order)}]";
     }
 
-    /// <summary>
-    /// Builds the keyed Add/Remove/Edit/SetOrder patch for the typed diff.
-    /// Operations come from the <c>Quests</c> keyed transition on
-    /// <c>PlaygroundRoster.ChangeSet</c> rather than a second manual
-    /// before/after comparison.
-    /// </summary>
+    /// <summary>Builds the keyed Add/Remove/Edit/SetOrder patch for the typed diff.</summary>
     public static string RosterManualPatchCSharp(
         string variableName,
         PlaygroundRoster.ChangeSet changes

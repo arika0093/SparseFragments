@@ -44,7 +44,7 @@ public partial class CollectionEditLine
     public Guid? TemporaryId { get; set; }
 }
 
-/// <summary>Representative Case 3/4/5 editing flows through the collection facade (issue #251).</summary>
+/// <summary>Representative Case 3/4/5 editing flows through the collection facade.</summary>
 public sealed class CollectionEditingFacadeTests
 {
     [Test]

@@ -20,11 +20,8 @@ public partial class WatcherBenchRoot
     public List<WatcherBenchItem> Items { get; set; } = new();
 }
 
-// Compares session edits without watchers against opt-in field watchers
-// (issue #260): each watcher re-diffs the baseline on every session
-// notification, so the many-watcher case measures one ChangeSet diff per
-// watcher per edit plus the watcher notification check. GlobalSetup validates
-// every benchmark expectation so regressions fail fast instead of timing drift.
+// Each watcher re-diffs the baseline per edit; setup validates results before
+// timing so the benchmark fails on functional drift.
 [MemoryDiagnoser]
 public class FieldStateWatcherBenchmarks
 {

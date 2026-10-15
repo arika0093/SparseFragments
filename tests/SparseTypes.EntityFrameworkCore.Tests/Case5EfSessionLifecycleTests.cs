@@ -4,17 +4,8 @@ using SparseTypes.EntityFrameworkCore.Tests.Sample;
 
 namespace SparseTypes.EntityFrameworkCore.Tests;
 
-/// <summary>Case 5 save lifecycle through production EF mapping plus the session contract (#266).</summary>
-/// <remarks>
-/// <para>
-/// Each test captures the exact immutable submitted <c>ChangeSet</c> from a generated edit
-/// session, applies it with production <c>ApplyWithResult</c>, saves, projects the authoritative
-/// DTO, restores temporary identities with production <c>AssignTemporaryKeys</c>, and acknowledges
-/// with <c>TryReconcile</c> while edits made after submit stay pending. No manual positional or
-/// helper-based retargeting takes part.
-/// </para>
-/// <para>All temporary identities are fixed so the tests are deterministic.</para>
-/// </remarks>
+/// <summary>Case 5 save lifecycle through production EF mapping plus the session contract.</summary>
+/// <remarks>Each test captures the exact immutable submitted <c>ChangeSet</c> from a generated edit session.</remarks>
 public sealed class Case5EfSessionLifecycleTests
 {
     private static readonly Guid TempA = new("11111111-1111-1111-1111-111111111111");
@@ -118,8 +109,8 @@ public sealed class Case5EfSessionLifecycleTests
         var entity = SeedOrder(context);
         var before = ReadOrderDto(entity);
 
-        // Client edit session: one edit, two temporary additions, and a reorder.
-        // The second addition carries a stale Subtotal; the server recomputes it on write.
+        // Client edit session: one edit, two temporary additions, and a
+        // reorder.
         var draft = CloneOrder(before);
         var session = draft.CreateEditSession();
         draft.Lines.Single(static line => line.Quantity == 1).Quantity = 10;
@@ -154,8 +145,8 @@ public sealed class Case5EfSessionLifecycleTests
         var authoritative = ReadOrderDto(entity);
         mapper.AssignTemporaryKeys(context, applied, before, authoritative);
 
-        // Both submitted rows correlate by temporary identity, never by position.
-        // The untouched row adopts the server-recomputed Subtotal.
+        // Both submitted rows correlate by temporary identity, never by
+        // position. The untouched row adopts the server-recomputed Subtotal.
         authoritative.Lines.Count.ShouldBe(4);
         var persistedA = authoritative.Lines.Single(line => line.TemporaryId == TempA);
         var persistedB = authoritative.Lines.Single(line => line.TemporaryId == TempB);
@@ -167,8 +158,7 @@ public sealed class Case5EfSessionLifecycleTests
         reconciled.ShouldBeTrue();
         error.ShouldBeNull();
 
-        // Assigned keys landed on the submitted rows; the post-submit quantity replayed onto
-        // the assigned identity while the untouched row adopted the server-recomputed value.
+        // Assigned keys landed on the submitted rows.
         var liveA = draft.Lines.Single(line => line.TemporaryId == TempA);
         liveA.Id.ShouldBe(persistedA.Id);
         liveA.Quantity.ShouldBe(99);
@@ -209,14 +199,16 @@ public sealed class Case5EfSessionLifecycleTests
         var authoritative = ReadOrderDto(entity);
         mapper.AssignTemporaryKeys(context, applied, before, authoritative);
 
-        // The server filtered one submitted row: its temporary identity is absent downstream.
+        // The server filtered one submitted row: its temporary identity is
+        // absent downstream.
         var filtered = CloneOrder(authoritative);
         filtered.Lines.RemoveAll(line => line.TemporaryId == TempB);
 
         session.TryReconcile(submitted, filtered, out var error).ShouldBeFalse();
         error.ShouldNotBeNullOrEmpty();
 
-        // No partial key writeback: both rows stay unassigned and the submission stays pending.
+        // No partial key writeback: both rows stay unassigned and the
+        // submission stays pending.
         draft.Lines.Single(line => line.TemporaryId == TempA).Id.ShouldBe(0);
         draft.Lines.Single(line => line.TemporaryId == TempB).Id.ShouldBe(0);
         session.HasChanges.ShouldBeTrue();
@@ -246,7 +238,8 @@ public sealed class Case5EfSessionLifecycleTests
         var authoritative = ReadOrderDto(entity);
         mapper.AssignTemporaryKeys(context, applied, before, authoritative);
 
-        // A duplicated temporary identity across two assigned rows is rejected, never split.
+        // A duplicated temporary identity across two assigned rows is rejected,
+        // never split.
         var ambiguous = CloneOrder(authoritative);
         ambiguous.Lines.Add(
             new OrderLineDto
@@ -288,7 +281,8 @@ public sealed class Case5EfSessionLifecycleTests
         var authoritative = ReadOrderDto(entity);
         mapper.AssignTemporaryKeys(context, applied, before, authoritative);
 
-        // An overlapping acknowledgement moves the baseline past the submission.
+        // An overlapping acknowledgement moves the baseline past the
+        // submission.
         draft.Name = "intervening";
         session.AcceptChanges(session.CreateChangeSet());
 

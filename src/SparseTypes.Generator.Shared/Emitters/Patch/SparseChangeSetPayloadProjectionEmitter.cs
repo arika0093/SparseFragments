@@ -7,12 +7,7 @@ using static SparseTypes.Generator.Shared.SparseChangeSetBasicsEmitter;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Emits the baseline-free payload projection for redacted transports.</summary>
-/// <remarks>
-/// A redacted payload can never rebuild a complete <c>ChangeSet</c>; this
-/// projection spells the explicit information-loss boundary as a <c>Patch</c>.
-/// Scalar members project their after-state, nested members recurse, and
-/// keyed or dictionary members reuse the canonical member projection.
-/// </remarks>
+/// <remarks>A redacted payload can never rebuild a complete <c>ChangeSet</c>.</remarks>
 internal static class SparseChangeSetPayloadProjectionEmitter
 {
     internal static void AppendCoreToPatch(

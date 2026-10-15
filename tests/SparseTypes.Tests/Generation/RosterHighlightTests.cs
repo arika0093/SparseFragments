@@ -195,7 +195,8 @@ public sealed class RosterHighlightTests
     [Test]
     public void ReorderPreservesRowIdentity()
     {
-        // Simulates the SortableList OnUpdate path: the same quest instances move.
+        // Simulates the SortableList OnUpdate path: the same quest instances
+        // move.
         var first = Quest("a");
         var second = Quest("b");
         var roster = State(first, second);
@@ -430,7 +431,7 @@ public sealed class RosterHighlightTests
             .Select(p => p.ParameterType)
             .ShouldBe([typeof(PlaygroundRoster.ChangeSet)]);
 
-        // Generic inspection runtime types were removed by #91 and must stay gone.
+        // Generic inspection runtime types were removed by  and must stay gone.
         var runtime = typeof(Optional<>).Assembly;
         runtime.GetType("SparseTypes.Metadata.SparsePropertyInfo").ShouldBeNull();
         runtime.GetType("SparseTypes.Metadata.SparsePatchChange").ShouldBeNull();
@@ -440,7 +441,8 @@ public sealed class RosterHighlightTests
     [Test]
     public void Case3HasNoWrapperTypes()
     {
-        // QuestRow / RosterEditState scaffolding is gone; defaults are real models.
+        // QuestRow / RosterEditState scaffolding is gone; defaults are real
+        // models.
         var playground = typeof(RosterDefaults).Assembly;
         playground.GetType("SparseTypes.Playground.Models.QuestRow").ShouldBeNull();
         playground.GetType("SparseTypes.Playground.Models.RosterEditState").ShouldBeNull();
@@ -507,7 +509,8 @@ public sealed class RosterHighlightTests
         removeAndAdd.Quests.GetChange("b").IsReordered.ShouldBeFalse();
         removeAndAdd.Quests.GetChange("c").IsReordered.ShouldBeFalse();
 
-        // Summary order is the typed AfterOrder, even when OrderChanged is false.
+        // Summary order is the typed AfterOrder, even when OrderChanged is
+        // false.
         var before = State(Quest("a"), Quest("b"));
         var after = State(Quest("a"), Quest("b", "B2"));
         PlaygroundSnippets.RosterSummary(Diff(before, after)).ShouldContain("order: [a→b]");

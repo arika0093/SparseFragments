@@ -9,9 +9,8 @@ public partial class HistoryBenchScalar
     public int Count { get; set; }
 }
 
-// Compares session edits without history against opt-in histories (issue
-// #252): the no-history path must retain nothing extra, while small and
-// large histories bound retention by entry count on scalar and keyed models.
+// The no-history path must retain nothing extra, while small and large
+// histories bound retention by entry count on scalar and keyed models.
 [MemoryDiagnoser]
 public class EditHistoryBenchmarks
 {

@@ -4,13 +4,7 @@ using System.Collections.Generic;
 namespace SparseTypes;
 
 /// <summary>Framework-neutral undo/redo control over a session-owned edit history.</summary>
-/// <remarks>
-/// This is the ordinary consumer surface for <c>EnableHistory</c>: it exposes
-/// availability, counts, undo/redo, and grouping without the typed change-set
-/// algebra, which stays inside the session. The owning session retains the
-/// implementation; consumers must not dispose it. Call
-/// <c>DisableHistory</c> to release retention instead.
-/// </remarks>
+/// <remarks>It exposes availability, counts, undo/redo, and grouping without the typed change-set algebra, which stays inside the session.</remarks>
 public interface ISparseEditHistory
 {
     /// <summary>Gets whether an undo entry is available.</summary>
@@ -29,11 +23,7 @@ public interface ISparseEditHistory
     int MaxEntries { get; }
 
     /// <summary>Raised after undo/redo stack state changes.</summary>
-    /// <remarks>
-    /// Covers observed edits, grouped commits, successful undo/redo replays,
-    /// and clears from successful accept, revert, reload, or reconcile.
-    /// Failed replays leave the stacks untouched and raise nothing.
-    /// </remarks>
+    /// <remarks>Covers observed edits, grouped commits.</remarks>
     event Action? StateChanged;
 
     /// <summary>Undoes the newest entry, throwing on conflict.</summary>

@@ -527,7 +527,7 @@ public sealed partial class MappingPolicyTests
 
         var accepted = current.CreateChangeSet(incoming);
         // Fail-fast: the dormant unmapped Display member fails at mapper
-        // creation even before any Apply, and the changed path fails the same way.
+        // creation even before any Apply, and the changed path fails the same
         var error = Should.Throw<SparseEntityMappingException>(() =>
             SparseEntityMapper<WidgetEntity, WidgetDto>.Create(
                 new WidgetStrictMapper(),
@@ -576,8 +576,6 @@ public sealed partial class MappingPolicyTests
         var accepted = current.CreateChangeSet(incoming);
         // The baseline mapper explicitly ignores the identity: fail-fast
         // coverage is satisfied at creation and the ignored change is skipped.
-        // Unignored identity writes keep failing at creation (see
-        // RawIdMemberFailsWithoutAllowWrite).
         SparseEntityMapper<WidgetEntity, WidgetDto>
             .Create(new WidgetMapper(), context.Model)
             .Apply(context, entity, accepted);
@@ -614,9 +612,8 @@ public sealed partial class MappingPolicyTests
 
         var accepted = current.CreateChangeSet(incoming);
 
-        // AllowWrite permits the plan, so the write reaches the EF entry; EF Core
-        // itself then refuses the tracked key mutation. The value is already set
-        // when EF throws, which callers must account for before reusing the context.
+        // AllowWrite permits the plan, so the write reaches the EF entry; EF
+        // Core itself then refuses the tracked key mutation.
         var error = Should.Throw<InvalidOperationException>(() =>
             SparseEntityMapper<WidgetEntity, WidgetDto>
                 .Create(new WidgetIdMapper(), context.Model)

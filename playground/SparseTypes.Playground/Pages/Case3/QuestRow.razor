@@ -89,8 +89,7 @@
     private int Index => Model.Quests.IndexOf(Quest);
 
     // Row highlights read the shared keyed-collection state built from the
-    // typed transition, so added/removed/reordered reuse the canonical item
-    // semantics. Per-field dots read the typed member transitions directly.
+    // typed transition.
     private SparseCollectionState QuestStates =>
         Changes.KeyedState(PlaygroundRoster.SparsePath.Quests);
 

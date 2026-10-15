@@ -9,11 +9,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Discovers reachable partial POCOs that receive first-class Fragment/Patch APIs.</summary>
-/// <remarks>
-/// Reachable + partial types expose <c>T.Fragment</c> / <c>T.FragmentBuilder</c> / <c>T.Patch</c>
-/// without becoming independent roots. Reachable + non-partial types are treated as
-/// atomic replace values and do not receive generated fragment APIs.
-/// </remarks>
+/// <remarks>Reachable partial types get generated APIs; non-partial types remain atomic replace values.</remarks>
 internal static class SparsePromotedDiscovery
 {
     internal static bool IsPartialType(INamedTypeSymbol type, CancellationToken cancellationToken)

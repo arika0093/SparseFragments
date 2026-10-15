@@ -4,11 +4,7 @@ using System.Linq;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Emits the per-member snapshot loop for payload root construction.</summary>
-/// <remarks>
-/// Split from <see cref="SparseChangeSetPayloadEmitter"/> to keep emitter
-/// files focused: honest snapshots never redact, while before snapshots
-/// redact flagged members plus everything under an ambient subtree flag.
-/// </remarks>
+/// <remarks>Honest snapshots never redact, while before snapshots redact flagged members plus everything under an ambient subtree flag.</remarks>
 internal static class SparseChangeSetPayloadSnapshotEmitter
 {
     /// <summary>Emits the per-member snapshot loop shared by honest and redacting roots.</summary>

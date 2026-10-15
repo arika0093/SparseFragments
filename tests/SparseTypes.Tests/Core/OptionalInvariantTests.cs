@@ -2,11 +2,7 @@ using System.Reflection;
 
 namespace SparseTypes.Tests;
 
-/// <summary>
-/// Guards the <see cref="Optional{T}"/> core invariant (issue #8):
-/// an optional is either Missing or Present(value), and presence cannot be
-/// mutated independently of the value through the public API.
-/// </summary>
+/// <summary>Checks that optional values preserve presence.</summary>
 public sealed class OptionalInvariantTests
 {
     [Test]

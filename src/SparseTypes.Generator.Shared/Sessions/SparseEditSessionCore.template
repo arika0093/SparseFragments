@@ -6,10 +6,7 @@ using System.ComponentModel;
 
 namespace __SESSION_NAMESPACE__
 {
-    /// <summary>
-    /// Tracks edits to a live model against a retained fragment baseline without depending on a UI
-    /// framework.
-    /// </summary>
+    /// <summary>Tracks edits to a live model against a retained fragment baseline without depending on a UI framework.</summary>
     /// <typeparam name="TModel">The editable model type. Must be a reference type.</typeparam>
     /// <typeparam name="TFragment">The generated fragment type for <typeparamref name="TModel"/>.</typeparam>
     /// <typeparam name="TPatch">The generated baseline-free patch type for <typeparamref name="TModel"/>.</typeparam>
@@ -94,7 +91,8 @@ namespace __SESSION_NAMESPACE__
             );
         }
 
-        /// <summary>Creates a session editing <paramref name="current"/> against a separate baseline snapshot.</summary>
+        /// <summary>Creates a session editing <paramref name="current"/>
+        /// against a separate baseline snapshot.</summary>
         public static EditSessionCore<TModel, TFragment, TPatch, TChangeSet, TObservable> Create(
             TModel baseline,
             TModel current,
@@ -182,24 +180,15 @@ namespace __SESSION_NAMESPACE__
             private set => _model = value;
         }
 
-        /// <summary>
-        /// Returns the live model for trusted framework use without affecting the change cache.
-        /// </summary>
-        /// <remarks>
-        /// Unlike <see cref="Model"/>, this access keeps observable-change caching intact.
-        /// Callers must only read identity or resolve paths, never mutate or publish the
-        /// returned instance: silent raw edits leave cached change state stale.
-        /// </remarks>
+        /// <summary>Returns the live model for trusted framework use without affecting the change cache.</summary>
+        /// <remarks>Unlike <see cref="Model"/>, this access keeps observable-change caching intact.</remarks>
         public TModel GetModelForFrameworkAccess() => _model;
 
         /// <summary>A stable typed observable proxy over <see cref="Model"/>.</summary>
         public TObservable Observable => _observable;
 
         /// <summary>Whether the current model differs semantically from the retained baseline.</summary>
-        /// <remarks>
-        /// Observable edits defer the baseline comparison until this property is read,
-        /// reusing the latest observed snapshot. Transition validation still runs during each edit.
-        /// </remarks>
+        /// <remarks>Observable edits defer the baseline comparison until this property is read, reusing the latest observed snapshot.</remarks>
         public bool HasChanges
         {
             get
@@ -237,12 +226,7 @@ namespace __SESSION_NAMESPACE__
         public event Action<TChangeSet>? TransitionObserved;
 
         /// <summary>Runs observable edits as one transition notification, including nested batches.</summary>
-        /// <remarks>
-        /// Intermediate snapshot and diff work is deferred: each mutation inside the batch
-        /// only marks the session dirty, and a single diff from entry to exit is published
-        /// when the outermost batch completes (including when the edit delegate throws).
-        /// Batching is notification coalescing only; it never rolls the model back.
-        /// </remarks>
+        /// <remarks>Intermediate snapshot and diff work is deferred.</remarks>
         public void BatchEdit(Action edit)
         {
             if (edit is null)
@@ -305,17 +289,7 @@ namespace __SESSION_NAMESPACE__
         /// <param name="changes">The transition to apply.</param>
         /// <param name="conflicts">Structured conflicts when the before-state cannot be applied.</param>
         /// <returns><see langword="true"/> when the model was updated; otherwise <see langword="false"/>.</returns>
-        /// <remarks>
-        /// Conflict detection is atomic: a conflicting before-state or an immutable
-        /// member leaves the live model untouched and reports
-        /// <see langword="false"/>. Once validation passes, the write itself runs
-        /// arbitrary model setters and collection operations, which can throw after
-        /// partially mutating the model. Such a failure propagates after the session
-        /// resynchronizes its snapshots, caches, and notifications, so later reads
-        /// observe the partial state instead of stale state. This method is not a
-        /// transaction; <see cref="BatchEdit"/> only batches notifications and never
-        /// rolls the model back either.
-        /// </remarks>
+        /// <remarks>Conflicts leave the live model unchanged and return details.</remarks>
         public bool TryApplyInPlace(
             TChangeSet changes,
             out IReadOnlyList<__CONFLICT_TYPE__>? conflicts
@@ -352,9 +326,7 @@ namespace __SESSION_NAMESPACE__
             {
                 if (!committed)
                 {
-                    // The model may be partially mutated; resynchronize observation
-                    // so the session never serves stale snapshots or caches. The
-                    // guarded path never masks the original failure.
+                    // The model may be partially mutated.
                     ResynchronizeAfterFailedMutation();
                 }
             }
@@ -364,11 +336,7 @@ namespace __SESSION_NAMESPACE__
         }
 
         /// <summary>Applies a change set in place or throws when its before-state conflicts.</summary>
-        /// <remarks>
-        /// See <see cref="TryApplyInPlace"/> for the failure contract: conflicts are
-        /// detected atomically, while setter failures may partially mutate the model
-        /// and propagate after the session resynchronizes.
-        /// </remarks>
+        /// <remarks>See <see cref="TryApplyInPlace"/> for the failure contract.</remarks>
         public void ApplyInPlace(TChangeSet changes)
         {
             if (!TryApplyInPlace(changes, out _))
@@ -380,16 +348,7 @@ namespace __SESSION_NAMESPACE__
         }
 
         /// <summary>Reverts the current model to its retained baseline in place.</summary>
-        /// <remarks>
-        /// When the live model is temporarily invalid (duplicate keyed keys or
-        /// unassigned keyed sentinels) it cannot be diffed, so the revert restores
-        /// the retained valid baseline directly instead of deriving a keyed diff
-        /// from the invalid state. The live model instance is preserved.
-        /// Snapshot-only sessions whose baseline differs in members that cannot be
-        /// written in place (init-only or getter-only) cannot revert this way; use
-        /// <see cref="TryRevertChanges"/> to detect that case and replace the session
-        /// instead. This method never restores immutable members in place.
-        /// </remarks>
+        /// <remarks>When the live model is temporarily invalid (duplicate keyed keys or unassigned keyed sentinels) it cannot be diffed.</remarks>
         public void RevertChanges()
         {
             if (!TryRevertChanges(out _))
@@ -406,13 +365,7 @@ namespace __SESSION_NAMESPACE__
         /// <summary>Reverts the current model to its retained baseline when possible in place.</summary>
         /// <param name="conflicts">Structured conflicts when the pending changes cannot be reverted in place.</param>
         /// <returns><see langword="true"/> when the model was reverted; otherwise <see langword="false"/>.</returns>
-        /// <remarks>
-        /// A <see langword="false"/> result leaves both the live model and the retained
-        /// baseline untouched. Snapshot-only sessions whose baseline differs in
-        /// init-only or getter-only members report their immutable operations as
-        /// conflicts here; adopt the baseline with a fresh session instead of expecting
-        /// an in-place restore. Mutable-model reverts keep the live instance stable.
-        /// </remarks>
+        /// <remarks>A <see langword="false"/> result leaves both the live model and the retained baseline untouched.</remarks>
         public bool TryRevertChanges(out IReadOnlyList<__CONFLICT_TYPE__>? conflicts)
         {
             if (_invert is null)
@@ -462,18 +415,8 @@ namespace __SESSION_NAMESPACE__
             }
         }
 
-        /// <summary>
-        /// Reloads authoritative server state and rebases pending local edits onto it.
-        /// </summary>
-        /// <remarks>
-        /// Conflicts leave both the live model and retained baseline untouched. A conflict-free
-        /// reload writes the merged result into the existing model instance and retains the server
-        /// state as the new baseline. The write runs arbitrary model setters and may partially
-        /// mutate the live model before throwing; the server baseline is adopted only after the
-        /// write succeeds, and a failure resynchronizes snapshots, caches, and notifications
-        /// without masking the original exception, so later reads observe the partial live state.
-        /// This method is not a transaction.
-        /// </remarks>
+        /// <summary>Reloads authoritative server state and rebases pending local edits onto it.</summary>
+        /// <remarks>Conflicts leave both the live model and retained baseline untouched.</remarks>
         public __REBASE_RESULT_TYPE__ Reload(TModel serverState)
         {
             if (serverState is null)
@@ -502,17 +445,7 @@ namespace __SESSION_NAMESPACE__
                 throw new InvalidOperationException("Reloading did not produce a model.");
             }
 
-            // The in-place writer copies only writable members. If the merged result
-            // differs from the live model in members that cannot be written in place
-            // (init-only or getter-only), writing would silently drop them while the
-            // baseline still advances. Probe that drift first: applying it is
-            // side-effect-free, so a reported conflict leaves both the live model
-            // and the retained baseline untouched.
-            // The live model may legitimately hold invalid keyed state at reload
-            // time (e.g. a draft row with an unassigned sentinel key awaiting a
-            // server assignment). Such state cannot be diffed as a probe baseline,
-            // so skip the drift check and fall through to the normal write path
-            // instead of reporting immutable drift.
+            // The in-place writer copies only writable members.
             try
             {
                 var drift = _between(
@@ -530,8 +463,7 @@ namespace __SESSION_NAMESPACE__
             }
             catch (InvalidOperationException exception) when (IsInvalidKeyedStateError(exception))
             {
-                // The probe baseline cannot be diffed; the normal write path below
-                // still picks up the server state while keeping the sentinel pending.
+                // The probe baseline cannot be diffed.
             }
 
             try
@@ -540,10 +472,8 @@ namespace __SESSION_NAMESPACE__
             }
             catch
             {
-                // The writer runs arbitrary setters and may have partially mutated
-                // the live model. The retained baseline is still the pre-reload
-                // snapshot, so resynchronize observations (without masking the
-                // original failure) and propagate instead of reporting success.
+                // The writer runs arbitrary setters and may have partially
+                // mutated the live model.
                 ResynchronizeAfterFailedMutation();
                 throw;
             }
@@ -553,41 +483,16 @@ namespace __SESSION_NAMESPACE__
             return rebased;
         }
 
-        /// <summary>
-        /// Reconciles a submitted change set with the authoritative persisted model.
-        /// </summary>
-        /// <remarks>
-        /// Correlates submitted unassigned elements with assigned persisted elements
-        /// through their shared temporary identities, assigns the authoritative keys
-        /// into the live model, and retains the persisted model as the new baseline
-        /// with post-submit local edits preserved. The submitted transition must
-        /// still apply to the retained baseline; correlation mismatches (omitted,
-        /// duplicated, or inconsistent temporary identities) fail without mutating
-        /// either the live model or the retained baseline. Only one unacknowledged
-        /// submission should be reconciled at a time.
-        /// Idempotency is by submission identity, not by state: retrying the same
-        /// verified submission reference while the live model agrees with the
-        /// authority succeeds (even after the baseline moved on), but an
-        /// unrelated or stale change set never succeeds merely because the live
-        /// model happens to equal the persisted model.
-        /// A returned retarget error restores the live model from its pre-call
-        /// snapshot and leaves the retained baseline untouched. An exception from
-        /// the correlation or retarget callbacks, or from the rollback writer,
-        /// never reports success: the live model is restored best-effort (arbitrary
-        /// setters cannot guarantee full rollback), observations are resynchronized
-        /// without masking the original exception, and the failure propagates.
-        /// This method is not a transaction.
-        /// </remarks>
+        /// <summary>Reconciles a submitted change set with the authoritative persisted model.</summary>
+        /// <remarks>Matches submitted and persisted elements by temporary key.</remarks>
         /// <param name="submitted">The submitted transition to acknowledge.</param>
         /// <param name="persisted">The authoritative persisted model.</param>
         /// <param name="buildMap">Correlates submitted and persisted models into an opaque map or reports the first mismatch.</param>
-        /// <param name="retarget">Assigns mapped keys into the live model from the submitted, persisted, and current states; returns an error without partial writes when the live state is incompatible.</param>
+        /// <param name="retarget">Assigns mapped keys into the live model from the submitted, persisted, and current states.</param>
         /// <param name="error">The failure reason, or null on success.</param>
         /// <typeparam name="TMap">The opaque temporary-to-permanent correlation.</typeparam>
         /// <returns><see langword="true"/> on success; otherwise <see langword="false"/>.</returns>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="submitted"/>, <paramref name="persisted"/>, <paramref name="buildMap"/>, or <paramref name="retarget"/> is null.
-        /// </exception>
+        /// <exception cref="ArgumentNullException">An argument is null.</exception>
         /// <exception cref="NotSupportedException">
         /// The session was built without baseline materialization or in-place write support.
         /// </exception>
@@ -619,15 +524,7 @@ namespace __SESSION_NAMESPACE__
             var persistedBaseline = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(persisted));
 
             // Re-acknowledging an already-reconciled state is a no-op success
-            // only for a verified submission: the same reference returned as
-            // reconciled before, or a submission that advances against the
-            // retained baseline and already describes the live model. The live
-            // model agreeing with the authority alone proves nothing about the
-            // supplied change set, so foreign or stale submissions fall
-            // through to the normal path (which rejects them) instead of
-            // succeeding here. A live model that cannot even diff falls
-            // through as well. An acknowledged submission stays acknowledged
-            // even after the baseline moved on, via the reference slot below.
+            // only for a verified submission.
             try
             {
                 var reconcileCurrent = _between(
@@ -710,7 +607,8 @@ namespace __SESSION_NAMESPACE__
                 return false;
             }
 
-            // Post-submit local changes, diffed while temporary identities still align.
+            // Post-submit local changes, diffed while temporary identities
+            // still align.
             TChangeSet pending;
             try
             {
@@ -745,10 +643,7 @@ namespace __SESSION_NAMESPACE__
             catch
             {
                 // An arbitrary retarget failure may have partially mutated the
-                // live graph. Restore the pre-call snapshot best-effort without
-                // masking the original: rollback itself runs arbitrary setters,
-                // so its failure only yields to resynchronization before the
-                // original propagates. Never a false success.
+                // live graph.
                 try
                 {
                     RestoreReconcileBackup(backup, backupSnapshot);
@@ -771,9 +666,7 @@ namespace __SESSION_NAMESPACE__
                 }
                 catch
                 {
-                    // The rollback writer runs arbitrary setters; resynchronize
-                    // so later reads observe the live state, then propagate the
-                    // rollback failure instead of the returned error.
+                    // The rollback writer runs arbitrary setters.
                     ResynchronizeAfterFailedMutation();
                     throw;
                 }
@@ -800,9 +693,7 @@ namespace __SESSION_NAMESPACE__
                 }
                 catch
                 {
-                    // The rollback writer runs arbitrary setters; resynchronize
-                    // so later reads observe the live state, then propagate the
-                    // rollback failure instead of the validation error.
+                    // The rollback writer runs arbitrary setters.
                     ResynchronizeAfterFailedMutation();
                     throw;
                 }
@@ -824,20 +715,12 @@ namespace __SESSION_NAMESPACE__
         }
 
         /// <summary>Accepts the current model state as the new baseline.</summary>
-        /// <remarks>
-        /// The candidate baseline is validated before it is retained: a live model
-        /// containing unassigned keyed sentinels or duplicate stable keys fails fast
-        /// instead of leaving future diffs unusable.
-        /// </remarks>
+        /// <remarks>Rejects sentinels and duplicate keys before retaining the baseline.</remarks>
         public void AcceptChanges()
         {
-            // Read the backing field directly: the public Model getter disables
-            // HasChanges caching as a side effect, and acknowledging a save must
-            // not downgrade later observable-only reads to full diffs.
+            // Read the backing field directly.
             var candidate = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model));
             // Fail-fast when the live model cannot serve as a keyed baseline.
-            // Probed against the retained baseline (distinct instances) because a
-            // self-diff short-circuits on reference equality without validating keys.
             _between(candidate, _baseline);
             _baseline = candidate;
             _lastObserved = candidate;
@@ -845,28 +728,17 @@ namespace __SESSION_NAMESPACE__
             OnPropertyChanged(nameof(HasChanges));
         }
 
-        /// <summary>
-        /// Advances the retained baseline by the supplied transition without touching the live model.
-        /// </summary>
-        /// <remarks>
-        /// The transition's before-state must match the retained baseline on every changed path;
-        /// edits made after the change set was captured stay pending against the new baseline.
-        /// The candidate baseline is fully computed before commit, so a rejected transition
-        /// leaves the retained baseline unchanged. A transition that would promote unassigned
-        /// keyed sentinels without a temporary key into the baseline is rejected atomically; for
-        /// server-assigned IDs, use reconciliation or reload the authoritative model.
-        /// </remarks>
-        /// <exception cref="ArgumentNullException"><paramref name="changes"/> is null.</exception>
-        /// <exception cref="InvalidOperationException">
-        /// The transition is stale or incompatible with the retained baseline, or advancing
-        /// would not produce a valid model state.
-        /// </exception>
+        /// <summary>Advances the retained baseline by the supplied transition without touching the live model.</summary>
+        /// <remarks>The transition's before-state must match the retained baseline on every changed path.</remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="changes"/>
+        /// is null.</exception>
+        /// <exception cref="InvalidOperationException">The transition is stale or cannot produce a valid baseline.</exception>
         public void AcceptChanges(TChangeSet changes)
         {
             if (changes is null)
                 throw new ArgumentNullException(nameof(changes));
-            // Validate and project first; only a valid candidate replaces the baseline.
-            // The live model and observable proxy are never touched here.
+            // Validate and project first; only a valid candidate replaces the
+            // baseline.
             var advanced = _advanceBaseline(changes, _baseline);
             if (!advanced.IsPresent || advanced.Value is null)
                 throw new InvalidOperationException(
@@ -874,10 +746,8 @@ namespace __SESSION_NAMESPACE__
                 );
             try
             {
-                // Reject candidates that would break future keyed diffs, such as
-                // unassigned keyed sentinels. Probed against the retained baseline
-                // (distinct instances) because a self-diff short-circuits on
-                // reference equality without validating keys.
+                // Reject candidates that would break future keyed diffs, such
+                // as unassigned keyed sentinels.
                 _between(advanced, _baseline);
             }
             catch (InvalidOperationException ex)
@@ -893,15 +763,7 @@ namespace __SESSION_NAMESPACE__
         }
 
         /// <summary>Creates an independent speculative branch of this session.</summary>
-        /// <remarks>
-        /// The fork starts with a private mutable copy of the current model and a
-        /// baseline equal to the current state at fork time, so later edits on either
-        /// side stay isolated. The fork shares the branch lineage but not the change
-        /// callback, events, or observable bindings. Forking copies through the
-        /// fragment snapshot, so members that snapshots share by reference (such as
-        /// reference-safe singletons) stay shared by design. Reads both live models
-        /// without locking; concurrent mutations during the call are not atomic.
-        /// </remarks>
+        /// <remarks>The fork snapshots the current model as its baseline.</remarks>
         /// <returns>A new session of the same runtime type with its own live model.</returns>
         /// <exception cref="NotSupportedException">
         /// The session was built without baseline materialization support, or the model
@@ -909,9 +771,8 @@ namespace __SESSION_NAMESPACE__
         /// </exception>
         public virtual EditSessionCore<TModel, TFragment, TPatch, TChangeSet, TObservable> Fork()
         {
-            // Two snapshots: ToModel aliases its source fragment, so the live copy
-            // needs its own snapshot to stay independent of the fork baseline.
-            // Opaque reference-safe members stay shared by snapshot design.
+            // ToModel aliases its source fragment, so the live copy needs its
+            // own snapshot to stay independent of the fork baseline.
             var forkPoint = _fromModel(_model);
             var forkLive = CloneLiveModel(_model);
             return CreateBranched(
@@ -922,30 +783,15 @@ namespace __SESSION_NAMESPACE__
             );
         }
 
-        /// <summary>
-        /// Attempts to merge the changes of a fork into this session without modifying either session.
-        /// </summary>
-        /// <remarks>
-        /// The fork transition (fork baseline to fork current) is rebased onto this
-        /// session's current model using the existing change-set rebase behavior. On
-        /// success the returned session retains this session's original baseline with
-        /// the merged model as its current state, so its change set spans both sides.
-        /// The candidate merged model is fully computed and detached before it is
-        /// published; a conflict or projection failure leaves both input sessions,
-        /// their baselines, and their bound models unchanged. Both live models are
-        /// read without locking; concurrent mutations during the call are not atomic.
-        /// </remarks>
+        /// <summary>Attempts to merge the changes of a fork into this session without modifying either session.</summary>
+        /// <remarks>The fork's changes are rebased onto this session's current model.</remarks>
         /// <param name="fork">A session created by <see cref="Fork"/> in the same lineage.</param>
-        /// <param name="merged">
-        /// The new session with this session's baseline and the merged model, or null on failure.
-        /// </param>
+        /// <param name="merged">The new session with this session's baseline and the merged model, or null on failure.</param>
         /// <param name="conflicts">Structured rebase conflicts on failure; otherwise null.</param>
         /// <returns><see langword="true"/> when the fork merged cleanly; otherwise <see langword="false"/>.</returns>
-        /// <exception cref="ArgumentNullException"><paramref name="fork"/> is null.</exception>
-        /// <exception cref="InvalidOperationException">
-        /// The fork is this session itself, belongs to an unrelated lineage, or either
-        /// side holds keyed state that cannot be diffed; nothing was modified.
-        /// </exception>
+        /// <exception cref="ArgumentNullException"><paramref name="fork"/> is
+        /// null.</exception>
+        /// <exception cref="InvalidOperationException">The fork is invalid for this session.</exception>
         /// <exception cref="NotSupportedException">
         /// Either session was built without rebase or baseline materialization support,
         /// or the merged model graph cannot be snapshotted.
@@ -978,7 +824,8 @@ namespace __SESSION_NAMESPACE__
                     "Cannot merge into an edit session with a missing baseline."
                 );
 
-            // Fork changes B -> D; invalid keyed state throws before anything is published.
+            // Fork changes B -> D; invalid keyed state throws before anything
+            // is published.
             var forkChanges = fork.CreateChangeSet();
             var rebased = _rebase(forkChanges, _model);
             if (rebased.HasConflicts)
@@ -1001,12 +848,10 @@ namespace __SESSION_NAMESPACE__
                 throw new InvalidOperationException("Merging the fork did not produce a model.");
             }
 
-            // Detach through the fragment snapshot so the merged model owns its
-            // references and collections instead of aliasing either input session.
-            // The validation diff uses a distinct instance because a self-diff
-            // short-circuits on reference equality without checking keys.
+            // Clone through the fragment snapshot to detach mutable references.
             var detached = CloneLiveModel(applied.Updated);
-            // Fail fast when the merged state cannot serve as a future diff baseline.
+            // Fail fast when the merged state cannot serve as a future diff
+            // baseline.
             _between(_baseline, __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(detached)));
 
             merged = CreateBranched(detached, _baseline, _rootId, _onChanged);
@@ -1222,10 +1067,6 @@ namespace __SESSION_NAMESPACE__
         private __OPTIONAL_TYPE__<TFragment?> _lastObserved;
         private __OPTIONAL_TYPE__<TFragment?> _baseline;
         // Last submission returned as reconciled by TryReconcile, by reference.
-        // A verified retry stays a success while the live model agrees with the
-        // authority, even after the baseline moved on; identical state alone
-        // never proves a submission was acknowledged. A single slot keeps the
-        // mechanism explicitly bounded.
         private TChangeSet? _lastReconciledSubmission;
         private __OPTIONAL_TYPE__<TFragment?> _batchStart;
         private int _batchDepth;
@@ -1239,8 +1080,7 @@ namespace __SESSION_NAMESPACE__
         {
             if (_batchDepth > 0)
             {
-                // Defer all snapshot/diff work to the outermost batch exit; only the
-                // net entry-to-exit transition is computed and published there.
+                // Defer all snapshot/diff work to the outermost batch exit.
                 _batchDirty = true;
                 InvalidateHasChangesCache();
                 OnPropertyChanged(nameof(HasChanges));
@@ -1290,16 +1130,8 @@ namespace __SESSION_NAMESPACE__
             OnPropertyChanged(nameof(HasChanges));
         }
 
-        /// <summary>
-        /// Resynchronizes observations after arbitrary user code partially mutated the live model and threw.
-        /// </summary>
-        /// <remarks>
-        /// Refreshes the observation snapshot, change caches, and notifications so later reads observe
-        /// the live state instead of stale state. Never throws: a secondary failure (such as a live
-        /// state that cannot be diffed, or a throwing notification callback) only drops stale caches
-        /// and retries notifications best-effort, so the original exception always propagates unmasked.
-        /// This is not a rollback; mutating operations document their partial-write contract.
-        /// </remarks>
+        /// <summary>Resynchronizes observations after arbitrary user code partially mutated the live model and threw.</summary>
+        /// <remarks>Refreshes the observation snapshot.</remarks>
         private void ResynchronizeAfterFailedMutation()
         {
             try
@@ -1308,9 +1140,8 @@ namespace __SESSION_NAMESPACE__
             }
             catch
             {
-                // Keep the last valid observation so later diffs still start from
-                // valid state, drop stale caches, and retry notifications
-                // best-effort without masking the original failure.
+                // Keep the last valid observation so later diffs still start
+                // from valid state.
                 InvalidateHasChangesCache();
                 try
                 {
@@ -1333,13 +1164,7 @@ namespace __SESSION_NAMESPACE__
         }
 
         /// <summary>Restores the live model from a reconcile backup when it diverged.</summary>
-        /// <remarks>
-        /// Only rewrites when the live model actually diverged; blindly writing the deep-clone
-        /// backup would swap original references for clones. A live model that cannot even be
-        /// diffed is always restored. Retarget stages detached collections and restores its
-        /// shallow sibling backups itself, so expected failures leave the live graph untouched,
-        /// including init-only and getter-only contents and originally referenced rows.
-        /// </remarks>
+        /// <remarks>Only rewrites when the live model actually diverged.</remarks>
         private void RestoreReconcileBackup(
             TModel backup,
             __OPTIONAL_TYPE__<TFragment?> backupSnapshot
@@ -1417,8 +1242,8 @@ namespace __SESSION_NAMESPACE__
             }
             else if (start.IsPresent)
             {
-                // No observable mutation ran inside the batch. Recompute nothing;
-                // deferred notifications below still flush.
+                // No observable mutation ran inside the batch. Recompute
+                // nothing; deferred notifications below still flush.
             }
 
             if (notifyPropertyChanged)
@@ -1513,7 +1338,8 @@ namespace __SESSION_NAMESPACE__
                 );
             }
 
-            // Snapshots isolate containers and nested models; reference-safe members stay shared.
+            // Snapshots isolate containers and nested models; reference-safe
+            // members stay shared.
             return _baselineToModel(_fromModel(source));
         }
 

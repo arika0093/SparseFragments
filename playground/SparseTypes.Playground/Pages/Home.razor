@@ -139,7 +139,8 @@
             // Stores sparse values together with their presence state.
             public sealed class Fragment
             {
-                // Optional values distinguish absent members from explicit values.
+                // Optional values distinguish absent members from explicit
+                // values.
                 public Optional<string?> Theme { get; init; }
                 public Optional<List<NestedClass>> Items { get; init; }
 
@@ -182,7 +183,8 @@
                 public static ChangeSet Between(Settings before, Settings after);
                 // Converts the transition into patch operations.
                 public Patch ToPatch();
-                // The payload carries this transition in a transport-friendly form.
+                // The payload carries this transition in a transport-friendly
+                // form.
                 public ChangePayload ToPayload();
                 // Reverses this transition.
                 public ChangeSet Invert();
@@ -201,7 +203,8 @@
         
                 // Creates a change set for the pending edits.
                 public ChangeSet CreateChangeSet();
-                // Opt-in session-owned undo/redo history (no retention without this call).
+                // Opt-in session-owned undo/redo history (no retention without
+                // this call).
                 public ISparseEditHistory EnableHistory(EditHistoryOptions? options = null);
                 // Accepts the current model as the new baseline.
                 public void AcceptChanges();
@@ -233,7 +236,8 @@
             // Provides property-change notifications for model edits.
             public sealed class Observable : INotifyPropertyChanged
             {
-                // Proxies the model and notifies listeners when a property changes.
+                // Proxies the model and notifies listeners when a property
+                // changes.
                 private readonly Settings _model;
 
                 // Wraps an existing model instance.

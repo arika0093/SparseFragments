@@ -3,13 +3,7 @@ using System.Collections.Immutable;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Feature families a product generator opts into for one model.</summary>
-/// <remarks>
-/// Shared owns the emission; the owning generator selects which families appear
-/// so downstream products avoid unused public APIs. The standalone defaults
-/// emit every family except fragment origins, which stay opt-in so downstream
-/// runtimes without provenance support keep compiling. Selections are validated
-/// with <see cref="ValidateDependencies"/> before emission.
-/// </remarks>
+/// <remarks>Shared owns the emission; the owning generator selects which families appear so downstream products avoid unused public APIs.</remarks>
 internal sealed record SparseEmissionFeatures
 {
     public SparseEmissionFeatures(
@@ -56,11 +50,7 @@ internal sealed record SparseEmissionFeatures
     public static SparseEmissionFeatures Standalone { get; } = new SparseEmissionFeatures();
 
     /// <summary>Dependency violations in this selection, if any.</summary>
-    /// <remarks>
-    /// A patch needs its fragment, a change set needs its patch, a payload
-    /// needs its change set, and observable and converters need the fragment.
-    /// Returns an empty array when the selection is coherent.
-    /// </remarks>
+    /// <remarks>A patch needs its fragment, a change set needs its patch.</remarks>
     public ImmutableArray<string> ValidateDependencies()
     {
         var errors = ImmutableArray.CreateBuilder<string>();
@@ -87,11 +77,7 @@ internal sealed record SparseEmissionFeatures
     }
 
     /// <summary>Generated type names this selection emits.</summary>
-    /// <remarks>
-    /// Covers the family root names used for generated-name collision checks.
-    /// Member-prefixed payload DTO names cannot collide with member names by
-    /// construction and are not listed.
-    /// </remarks>
+    /// <remarks>Covers the family root names used for generated-name collision checks.</remarks>
     public ImmutableArray<string> GetEmittedTypeNames() =>
         GetEmittedTypeNames(SparseFamilyNames.Standalone);
 

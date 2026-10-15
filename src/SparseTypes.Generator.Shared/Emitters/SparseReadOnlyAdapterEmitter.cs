@@ -84,7 +84,8 @@ internal static class SparseReadOnlyAdapterEmitter
                 + "<TKey, TSource, TView> : global::System.Collections.Generic.IReadOnlyDictionary<TKey, TView> where TKey : notnull"
         );
         code.AppendLineAt(2, "{");
-        // Public-first ordering: constructor and public members precede private state.
+        // Public-first ordering: constructor and public members precede private
+        // state.
         code.AppendLineAt(
             3,
             "public "
@@ -148,7 +149,8 @@ internal static class SparseReadOnlyAdapterEmitter
                 + "<TKey, TSource, TKeyView, TValueView> : global::System.Collections.Generic.IReadOnlyCollection<global::System.Collections.Generic.KeyValuePair<TKeyView, TValueView>> where TKey : notnull"
         );
         code.AppendLineAt(2, "{");
-        // Public-first ordering: constructor and public members precede private state.
+        // Public-first ordering: constructor and public members precede private
+        // state.
         code.AppendLineAt(
             3,
             "public "

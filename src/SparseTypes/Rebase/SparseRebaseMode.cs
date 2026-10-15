@@ -3,15 +3,7 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>How a rebase reconciles one member when no explicit policy applies.</summary>
-/// <remarks>
-/// This mode never replaces member-level configuration silently: an explicit
-/// <see cref="FragmentRebasePolicy{T}"/> wins first, then
-/// <see cref="FragmentMergeStrategy{T}.TryRebase"/>, and only then this mode.
-/// <see cref="Default"/> keeps the built-in three-way reconciliation.
-/// <see cref="PreferIncoming"/> and <see cref="PreferCurrent"/> resolve
-/// divergence by overwriting; they are last-write-wins shortcuts, not
-/// conflict-free reconciliations, and generated documentation says so.
-/// </remarks>
+/// <remarks>This mode never replaces member-level configuration silently.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public enum SparseRebaseMode
 {

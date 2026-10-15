@@ -7,13 +7,7 @@ using SparseTypes.GeneratedApiFixtures;
 
 namespace SparseTypes.PublicApi.Tests;
 
-/// <summary>
-/// Approval tests for generated user APIs and the Blazor surface (issue #117).
-/// The snapshot holds the whole fixture assembly: PublicApiGenerator renders nested
-/// contracts under their declaring models, so the hand-written fixture shells stay
-/// included. Fixtures are frozen minimal scaffolding; generated contract diffs appear
-/// in the nested blocks. See README.md for the update workflow.
-/// </summary>
+/// <summary>Approval tests for generated user APIs and the Blazor surface.</summary>
 public sealed class GeneratedApiApprovalTests
 {
     // Raw live-model access now hides behind ISparseEditSession<TModel>.
@@ -172,9 +166,8 @@ public sealed class GeneratedApiApprovalTests
     [Test]
     public void EditSessionExposesCreateHistoryFactory()
     {
-        // Issue #252: each generated session offers a typed opt-in history
-        // factory bound to its own change set, without reflection. Advanced
-        // use only since issue #269: ordinary undo/redo uses EnableHistory.
+        // each generated session offers a typed opt-in history factory bound to
+        // its own change set, without reflection.
         foreach (var model in FixtureModels)
         {
             var session = AssertNested(model, "EditSession");
@@ -205,9 +198,8 @@ public sealed class GeneratedApiApprovalTests
     [Test]
     public void EditSessionExposesSingleOwnedHistory()
     {
-        // Issue #269: each generated session owns one opt-in history behind
-        // the framework-neutral control contract. Enabling twice with the
-        // same options is a no-op; disposal stays with the session.
+        // each generated session owns one opt-in history behind the
+        // framework-neutral control contract.
         foreach (var model in FixtureModels)
         {
             var session = AssertNested(model, "EditSession");
@@ -258,9 +250,8 @@ public sealed class GeneratedApiApprovalTests
     [Test]
     public void PayloadImplementationDtosAreGroupedAndHiddenFromIntelliSense()
     {
-        // Stage 3 (#192): typed DTOs live in the per-model implementation
-        // namespace, not nested in the annotated model. PublicApiGenerator
-        // filters EditorBrowsableAttribute from its API snapshots.
+        // Stage 3: typed DTOs live in the per-model implementation namespace,
+        // not nested in the annotated model.
         foreach (var model in FixtureModels)
             model
                 .GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic)
@@ -304,7 +295,7 @@ public sealed class GeneratedApiApprovalTests
     [Test]
     public void FragmentJsonConverterShellForwardsToImplementation()
     {
-        // Stage 3 (#192): the model keeps a thin private shell; bodies live in
+        // Stage 3: the model keeps a thin private shell; bodies live in
         // the per-model implementation converter it derives from.
         var shell = typeof(CatalogScalar.Fragment)
             .GetNestedType("FragmentJsonConverter", BindingFlags.Public | BindingFlags.NonPublic)

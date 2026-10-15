@@ -44,8 +44,8 @@ public class DictionaryChangeSetEqualityComposeBenchmarks
                 "Dictionary compositions must retain null, NaN, enum, object equality, and enumerable struct semantics."
             );
 
-        // The custom scalar deliberately implements different object and typed equality.
-        // Values 1 and 11 must remain distinct under the generated sparse semantics.
+        // The custom scalar deliberately implements different object and typed
+        // equality.
         var customBefore = Optional<BenchEqualityDictHolder.Fragment?>.Present(
             BenchEqualityDictHolder.Fragment.From(
                 new() { CustomValues = new() { ["custom"] = new BenchCustomScalar(1) } }

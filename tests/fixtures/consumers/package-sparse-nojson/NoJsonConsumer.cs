@@ -2,14 +2,8 @@ using System;
 using System.Collections.Generic;
 using SparseTypes;
 
-// Serializer-free consumer (issues #242/#243): a netstandard2.0 class library
-// with no System.Text.Json reference. Build-only (netstandard2.0 has no
-// runnable host), so compilation success is the gate: it fails if generated
-// code references any System.Text.Json API, because the netstandard2.0
-// targeting pack ships none. Only serializer-independent APIs are used here:
-// Fragment, Patch, ChangeSet, and the ChangePayload CLR projections
-// (ToPayload/FromPatch/ToPatch/ToChangeSet); JSON transport
-// (JsonSerializer, Fragment.JsonConverter) is unavailable by design.
+// Compile serializer-independent APIs on netstandard2.0 without a
+// System.Text.Json reference; generated JSON dependencies must fail the build.
 [SparseModel]
 public partial class NoJsonSettings
 {

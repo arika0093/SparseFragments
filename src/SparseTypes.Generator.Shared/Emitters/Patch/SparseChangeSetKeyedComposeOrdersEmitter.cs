@@ -4,11 +4,7 @@ using static SparseTypes.Generator.Shared.SparseChangeSetBasicsEmitter;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Order resolution and item enumeration for keyed ChangeSet composition.</summary>
-/// <remarks>
-/// Computes composed key orders (next wins, else first filtered) and enumerates
-/// net items in after-order plus removals in before-order. Temporary-identity
-/// orders and enumeration delegate to the temp merge emitter.
-/// </remarks>
+/// <remarks>Computes composed key orders (next wins.</remarks>
 internal static class SparseChangeSetKeyedComposeOrdersEmitter
 {
     internal static void AppendOrdersAndAssembly(
@@ -26,8 +22,6 @@ internal static class SparseChangeSetKeyedComposeOrdersEmitter
             "global::System.Collections.Generic.EqualityComparer<" + keyType + ">.Default";
         var facade = dialect.RuntimeFacade;
         // Net no-op normalization is implicit (empty dict => has false below).
-        // Orders: next wins when present (filtered to net keys), else first filtered (mirrors Patch order compose).
-        // Static Enumerable.Contains below: generated code cannot assume "using System.Linq".
         code.AppendLineAt(
             5,
             "var __netRemoved"
@@ -49,9 +43,7 @@ internal static class SparseChangeSetKeyedComposeOrdersEmitter
                 + id
                 + ".Add(__kv.Key); }"
         );
-        // The union key set is no longer needed after merging. Reuse its capacity
-        // for pending additions when additions would otherwise cause repeated scans.
-        // These keys are a subset of the original union, so the set never grows.
+        // The union key set is no longer needed after merging.
         code.AppendLineAt(5, "var __indexAddedOrder" + id + " = __addedCount" + id + " > 4;");
         code.AppendLineAt(
             5,
@@ -195,7 +187,8 @@ internal static class SparseChangeSetKeyedComposeOrdersEmitter
                 + id
                 + ".Count);"
         );
-        // Enumeration: net after-order then net removed in net before-order (mirrors Between).
+        // Enumeration: net after-order then net removed in net before-order
+        // (mirrors Between).
         if (hasTempCompose)
         {
             // Temporary identities enumerate by Guid order; assigned entries

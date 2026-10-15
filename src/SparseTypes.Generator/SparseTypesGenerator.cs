@@ -188,15 +188,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
                     "global::SparseTypes.Generated.SparseDescriptorValue"
                 ),
                 ReservedGeneratedNames: ImmutableArray.Create(
-                    // Issue #195: only names injected into the annotated model are
-                    // reserved here. Nested state/operation families (Fragment,
-                    // FragmentBuilder, Patch, ChangeSet, ChangePayload) plus the
-                    // member/method names they declare on the model surface. Names
-                    // that now exist only in the per-model implementation container
-                    // (Observable, ReadOnlyView, EditSession, DescriptorFactory and
-                    // the operation/DTO/converter types) are resolved through the
-                    // central SparseGeneratedPlacement resolver instead, so model
-                    // members may freely reuse them.
+                    // Reserve only names injected into the model.
                     "Fragment",
                     "FragmentBuilder",
                     "Empty",
@@ -534,8 +526,6 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
             .WithTrackingName("SparseTypesGenerator.BclSetSupport");
         // Consumer language version drives file-scoped narrowing: file-local
         // helpers require C# 11+, older consumers keep internal helpers.
-        // Numeric comparison keeps building against older Roslyn packages
-        // that lack the CSharp11 enum member (1100 = C# 11).
         var allowFileScopedTypes = context
             .CompilationProvider.Select(
                 static (compilation, cancellationToken) =>
@@ -551,10 +541,8 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
             )
             .WithComparer(EqualityComparer<bool>.Default)
             .WithTrackingName("SparseTypesGenerator.FileScopedTypes");
-        // Consumer System.Text.Json API surface (issues #242/#243): probed
-        // from referenced symbols, never from the TFM or host dependencies.
-        // The snapshot flows through Shared via the config/dialect layer so
-        // JSON artifacts are omitted when the surface is absent or partial.
+        // Consumer System.Text.Json API surface: probed from referenced
+        // symbols, never from the TFM or host dependencies.
         var stjCapabilities = CreateStjCapabilitiesProvider(context);
         var generated = analyzed
             .Combine(bclSetSupport)
@@ -709,20 +697,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
                     SparseEditSessionEmitter.EmitCore(productionContext, Configuration);
             }
         );
-        // Generated-Once shared helpers (adapters, clone kernels, removal
-        // index): the track-2 capability plane is the single wiring. It won
-        // over the track-3 manual aggregation (explicit/promoted
-        // SparseGeneratedOnceRequirements union): the manual block is deleted
-        // so only one kernel family is ever emitted, with the track-3
-        // identities (SparseGeneratedOnceNames: CloneKernels, ReadOnlyAdapters,
-        // RemovalIndex hint/type names). The plane adds prerequisite
-        // validation (InvalidEmissionPlan) on top of the track-4
-        // SparseEditSessionCapabilities validation that still runs inside
-        // EmitCore, and the d7011db BCL set probe stays threaded through the
-        // plan (portable set view) and the per-model renderers. Hint schemes
-        // do not collide: edit-session cores use the EditSessionDialect
-        // CoreHintName pair, patch operation kernels keep their own stable
-        // hint (unwired seam), and these families use <ns>.*.g.cs.
+        // Emit shared helpers from the capability plan.
         var clonePlan = generatedOncePlan
             .Select(
                 static (plan, _) =>
@@ -854,13 +829,7 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
             }
         );
 
-        // EntityFrameworkCore mapper defaults (#228) and bridges (#273):
-        // discover [SparseFragmentMapper<TEntity, TDto>] types (DTOs may live
-        // in a referenced Contracts assembly) and emit the external
-        // RegisterDefaults companion, the partial-mapper bridge
-        // (IEntityModelMapping impl plus Map scope), and
-        // incompatible-default diagnostics. No EF model access happens here;
-        // protection and relationship validation stay runtime plan-build work.
+        // Discover mapper declarations and emit default-registration bridges.
         var entityMappers = context
             .SyntaxProvider.ForAttributeWithMetadataName(
                 SparseEntityMapperEmitter.MapperAttributeMetadataName,
@@ -913,8 +882,6 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
 
         // Model-facing surface and implementation files share one result so
         // per-model incremental isolation covers both with stable hint names.
-        // A default (not merely empty) additional-sources array must not be
-        // enumerated: ImmutableArray iteration over default throws.
         if (!result.AdditionalSources.IsDefaultOrEmpty)
         {
             foreach (var additional in result.AdditionalSources)
@@ -945,12 +912,8 @@ public sealed partial class SparseTypesGenerator : IIncrementalGenerator
 
         var model = analysis.Model.Value;
         var configuration = WithCapabilities(Configuration, allowFileScopedTypes, stjCapabilities);
-        // Per-model single-file emission: the surface, the reloc-2/reloc-3
-        // implementation plus the reloc-1 UI/session family merge into one
-        // hint so a model owns exactly one file. Only compilation-scoped
-        // Generated-Once helpers keep separate Generated.* files. Merging
-        // keeps one compilation unit so cross-references can later narrow
-        // from internal to file-scoped without cross-file visibility gaps.
+        // Keep each model's surface and implementation in one file; only
+        // compilation-scoped Generated-Once helpers use separate files.
         var (surface, implementation) = SparsePerModelEmitter.BuildSplitSurface(
             model,
             analysis.Members,

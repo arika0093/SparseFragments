@@ -3,12 +3,7 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>The typed outcome of composing two same-path mixed operations.</summary>
-/// <remarks>
-/// A successful outcome describes the merged shape and whether the caller must
-/// still verify value-level continuity (first after-state equals second
-/// before-state). A failed outcome carries the path and reason instead of
-/// inventing history the descriptors cannot justify.
-/// </remarks>
+/// <remarks>Callers must also verify that values remain continuous.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public readonly record struct MixedComposeResult
 {

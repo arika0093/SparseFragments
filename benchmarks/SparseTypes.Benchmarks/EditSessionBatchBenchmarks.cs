@@ -18,7 +18,7 @@ public partial class BenchBatchParent
     public List<BenchBatchChild> Items { get; set; } = new();
 }
 
-// Quantifies BatchEdit snapshot/diff deferral (issue #133): N observable edits
+// Quantifies BatchEdit snapshot/diff deferral: N observable edits
 // inside one batch must cost a single net diff instead of N full comparisons.
 [MemoryDiagnoser]
 public class EditSessionBatchBenchmarks

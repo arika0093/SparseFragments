@@ -12,12 +12,8 @@ using Microsoft.Extensions.Logging;
 
 namespace SparseTypes.Blazor.Tests;
 
-// Toolkit-neutral consumer proof for issue #257: the Bind/FieldState/
-// CollectionState/history API the playground uses with Fluent UI behaves the
-// same for ordinary Blazor inputs (whose wiring shapes are asserted here)
-// and for rendered standard and third-party-style components (covered in
-// BlazorEditFormRenderedTests). No vendor component is referenced here or by
-// the library.
+// Verify Bind, field/collection state, and history with standard and
+// third-party-style inputs without depending on a vendor component.
 public sealed class BlazorToolkitNeutralTests
 {
     private static OrderDto Order() =>
@@ -52,7 +48,6 @@ public sealed class BlazorToolkitNeutralTests
 
         // The triple Razor hands to InputText: value, the change delegate it
         // wraps in ValueChanged, and the original-model value expression.
-        // Invoking the delegate is what the renderer does on user input.
         string componentValue = binding.Value;
         Func<string?, Task> componentChanged = binding.SetAsync;
         Expression<Func<string>>? componentExpression = binding.ValueExpression;
@@ -237,8 +232,7 @@ public sealed class BlazorToolkitNeutralTests
     }
 
     // Renders a standard InputText and the vendor field side by side, both
-    // wired through session Bind triples. The EditForm is keyed by context so
-    // session replacement recreates the inputs, as in the shipped edit form.
+    // wired through session Bind triples.
     private sealed class ToolkitNeutralView : ComponentBase
     {
         [Parameter]

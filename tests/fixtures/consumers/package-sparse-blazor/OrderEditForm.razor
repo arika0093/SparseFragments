@@ -12,7 +12,7 @@
    validation tracks the original model, and explicit conflict choices.
    The session type names the model-nested session because
    a field declaration requires it; handler code elsewhere prefers var.
-   The EditForm carries a @key tied to an explicit session generation (#219):
+   The EditForm carries a @key tied to an explicit session generation:
    adopting a new session/EditContext tears down and recreates the input
    subtree, because InputBase caches its cascaded EditContext and throws when
    the same instance sees a different context. *@
@@ -100,15 +100,12 @@
             else if (result is BlazorFormConflicted conflicted)
             {
                 latestServer = conflicted.ServerState;
-                // Probe on a defensive copy: TryApplyTo can mutate its target,
-                // while the authoritative server row must stay pristine for the
-                // explicit user decision below.
+                // Probe on a defensive copy.
                 var probe = CopyServerState(conflicted.ServerState);
                 if (submitted.TryApplyTo(probe, out _, out var conflicts))
                 {
-                    // Row-version mismatch with disjoint changes: clean semantic
-                    // rebase. Merge the server state, keep the pending edits,
-                    // and ask for an explicit retry instead of silently returning.
+                    // Row-version mismatch with disjoint changes: clean
+                    // semantic rebase.
                     var reload = session.Reload(conflicted.ServerState);
                     if (!reload.HasConflicts)
                     {
@@ -144,10 +141,8 @@
         }
     }
 
-    // Explicit discard choice (#220): replace the session and EditContext from
-    // the authoritative response and drop local edits, field tracking, and
-    // conflict errors with them. Reload alone cannot do this; it preserves the
-    // local edit and keeps reporting the same overlap.
+    // Replace the session and EditContext from the authoritative response and
+    // drop local edits, field tracking, and conflict errors with them.
     private void UseServerValue()
     {
         if (latestServer is null)

@@ -72,12 +72,7 @@ internal sealed class PlanApplyState
     /// <summary>Gets changed records grouped by root member name.</summary>
     public Dictionary<string, List<SparseChangeRecord>> Groups { get; }
 
-    /// <summary>
-    /// Gets the shared temporary-identity correlation for this apply, scoped by
-    /// collection path. The same Guid reused under a different path resolves
-    /// independently there; duplicates within one path fail. It is null when
-    /// Apply does not need a result.
-    /// </summary>
+    /// <summary>Gets the shared temporary-identity correlation for this apply, scoped by collection path.</summary>
     public Dictionary<string, Dictionary<Guid, object>>? Correlation { get; }
 
     /// <summary>Gets whether this apply is collecting execution-path details.</summary>
@@ -151,11 +146,7 @@ internal sealed class PlanApplyState
     }
 
     /// <summary>Records a created child entity under its path-scoped temporary identity.</summary>
-    /// <remarks>
-    /// The legacy path-string bucket keeps its exact contents for compatible
-    /// reads, but duplicate detection now runs on the parent-scoped record:
-    /// parents whose display keys collide keep independent correlations.
-    /// </remarks>
+    /// <remarks>The legacy path-string bucket keeps its exact contents for compatible reads.</remarks>
     public void RecordTemporary(string path, Guid temporaryKey, object entity)
     {
         ArgumentNullException.ThrowIfNull(path);
@@ -260,14 +251,8 @@ internal sealed class PlanApplyState
         return entry;
     }
 
-    /// <summary>
-    /// Returns a validation-safe entry without attaching, queuing the attach first.
-    /// </summary>
-    /// <remarks>
-    /// Preflight validation must never mutate the <c>ChangeTracker</c>: the
-    /// returned entry stays detached until the queued attach action runs ahead
-    /// of the other queued writes at execution time.
-    /// </remarks>
+    /// <summary>Returns a validation-safe entry without attaching, queuing the attach first.</summary>
+    /// <remarks>Preflight keeps entries detached until writes run.</remarks>
     public static EntityEntry ValidationEntry(
         DbContext context,
         object entity,
@@ -293,8 +278,8 @@ internal sealed class PlanApplyState
             var segments = record.Path.Segments;
             if (segments.Count == 0)
             {
-                // A nested root entry (null to object or back) is governed by the
-                // parent whole-object record; only a root plan rejects it outright.
+                // A nested root entry (null to object or back) is governed by
+                // the parent whole-object record.
                 if (isNested)
                 {
                     continue;

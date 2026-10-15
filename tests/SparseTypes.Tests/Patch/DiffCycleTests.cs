@@ -241,7 +241,8 @@ public sealed class DiffCycleTests
             current.Value.Value.ShouldBe(startValue + index);
             if (index == depth - 1)
             {
-                // From marks every member present, so the terminal null reads Present(null).
+                // From marks every member present, so the terminal null reads
+                // Present(null).
                 current.Next.IsPresent.ShouldBeTrue();
                 current.Next.Value.ShouldBeNull();
                 return;
@@ -340,7 +341,8 @@ public sealed class DiffCycleTests
     [Test]
     public void From_DeepSharedTail_Succeeds()
     {
-        // Shared tail values continue the left chain so the merged fragment reads 0..599.
+        // Shared tail values continue the left chain so the merged fragment
+        // reads 0..599.
         var sharedTail = BuildChain(500, startValue: 100);
         var left = BuildChain(100);
         var leftTail = left;

@@ -70,13 +70,8 @@ internal static class PlaygroundEfPresentation
         return rows;
     }
 
-    // Audit (#256): the ChangeSet save-preview table projects through
-    // SparseChangeRowProjection with the shared PlaygroundPageHelper operation
-    // mapping, so the per-model ChangeKind switch and the CSS class helper that
-    // duplicated it are gone. EfStateOperation stays: EntityState rows are EF
-    // entries, not change records, so they keep their own mapping.
-    // FormatChangeValue stays too: rebase conflict endpoints are SparseConflict
-    // values, a different record type the row projection does not cover.
+    // Use the shared projection for ChangeSet previews; EF-state and conflict
+    // rows keep separate mappings because they use different record types.
     internal static string FormatChangeValue(Optional<object?> value) =>
         value.IsPresent ? PlaygroundOrderJson.FormatValue(value.Value) : "—";
 

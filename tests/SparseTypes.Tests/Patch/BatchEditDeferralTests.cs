@@ -2,7 +2,7 @@ using SparseTypes.Generated;
 
 namespace SparseTypes.Tests;
 
-/// <summary>BatchEdit must defer intermediate snapshot/diff work (#133).</summary>
+/// <summary>BatchEdit must defer intermediate snapshot/diff work.</summary>
 public sealed class BatchEditDeferralTests
 {
     private sealed class Instrumented
@@ -81,7 +81,8 @@ public sealed class BatchEditDeferralTests
 
         batchedProbe.Transitions.Count.ShouldBe(1);
         batched.HasChanges.ShouldBeTrue();
-        // One exit snapshot plus the net-transition and cache diffs, regardless of N.
+        // One exit snapshot plus the net-transition and cache diffs, regardless
+        // of N.
         batchedProbe.Snapshots.ShouldBeLessThanOrEqualTo(2);
         batchedProbe.Diffs.ShouldBeLessThanOrEqualTo(4);
 
@@ -96,7 +97,8 @@ public sealed class BatchEditDeferralTests
             single.Observable.Tags.Add("tag-" + index);
         }
 
-        // Without batching every mutation captures a snapshot and computes its transition.
+        // Without batching every mutation captures a snapshot and computes its
+        // transition.
         singleProbe.Snapshots.ShouldBe(edits * 2);
         singleProbe.Diffs.ShouldBe(edits * 2);
         singleProbe.Transitions.Count.ShouldBe(edits * 2);

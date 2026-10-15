@@ -675,11 +675,7 @@ internal static class SparseModelDiscovery
     }
 
     /// <summary>Detects reference types compiled without nullable annotations.</summary>
-    /// <remarks>
-    /// Under <c>#nullable disable</c> (or pre-annotation code) reference types
-    /// carry <see cref="NullableAnnotation.None"/>: they accept null at runtime
-    /// even though they are neither annotated nullable nor non-nullable.
-    /// </remarks>
+    /// <remarks>Under <c>#nullable disable</c> (or pre-annotation code) reference types carry <see cref="NullableAnnotation.None"/>.</remarks>
     internal static bool IsNullableObliviousType(ITypeSymbol type) =>
         type.IsReferenceType && type.NullableAnnotation == NullableAnnotation.None;
 
@@ -730,9 +726,7 @@ internal static class SparseModelDiscovery
             keyTypeName = discovered.KeyTypeName;
             keyKind = discovered.Kind;
             unassignedKeyExpression = discovered.UnassignedKeyExpression;
-            // Temporary identity needs generated per-model helpers, so it only
-            // flows for fragment-model elements; other elements keep the
-            // property as ordinary data. Shape diagnostics still apply.
+            // Temporary identity needs generated per-model helpers.
             if (elementType.IsFragmentModel)
             {
                 temporaryKeyPropertyName = discovered.TemporaryKeyProperty;

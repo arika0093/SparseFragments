@@ -3,16 +3,7 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>Reconciles one member during rebase without owning merge or equality.</summary>
-/// <remarks>
-/// Rebase-specific policy SPI: select it per member with
-/// <see cref="SparseRebasePolicyAttribute"/> instead of coupling rebase
-/// behavior to a <see cref="FragmentMergeStrategy{T}"/>. A member-level
-/// policy wins over the merge strategy's <c>TryRebase</c>; the strategy still
-/// owns <c>Merge</c>. Generated code keeps one instance per member and may
-/// call it concurrently, so implementations must be stateless or thread-safe.
-/// Policies apply to scalar and whole-replace members; nested, keyed,
-/// dictionary, and merge-collection members always reconcile granularly.
-/// </remarks>
+/// <remarks>Rebase-specific policy SPI.</remarks>
 /// <typeparam name="T">The model member type.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public abstract class FragmentRebasePolicy<T>
@@ -21,14 +12,7 @@ public abstract class FragmentRebasePolicy<T>
     public abstract bool AreEqual(T? left, T? right);
 
     /// <summary>Reapplies an edit based on an earlier sparse state to the current sparse state.</summary>
-    /// <remarks>
-    /// Presence is significant: <see cref="Optional{T}.Missing"/> never equals
-    /// a present value. A present result maps to a <c>Set</c> patch operation,
-    /// a missing result maps to <c>Remove</c>, and a result equal to the
-    /// current state stays <c>Keep</c>. Returning <c>false</c> reports a
-    /// conflict; <c>PreferIncoming</c> and <c>PreferCurrent</c> overwrite
-    /// instead and never report one.
-    /// </remarks>
+    /// <remarks>Presence is significant: <see cref="Optional{T}.Missing"/> never equals a present value.</remarks>
     public abstract bool TryRebase(
         Optional<T> editBase,
         Optional<T> desired,

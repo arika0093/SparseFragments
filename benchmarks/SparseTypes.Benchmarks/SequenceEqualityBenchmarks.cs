@@ -27,7 +27,8 @@ public enum SequenceEqualityScenario
     LastChange,
 }
 
-// A derived list can supply its own non-generic view; its existing comparison semantics must survive.
+// A derived list can supply its own non-generic view; its existing comparison
+// semantics must survive.
 public class BenchReversedIntList : List<int>, IList
 {
     public BenchReversedIntList(IEnumerable<int> values)

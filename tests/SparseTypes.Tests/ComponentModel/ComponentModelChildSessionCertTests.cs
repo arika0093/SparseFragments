@@ -2,13 +2,7 @@ using System.ComponentModel;
 
 namespace SparseTypes.Tests;
 
-/// <summary>
-/// Child-session and validation-display certification.
-/// Covers child-session acceptance, discard and disposal, the rejected
-/// <see cref="IEditableObject"/> route (issue #259), validation error
-/// display through <see cref="INotifyDataErrorInfo"/>, after-disposal
-/// behavior, and UI-thread responsibility.
-/// </summary>
+/// <summary>Child-session and validation-display certification.</summary>
 public sealed class ComponentModelChildSessionCertTests
 {
     [Test]
@@ -209,10 +203,7 @@ public sealed class ComponentModelChildSessionCertTests
     [Test]
     public void NotificationsRunOnTheMutatingThread()
     {
-        // Core performs no UI-thread dispatching. Applications marshal to
-        // their own synchronization context when the mutation happens off
-        // the UI thread. WPF, WinForms, Avalonia, MAUI, and WinUI handlers
-        // all own that step; the session and the validation store never do.
+        // Core performs no UI-thread dispatching.
         var session = new Settings().CreateEditSession();
         using var watcher = session.ObserveField(Settings.SparsePath.Label);
         var watcherThread = -1;

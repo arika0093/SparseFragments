@@ -6,13 +6,7 @@ using static SparseTypes.Generator.Shared.SparseChangeSetBasicsEmitter;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Emits the ChangeSet-to-payload transfer: envelope construction and root snapshots.</summary>
-/// <remarks>
-/// Separated from the typed DTO definitions
-/// (<see cref="SparseChangeSetPayloadEmitter"/>): this type owns the
-/// <c>ChangeSet</c>-side conversion bodies (<c>ToPayload</c>,
-/// <c>ToPayloadCore</c>, whole-root snapshot helpers) while the DTO hierarchy
-/// itself relocates to the per-model implementation source (issue #192).
-/// </remarks>
+/// <remarks>Separated from the typed DTO definitions (<see cref="SparseChangeSetPayloadEmitter"/>).</remarks>
 internal static class SparseChangeSetPayloadTransferEmitter
 {
     internal static void AppendToPayloadCoreBridge(
@@ -23,9 +17,8 @@ internal static class SparseChangeSetPayloadTransferEmitter
     )
     {
         var payloadCore = SparseChangeSetPayloadEmitter.PayloadTypeName(dialect, modelType, "Core");
-        // The internal core projection stays callable in value form:
-        // nested change-set values project through the facade bridge.
-        // Public-first order keeps it trailing public converters.
+        // The internal core projection stays callable in value form: nested
+        // change-set values project through the facade bridge.
         code.AppendLineAt(
             2,
             "/// <summary>Builds the transport core for this change set.</summary>"
@@ -469,10 +462,8 @@ internal static class SparseChangeSetPayloadTransferEmitter
                 + payloadRoot
                 + ">.Present(null));"
         );
-        // A whole-root before snapshot that hides member values cannot travel
-        // as an observable root: endpoint-redact it so the mixed partition
-        // routes the whole change blind instead of failing fragment conversion.
-        // Known absence (missing) and explicit null stay observable.
+        // Endpoint-redact it so the mixed partition routes the whole change
+        // blind instead of failing fragment conversion.
         var wholeBeforeRedacted = members.Any(static member =>
             !member.Property.IsJsonIgnored && member.RedactBefore
         )

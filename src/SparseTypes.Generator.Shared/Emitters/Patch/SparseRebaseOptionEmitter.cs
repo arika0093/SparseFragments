@@ -1,13 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Emits the per-rebase options plumbing shared by ChangeSet and Patch rebase.</summary>
-/// <remarks>
-/// Generated rebase entry points accept a caller-owned options object carrying
-/// redacted-before paths, the strict opt-in, and the fallback rebase mode.
-/// Type names resolve through the patch dialect so downstream generators keep
-/// owning their runtime types; a null dialect entry derives from the runtime
-/// namespace instead of substituting a SparseTypes type.
-/// </remarks>
+/// <remarks>Generated rebase entry points accept a caller-owned options object carrying redacted-before paths.</remarks>
 internal static class SparseRebaseOptionEmitter
 {
     internal static string OptionsType(SparseFragmentPatchEmitter.SparsePatchDialect dialect) =>

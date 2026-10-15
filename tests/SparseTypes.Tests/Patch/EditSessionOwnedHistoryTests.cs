@@ -1,11 +1,7 @@
 namespace SparseTypes.Tests;
 
-/// <summary>Session-owned single undo/redo history (issue #269).</summary>
-/// <remarks>
-/// Pins the <c>EnableHistory</c> consumer API against the established #252
-/// semantics: opt-in retention, repeat-enable rules, explicit disable,
-/// non-disposable ownership, and stack-state notifications.
-/// </remarks>
+/// <summary>Session-owned single undo/redo history.</summary>
+/// <remarks>Opt-in retention, repeat-enable rules, explicit disable, non-disposable ownership, and stack-state notifications.</remarks>
 public sealed class EditSessionOwnedHistoryTests
 {
     [Test]
@@ -431,8 +427,7 @@ public sealed class EditSessionOwnedHistoryTests
         model.Name.ShouldBe("two");
 
         // The replacement edit moved the shared model past the recorded
-        // before-state, so the original entry now conflicts instead of
-        // popping: session histories never observe each other.
+        // before-state, so the original entry now conflicts instead of popping.
         history.TryUndo(out var conflicts).ShouldBeFalse();
         conflicts.ShouldNotBeNull();
         history.UndoCount.ShouldBe(1);

@@ -1,13 +1,7 @@
 namespace SparseTypes;
 
 /// <summary>Selects a rebase policy for a model member without requiring a custom merge strategy.</summary>
-/// <remarks>
-/// The policy type must derive from <see cref="FragmentRebasePolicy{T}"/>
-/// with <c>T</c> exactly matching the member type. It applies to scalar and
-/// whole-replace members; nested, keyed, dictionary, and merge-collection
-/// members always reconcile granularly. A member-level policy takes
-/// precedence over the merge strategy's <c>TryRebase</c> during rebase.
-/// </remarks>
+/// <remarks>Policies apply to scalar and whole-replace members; granular collections always use their merge strategy.</remarks>
 [AttributeUsage(AttributeTargets.Property, Inherited = true)]
 public sealed class SparseRebasePolicyAttribute : Attribute
 {

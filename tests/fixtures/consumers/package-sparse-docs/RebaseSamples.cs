@@ -2,9 +2,6 @@ using System.Text.Json;
 using SparseTypes;
 
 // Canonical compile-checked mirror of docs/rebase.md.
-// Covers the ChangeSet model: disjoint edits replaying cleanly onto the
-// current state, already-applied edits becoming semantic no-ops, and
-// conflicting edits producing structured SparseConflict values.
 public static class RebaseSamples
 {
     public static void Run()

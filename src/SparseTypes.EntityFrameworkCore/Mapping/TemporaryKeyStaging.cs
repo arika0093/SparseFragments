@@ -3,14 +3,7 @@ namespace SparseTypes.EntityFrameworkCore.Mapping;
 /// <summary>
 /// Ambient journal for staged temporary-key reconciliation.
 /// </summary>
-/// <remarks>
-/// <see cref="SparseEntityMapper{TEntity, TDto}.AssignTemporaryKeys" /> opens one
-/// scope per call. Every applied temporary-key mutation records its restore
-/// action here, so a failure in a deep nested collection rolls back earlier
-/// sibling assignments and the authoritative DTO is never left partially
-/// updated. Restores are best effort: a throwing restore never masks the
-/// original failure.
-/// </remarks>
+/// <remarks>Each mutation registers a restore action; failures roll back earlier assignments without masking the original error.</remarks>
 internal sealed class TemporaryKeyStagingScope
 {
     private static readonly AsyncLocal<TemporaryKeyStagingScope?> CurrentStorage = new();
@@ -50,7 +43,8 @@ internal sealed class TemporaryKeyStagingScope
             }
             catch (Exception)
             {
-                // Best effort: a failing restore must not mask the original failure.
+                // Best effort: a failing restore must not mask the original
+                // failure.
             }
         }
     }

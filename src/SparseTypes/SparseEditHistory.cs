@@ -5,11 +5,7 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>Applies a change set to the live model for history replay.</summary>
-/// <remarks>
-/// Returns true on success with null conflicts. Returns false with conflicts
-/// when the before-state no longer matches. Throws when setters partially
-/// mutate the model or the model cannot be written in place.
-/// </remarks>
+/// <remarks>Returns true on success with null conflicts.</remarks>
 /// <typeparam name="TChangeSet">The generated change-set type.</typeparam>
 /// <param name="changes">The change set to apply.</param>
 /// <param name="conflicts">Structured conflicts when the result is false.</param>
@@ -22,10 +18,7 @@ public delegate bool EditHistoryTryApply<TChangeSet>(
     where TChangeSet : class;
 
 /// <summary>Typed operations binding a history to one generated change set.</summary>
-/// <remarks>
-/// The generated <c>CreateHistory</c> factory supplies these delegates from
-/// the concrete change-set type, so no reflection is required.
-/// </remarks>
+/// <remarks>The generated <c>CreateHistory</c> factory supplies these delegates from the concrete change-set type.</remarks>
 /// <typeparam name="TChangeSet">The generated change-set type.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed class SparseEditHistoryHooks<TChangeSet>
@@ -51,18 +44,7 @@ public sealed class SparseEditHistoryHooks<TChangeSet>
 }
 
 /// <summary>Optional bounded change-set history with undo and redo.</summary>
-/// <remarks>
-/// Subscribe-free until constructed: the constructor subscribes to the
-/// session transition event, and <see cref="Dispose"/> unsubscribes and
-/// releases retention. Without this object the session retains no history.
-/// The underlying session snapshot and diff work runs regardless of history;
-/// this object only adds retention of observed transitions.
-/// A session-owned history is instead exposed through the non-disposable
-/// <see cref="ISparseEditHistory"/> contract returned by the generated
-/// <c>EnableHistory</c> method; dispose such histories only through the
-/// owning session. This type is not thread-safe. Use it on the same thread
-/// as the session.
-/// </remarks>
+/// <remarks>The constructor subscribes to the session transition event, and <see cref="Dispose"/> unsubscribes and releases retention.</remarks>
 /// <typeparam name="TChangeSet">The generated change-set type.</typeparam>
 public sealed class SparseEditHistory<TChangeSet> : ISparseEditHistory, IDisposable
     where TChangeSet : class
@@ -84,7 +66,8 @@ public sealed class SparseEditHistory<TChangeSet> : ISparseEditHistory, IDisposa
     /// <summary>Initializes a history and subscribes to session transitions.</summary>
     /// <param name="options">Retention options, or null for defaults.</param>
     /// <param name="hooks">Typed change-set operations and event wiring.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="hooks"/> is null.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="hooks"/> is
+    /// null.</exception>
     /// <exception cref="ArgumentException">A required hook delegate is missing.</exception>
     public SparseEditHistory(EditHistoryOptions? options, SparseEditHistoryHooks<TChangeSet> hooks)
     {
@@ -138,10 +121,7 @@ public sealed class SparseEditHistory<TChangeSet> : ISparseEditHistory, IDisposa
     public event Action? Disposed;
 
     /// <summary>Raised after undo/redo stack state changes.</summary>
-    /// <remarks>
-    /// Covers observed edits, grouped commits, successful undo/redo replays,
-    /// and clears. Failed replays leave the stacks untouched and raise nothing.
-    /// </remarks>
+    /// <remarks>Covers observed edits, grouped commits, successful undo/redo replays, and clears.</remarks>
     public event Action? StateChanged;
 
     /// <summary>Gets whether an undo entry is available.</summary>
@@ -188,15 +168,10 @@ public sealed class SparseEditHistory<TChangeSet> : ISparseEditHistory, IDisposa
     public int MaxEntries => _maxEntries;
 
     /// <summary>Records one observed transition.</summary>
-    /// <remarks>
-    /// The generated factory wires this to the session transition event.
-    /// Empty change sets are ignored. Calls made while an undo or redo replay
-    /// applies are ignored so replays are never re-recorded. One call stores
-    /// one entry; <c>BatchEdit</c> already publishes one transition and so
-    /// stores one entry. Separate edits are never silently coalesced.
-    /// </remarks>
+    /// <remarks>The generated factory wires this to the session transition event.</remarks>
     /// <param name="changes">The observed transition.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="changes"/> is null.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="changes"/> is
+    /// null.</exception>
     /// <exception cref="ObjectDisposedException">The history is disposed.</exception>
     public void OnTransition(TChangeSet changes)
     {
@@ -229,11 +204,7 @@ public sealed class SparseEditHistory<TChangeSet> : ISparseEditHistory, IDisposa
     }
 
     /// <summary>Begins an explicit group across multiple events.</summary>
-    /// <remarks>
-    /// Buffered transitions compose into one undo entry when the outermost
-    /// scope is disposed. Use this for typing or dragging. Groups nest; only
-    /// the outermost dispose commits. An empty group stores nothing.
-    /// </remarks>
+    /// <remarks>Buffered transitions compose into one undo entry when the outermost scope is disposed.</remarks>
     /// <returns>A scope that commits the group on dispose.</returns>
     /// <exception cref="ObjectDisposedException">The history is disposed.</exception>
     public IDisposable BeginGroup()
@@ -250,7 +221,8 @@ public sealed class SparseEditHistory<TChangeSet> : ISparseEditHistory, IDisposa
 
     /// <summary>Runs an action inside one explicit history group.</summary>
     /// <param name="action">The edits to group.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="action"/> is null.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="action"/> is
+    /// null.</exception>
     public void Group(Action action)
     {
         if (action == null)
@@ -287,11 +259,7 @@ public sealed class SparseEditHistory<TChangeSet> : ISparseEditHistory, IDisposa
     }
 
     /// <summary>Attempts to undo the newest entry.</summary>
-    /// <remarks>
-    /// A false result leaves both stacks untouched. An apply that throws
-    /// (partial setter failure or unwritable model) also leaves the stacks
-    /// untouched; the session already resynchronized to the live state.
-    /// </remarks>
+    /// <remarks>A false result leaves both stacks untouched.</remarks>
     /// <param name="conflicts">Conflicts when the result is false.</param>
     /// <returns>True on success; otherwise false.</returns>
     public bool TryUndo(out IReadOnlyList<SparseConflict>? conflicts)
@@ -492,9 +460,7 @@ public sealed class SparseEditHistory<TChangeSet> : ISparseEditHistory, IDisposa
             }
             catch (InvalidOperationException)
             {
-                // Contiguous observed transitions compose. If a custom
-                // transition breaks contiguity, keep every entry instead of
-                // dropping the group.
+                // Contiguous observed transitions compose.
                 PushUndo(composed);
                 composed = entries[index];
                 splintered = true;

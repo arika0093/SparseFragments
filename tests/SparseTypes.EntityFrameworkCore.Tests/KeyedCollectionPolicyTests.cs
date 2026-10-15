@@ -289,7 +289,8 @@ public sealed partial class KeyedCollectionPolicyTests
         using var context = TestDatabases.CreateKeyed(connection, counter);
         _ = await SeedSoftOrder(context);
 
-        // A fresh scope loads the parent without its lines: the navigation stays unloaded.
+        // A fresh scope loads the parent without its lines: the navigation
+        // stays unloaded.
         using var fresh = new KeyedMappingContext(
             new DbContextOptionsBuilder<KeyedMappingContext>().UseSqlite(connection).Options
         );
@@ -329,7 +330,8 @@ public sealed partial class KeyedCollectionPolicyTests
         await context.Entry(entity).Collection(static order => order.Lines).LoadAsync();
         counter.Reset();
 
-        // Stale caller state claims a second row the tracked collection never loaded.
+        // Stale caller state claims a second row the tracked collection never
+        // loaded.
         var current = new SoftOrderDto
         {
             Lines =
@@ -380,7 +382,8 @@ public sealed partial class KeyedCollectionPolicyTests
         counter.Reset();
 
         var current = new SkuOrderDto { Lines = [new SkuLineDto { Sku = "a", Qty = 1 }] };
-        // Stale caller state hides the tracked "x" row, so Between reports it as an addition.
+        // Stale caller state hides the tracked "x" row, so Between reports it
+        // as an addition.
         var incoming = new SkuOrderDto
         {
             Lines = [new SkuLineDto { Sku = "a", Qty = 1 }, new SkuLineDto { Sku = "x", Qty = 5 }],
@@ -448,7 +451,8 @@ public sealed partial class KeyedCollectionPolicyTests
         >("Lines", out _);
         mismatch.ShouldBeFalse();
 
-        // No separate EF generator: the mapping package links only the runtime contracts.
+        // No separate EF generator: the mapping package links only the runtime
+        // contracts.
         typeof(SparseEntityMapper<SoftOrderEntity, SoftOrderDto>)
             .Assembly.GetReferencedAssemblies()
             .Where(static name => name.Name == "SparseTypes.Generator")

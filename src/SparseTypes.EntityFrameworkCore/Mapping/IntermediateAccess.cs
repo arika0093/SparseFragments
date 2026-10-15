@@ -7,11 +7,7 @@ namespace SparseTypes.EntityFrameworkCore.Mapping;
 /// <summary>
 /// Object-typed access to one flattened navigation segment.
 /// </summary>
-/// <remarks>
-/// Compiled once per plan so flattened writes reach the navigation's own EF
-/// entry instead of the root entry. Struct declaring types are rejected:
-/// member assignment through a boxed copy would silently discard the write.
-/// </remarks>
+/// <remarks>Compiled once per plan so flattened writes reach the navigation's own EF entry instead of the root entry.</remarks>
 internal sealed class IntermediateAccess
 {
     private IntermediateAccess(

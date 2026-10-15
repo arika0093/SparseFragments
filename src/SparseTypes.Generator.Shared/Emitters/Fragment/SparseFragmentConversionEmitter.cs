@@ -33,10 +33,8 @@ internal sealed class SparseFragmentConversionEmitter
         string? operationsType = null
     )
     {
-        // Stage 4 (#193): facades delegate both From overloads; bodies move
-        // verbatim (static, explicit receivers, Fragment aliases in scope).
-        // Public-first order: the public facade stays with the public surface;
-        // the internal overload moves via AppendFromModelInternalFacade.
+        // Stage 4: facades delegate both From overloads; bodies move verbatim
+        // (static, explicit receivers, Fragment aliases in scope).
         if (operationsType is not null)
         {
             code.AppendLineAt(
@@ -250,9 +248,8 @@ internal sealed class SparseFragmentConversionEmitter
             && (constructor is null || constructor.Parameters.IsEmpty)
         )
             return;
-        // Stage 4 (#193): split emission widens the token and constructor to
-        // the narrowest CLR-mandated visibility so the operations class can
-        // project through them; single-file keeps them private.
+        // Stage 4: split emission widens the token and constructor to the
+        // Use the narrowest visibility that lets the operations class call it.
         code.AppendLineAt(1, bridgeAccessibility + " readonly struct __SparseProjectionToken { }");
         if (constructor?.IsImplicitParameterlessClassConstructor == true)
             code.AppendLineAt(1, "public " + modelName + "() { }");
@@ -331,7 +328,7 @@ internal sealed class SparseFragmentConversionEmitter
         string receiver = ""
     )
     {
-        // Stage 4 (#193): facades delegate both ToModel overloads; bodies move
+        // Stage 4: facades delegate both ToModel overloads; bodies move
         // with an explicit receiver (surface instance access is bare).
         if (operationsType is not null)
         {
@@ -431,7 +428,7 @@ internal sealed class SparseFragmentConversionEmitter
             )
         )
         {
-            // Stage 4 (#193): split emission widens the projection bridge so
+            // Stage 4: split emission widens the projection bridge so
             // the operations class can invoke it; single-file keeps it private.
             var token =
                 receiver.Length == 0

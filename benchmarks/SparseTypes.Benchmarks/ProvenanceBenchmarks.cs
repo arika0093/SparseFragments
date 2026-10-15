@@ -9,13 +9,7 @@ public enum ProvenanceDensity
     High,
 }
 
-/// <summary>
-/// Provenance scale benchmarks (issue #57): Replace, Append, sequence SetUnion, and
-/// set-shaped SetUnion provenance across contribution count, contribution size, and
-/// duplicate density, with default/custom comparers, reset/no-reset, and
-/// success/mismatch cases. Origins must scale near-linearly in total contributed
-/// plus effective elements.
-/// </summary>
+/// <summary>Provenance scale benchmarks.</summary>
 [MemoryDiagnoser]
 public class ProvenanceBenchmarks
 {
@@ -318,8 +312,7 @@ public class ProvenanceBenchmarks
     [Benchmark(Description = "Provenance Replace: highest contribution wins")]
     public bool Replace_Success()
     {
-        // Replace provenance covers only the winning contribution; the remaining
-        // contributions stay present so reset/winner discovery still scans them.
+        // Replace provenance covers only the winning contribution.
         return SparseFragmentRuntime.TryExplainCollectionProvenance(
             MergeMode.Replace,
             _sequenceContributions,

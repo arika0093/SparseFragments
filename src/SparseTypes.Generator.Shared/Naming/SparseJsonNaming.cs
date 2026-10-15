@@ -86,9 +86,7 @@ internal static class SparseJsonNaming
 
     private static bool TryParseCondition(TypedConstant constant, out int condition)
     {
-        // JsonIgnoreCondition arrives as its underlying integral value; accept
-        // every integral representation (int/long plus the narrower/wider forms
-        // other generators observe) so the shared parser stays complete.
+        // JsonIgnoreCondition arrives as its underlying integral value.
         if (constant.Value is int intValue && intValue >= 0 && intValue <= 3)
         {
             condition = intValue;

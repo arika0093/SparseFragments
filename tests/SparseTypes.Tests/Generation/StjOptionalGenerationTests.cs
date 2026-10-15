@@ -5,19 +5,8 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Generation;
 
-/// <summary>Certifies compilation-aware optional JSON support (issues #242/#243/#244).</summary>
-/// <remarks>
-/// The no-STJ probe compiles a model against framework references with every
-/// System.Text.Json assembly removed, then asserts the generator emits only
-/// serializer-independent APIs and the combined compilation still builds.
-/// The STJ probe asserts the v1 bridge appears, and the pair asserts losing
-/// the reference drops only JSON artifacts with stable hint names.
-/// Representative older and partial API sets (issue #264) compile against
-/// hand-built stub surfaces instead of the runner's reference assemblies:
-/// each lane either emits compiling code with the available symbols or omits
-/// JSON with an actionable SPF028 diagnostic, and reference upgrades restore
-/// the bridge without stale sources or unrelated output churn.
-/// </remarks>
+/// <summary>Certifies compilation-aware optional JSON support.</summary>
+/// <remarks>The no-STJ probe compiles a model against framework references with every System.Text.Json assembly removed.</remarks>
 public sealed class StjOptionalGenerationTests
 {
     private const string ModelSource = """
@@ -121,12 +110,8 @@ public sealed class StjOptionalGenerationTests
             .ShouldBeEmpty();
     }
 
-    // Representative System.Text.Json surface standing in for older or partial
-    // references (issue #264). The detector probes these declarations exactly
-    // like real reference assemblies: ordering attributes and metadata lookup
-    // model an older set, while a handling enum without Disallow models a
-    // partially available member signature. The remaining APIs always resolve
-    // so each lane isolates one capability gap.
+    // Model older or partial System.Text.Json references so each test isolates
+    // one capability gap.
     private static string StjStubSource(
         bool includePropertyOrder,
         bool includeUnmappedHandling,
@@ -378,8 +363,7 @@ public sealed class StjOptionalGenerationTests
     public void FullStubSurface_EmitsBridgeWithoutDiagnostic()
     {
         // The hand-built surface is complete, so the detector must accept it
-        // exactly like a current reference assembly: bridge emitted, no
-        // diagnostic, and the combined compilation still builds.
+        // exactly like a current reference assembly.
         var compilation = CreateStubCompilation(
             StjStubSource(
                 includePropertyOrder: true,
@@ -400,8 +384,7 @@ public sealed class StjOptionalGenerationTests
     public void OlderSurface_OmitsJsonAndReportsSpf028()
     {
         // Representative older set: no ordering attribute and no metadata
-        // lookup. Emission must omit JSON with SPF028 naming both gaps while
-        // the serializer-independent core still compiles.
+        // lookup.
         var compilation = CreateStubCompilation(
             StjStubSource(
                 includePropertyOrder: false,

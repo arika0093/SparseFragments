@@ -30,21 +30,13 @@ internal static class SparseEditSessionEmitter
         && config.EditChildSessionImplementationType is { Length: > 0 };
 
     /// <summary>Emits the compilation-scoped reusable session cores once.</summary>
-    /// <remarks>
-    /// Generated-Once seam (#184): capabilities are de-duplicated per
-    /// compilation and prerequisites are validated before emission. The
-    /// capability aggregation plane (#178) and ownership boundary (#177) will
-    /// call <see cref="SparseEditSessionCapabilities"/> at merge time; this
-    /// entry point keeps the same deterministic dialect hint names so output
-    /// stays byte-identical.
-    /// </remarks>
+    /// <remarks>Generated-Once seam: capabilities are de-duplicated per compilation and prerequisites are validated before emission.</remarks>
     /// <param name="context">Generator output context.</param>
     /// <param name="config">Owning generator configuration.</param>
     public static void EmitCore(SourceProductionContext context, SparseGeneratorConfig config)
     {
-        // Merge-time seam (#177/#178): capability aggregation moves to the
-        // shared Generated-Once pipeline; per-model callers keep requesting
-        // the full core pair until then.
+        // Capability aggregation moves to the shared Generated-Once pipeline;
+        // per-model callers keep requesting the full core pair until then.
         var capability = SparseEditSessionCapabilities.ForCompilation(
             hasSessionModels: true,
             needsCurrentView: true
@@ -250,9 +242,7 @@ internal static class SparseEditSessionEmitter
             patchDialect,
             code.CancellationToken
         );
-        // Sessions already raise PropertyChanged with the standard signature; declaring the
-        // interface lets framework-neutral subscribers (such as the Blazor session scope)
-        // attach without reflection or a ChangeSet-typed event.
+        // Sessions already raise PropertyChanged with the standard signature.
         sessionBases += ", global::System.ComponentModel.INotifyPropertyChanged";
         code.AppendLineAt(1, "public sealed class " + sessionSimple + " : " + sessionBases);
         code.AppendLineAt(1, "{");
@@ -442,10 +432,8 @@ internal static class SparseEditSessionEmitter
                 + SparseFragmentPatchEmitter.GetPathType(patchDialect)
                 + "> EnumerateChangedPaths() => CreateChangeSet().EnumerateChangedPaths();"
         );
-        // Path-first semantic state inspection (issue #250): live field and
-        // root-collection queries over the retained baseline. Gated on the
-        // state contracts so products without the runtime state types keep
-        // byte-identical output.
+        // Path-first semantic state inspection: live field and root-collection
+        // queries over the retained baseline.
         SparseEditSessionStateEmitter.AppendStateMembers(code, modelType, members, patchDialect);
         code.AppendLineAt(
             2,
@@ -486,8 +474,7 @@ internal static class SparseEditSessionEmitter
             rebaseResultType,
             historyBinding
         );
-        // Raw model access bypasses the change cache, so it is exposed only
-        // through ISparseEditSession<TModel>; framework code uses GetModelForFrameworkAccess().
+        // Raw model access bypasses the change cache.
         code.AppendLineAt(
             2,
             modelType + " " + sessionInterface + "<" + modelType + ">.Model => _session.Model;"
@@ -571,9 +558,7 @@ internal static class SparseEditSessionEmitter
             && config.EffectiveEmissionFeatures.EmitObservable
         )
         {
-            // Descriptors are live views: every getter/setter delegate reads the
-            // current observable state, so the root set is cached per session
-            // instead of reallocating the whole graph on each access.
+            // Descriptors are live views.
             code.AppendLineAt(
                 2,
                 "private " + descriptorsDialect.DescriptorSetInterface + "? __descriptors;"
@@ -729,11 +714,8 @@ internal static class SparseEditSessionEmitter
                 + " path) where TChild : class"
         );
         code.AppendLineAt(2, "{");
-        // Validate cheap preconditions before Fork: cloning the whole root
-        // only to throw on an invalid path wastes the snapshot and the deep
-        // clone. The fork snapshots the same state, so resolving here and
-        // re-resolving on the fork cannot disagree; the second check stays as
-        // a backstop that also produces the fork-owned target instance.
+        // Validate paths before Fork to avoid cloning on failure; resolve again
+        // on the fork to obtain its owned target instance.
         code.AppendLineAt(
             3,
             "if (path is null) throw new global::System.ArgumentNullException(nameof(path));"

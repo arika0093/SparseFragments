@@ -47,7 +47,8 @@ session.Observable.Label = "production";
 session.Observable.Database!.Port = 7432;
 var outgoing = session.CreateChangeSet();
 
-// Client/Server Edits: the typed payload crosses process boundaries as ordinary System.Text.Json.
+// Client/Server Edits: the typed payload crosses process boundaries as ordinary
+// System.Text.Json.
 var json = JsonSerializer.Serialize(outgoing.ToPayload());
 var incoming = JsonSerializer.Deserialize<Settings.ChangePayload>(json)!.ToChangeSet();
 Require(incoming.Label.IsChanged, "ChangeSet payload JSON round-trip preserves transitions");

@@ -183,7 +183,8 @@ public class LeafCloneBenchmarks
         _nested = new BenchWidgetNested { Host = "parent", Port = 80 };
         _nested.Child = _nested;
         _nestedFragment = new BenchWidgetNested.Fragment { Port = Optional<int>.Present(80) };
-        // Seed a cycle through the init-only fragment property outside timed operations.
+        // Seed a cycle through the init-only fragment property outside timed
+        // operations.
         typeof(BenchWidgetNested.Fragment)
             .GetProperty(nameof(BenchWidgetNested.Fragment.Child))!
             .SetValue(

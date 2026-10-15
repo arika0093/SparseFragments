@@ -48,10 +48,7 @@ public partial class BenchFieldStateRoot
     public List<BenchFieldStateTempLine> Lines { get; set; } = new();
 }
 
-// Hot field/row lookup budgets for the session state surface (issue #250).
-// Session queries pay one baseline diff per call; view row lookups are
-// dictionary probes over the captured change set. GlobalSetup validates every
-// benchmark expectation so regressions fail fast instead of measuring drift.
+// Hot field/row lookup budgets for the session state surface.
 [MemoryDiagnoser]
 public class FieldStateBenchmarks
 {

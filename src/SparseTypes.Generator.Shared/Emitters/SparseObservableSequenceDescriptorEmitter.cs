@@ -49,9 +49,7 @@ internal static class SparseObservableSequenceDescriptorEmitter
         var literal = SymbolDisplay.FormatLiteral(member.Property.Name, true);
         var element = member.Collection.ElementType;
         var itemType = element.NonNullableName;
-        // Arrays hold models directly. Fragment elements still expose nested
-        // descriptors through transient proxies that notify the parent property;
-        // structural array mutations stay unsupported (fixed size).
+        // Arrays hold models directly.
         var hasProxy = element.IsFragmentModel && element.IsReferenceType;
         var viewType = hasProxy
             ? itemType + "." + (element.ObservableTypeName ?? "Observable")
@@ -90,12 +88,7 @@ internal static class SparseObservableSequenceDescriptorEmitter
     }
 
     /// <summary>Emits a read-only sequence descriptor for list-like shapes.</summary>
-    /// <remarks>
-    /// Sources already implementing <c>IReadOnlyList&lt;T&gt;</c> stay live; pure
-    /// <c>IEnumerable&lt;T&gt;</c>/<c>IReadOnlyCollection&lt;T&gt;</c> sources are
-    /// snapshotted once per descriptor so repeated <c>GetItem</c> calls do not
-    /// re-enumerate. All mutation flags are false.
-    /// </remarks>
+    /// <remarks>Sources already implementing <c>IReadOnlyList&lt.</remarks>
     internal static string ReadOnlySequenceAccessor(
         SparseMemberModel member,
         string path,
@@ -113,8 +106,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
         var itemAccessor = hasProxy
             ? SparseObservableDescriptorEmitter.AccessorName(itemType)
             : string.Empty;
-        // Transient element proxies notify the parent property; the collection itself
-        // has no notifying view, so size mutations are unsupported.
+        // Transient element proxies notify the parent property; the collection
+        // itself has no notifying view, so size mutations are unsupported.
         var changed =
             "() => { __Raise(" + literal + "); if (__onChanged is not null) __onChanged(); }";
         var wrap = hasProxy
@@ -195,8 +188,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
                 + path
                 + ".At(index)); }, "
             : string.Empty;
-        // Identity resolver for retained item descriptors: the unwrapped model at
-        // an index, or null when out of range. Guards compare it by reference.
+        // Identity resolver for retained item descriptors: the unwrapped model
+        // at an index, or null when out of range.
         var modelResolver = names.HasElementProxy
             ? "GetItemModel = index => { if ((uint)index >= (uint)this."
                 + property
@@ -364,7 +357,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
         var comparer =
             "global::System.Collections.Generic.EqualityComparer<" + keyTypeName + ">.Default";
         string KeyOf(string modeller) => KeyOfObjectExpression(member, modeller);
-        // Views hold proxies for reference fragments; keys always read the model.
+        // Views hold proxies for reference fragments; keys always read the
+        // model.
         string Unwrap(string view) => UnwrapModelExpression(names, view);
         var resolvers =
             "GetItemKey = index => { var rawKeyedItem = this."
@@ -423,8 +417,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
         var modelType = member.Collection.ElementType.NonNullableName;
         var cast = "((" + modelType + ")" + modeller + ")";
         var bang = SparseKeyedCollectionEmitter.HasUnassignedKey(member) ? "!" : string.Empty;
-        // Single-property keys only: the key type is the declared property type,
-        // which may itself be a tuple or value object for composite identity.
+        // The key type is the declared property type, which may itself be a
+        // tuple or value object for composite identity.
         var keys = member.Collection.KeyPropertyNames;
         if (keys.Length == 1)
         {
@@ -450,10 +444,7 @@ internal static class SparseObservableSequenceDescriptorEmitter
             : "(object?)(" + view + ")";
 
     /// <summary>Emits assigned-duplicate rejection ahead of keyed mutations.</summary>
-    /// <remarks>
-    /// Returns empty for unkeyed sequences. Unassigned sentinels are exempt; the
-    /// check scans the live list and returns false without mutating or notifying.
-    /// </remarks>
+    /// <remarks>Returns empty for unkeyed sequences.</remarks>
     private static string DuplicateKeyGuard(
         SparseMemberModel member,
         SparseObservableEmitter.CollectionProxyNames names,

@@ -116,9 +116,7 @@ internal static class SparseChangeSetPayloadRestoreEmitter
             );
             if (hasTempRestore)
             {
-                // Temporary identities must be unique per collection; assigned
-                // entries never carry them after restore enforcement, so any
-                // duplicate here is malformed transport.
+                // Temporary identities must be unique per collection.
                 code.AppendLineAt(
                     8,
                     "if (changeItem.TemporaryKey.HasValue && !__payloadSeenTemps"
@@ -187,8 +185,8 @@ internal static class SparseChangeSetPayloadRestoreEmitter
             }
             else
             {
-                // Transport policy: an undisclosed before-state can never rebuild
-                // a complete ChangeSet. The baseline-free projection stays explicit.
+                // Transport policy: an undisclosed before-state can never
+                // rebuild a complete ChangeSet.
                 code.AppendLineAt(
                     6,
                     "if (item.Before is not null) throw new global::System.ArgumentException(\"A redacted member must omit its before-state.\", nameof(payload));"

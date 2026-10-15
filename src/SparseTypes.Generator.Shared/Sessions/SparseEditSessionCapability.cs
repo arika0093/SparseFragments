@@ -3,12 +3,7 @@ using System.Collections.Immutable;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Compilation-scoped edit-session helpers requested by analyzed models.</summary>
-/// <remarks>
-/// The reusable session cores (<c>EditSessionCore</c> and
-/// <c>EditSessionWithCurrentCore</c>) are model-independent: one definition per
-/// compilation serves every typed per-model adapter. Flags de-duplicate the
-/// request so many models still emit exactly one core pair.
-/// </remarks>
+/// <remarks>The reusable session cores (<c>EditSessionCore</c> and <c>EditSessionWithCurrentCore</c>) are model-independent.</remarks>
 [System.Flags]
 internal enum SparseEditSessionCapability
 {
@@ -26,14 +21,7 @@ internal enum SparseEditSessionCapability
 }
 
 /// <summary>Semantic roles bound by the generic session cores.</summary>
-/// <remarks>
-/// Names the product-neutral contract between a reusable core and its typed
-/// per-model adapters: state (<c>TModel</c>), state snapshot
-/// (<c>TFragment</c>), baseline-free transition command (<c>TPatch</c>),
-/// baseline-aware transition (<c>TChangeSet</c>), observable view
-/// (<c>TObservable</c>) and read-only current view (<c>TCurrent</c>).
-/// Templates and dialects resolve product types through these roles.
-/// </remarks>
+/// <remarks>Names the product-neutral contract between a reusable core and its typed per-model adapters.</remarks>
 internal static class SparseEditSessionRoles
 {
     /// <summary>Live editable model state.</summary>
@@ -56,15 +44,7 @@ internal static class SparseEditSessionRoles
 }
 
 /// <summary>Connection contract between a session core and typed model adapters.</summary>
-/// <remarks>
-/// Documents the delegates a per-model <c>EditSession</c> must supply:
-/// <c>FromModel</c>, <c>Between</c>, <c>ToPatch</c>, <c>IsEmpty</c>,
-/// <c>AdvanceBaseline</c>, <c>ToObservable</c>, <c>ToCurrent</c>,
-/// <c>TryApplyTo</c>, <c>WriteModel</c>, <c>Invert</c>, <c>Rebase</c>,
-/// <c>EnumerateChangedPaths</c>, <c>RefreshObservable</c> and
-/// <c>BaselineToModel</c>. Validation runs at generation time where the
-/// required family is missing from <see cref="SparseEmissionFeatures"/>.
-/// </remarks>
+/// <remarks>Documents the delegates a per-model <c>EditSession</c> must supply.</remarks>
 internal static class SparseEditSessionAdapterContract
 {
     /// <summary>Delegate names the adapter must bind, in configuration order.</summary>
@@ -117,15 +97,7 @@ internal static class SparseEditSessionAdapterContract
 }
 
 /// <summary>Capability aggregation for compilation-scoped session cores.</summary>
-/// <remarks>
-/// Merge-time seam: the capability-driven Generated-Once pipeline (#178)
-/// will aggregate these flags across explicit and promoted models; the
-/// three-layer ownership design (#177) owns the Runtime/Generated-Once/
-/// Per-Model boundary. Until then this helper keeps aggregation deterministic
-/// and routes hint names through the configured dialect (the #176 placement
-/// seam supplies per-model names; compilation-scoped helpers keep stable
-/// dialect hint names).
-/// </remarks>
+/// <remarks>Merge-time seam: the capability-driven Generated-Once pipeline will aggregate these flags across explicit and promoted models.</remarks>
 internal static class SparseEditSessionCapabilities
 {
     /// <summary>Aggregates per-model session needs into one deterministic request.</summary>

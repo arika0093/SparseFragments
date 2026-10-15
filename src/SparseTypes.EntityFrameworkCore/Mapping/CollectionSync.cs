@@ -4,19 +4,8 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace SparseTypes.EntityFrameworkCore.Mapping;
 
-/// <summary>
-/// Validates delta-based keyed transitions before mutating and executes the queued sync.
-/// </summary>
-/// <remarks>
-/// Direct ChangeSet sourcing: additions come from item <c>After</c> snapshots,
-/// edits recurse through item <c>Edit</c> transitions, removals resolve from
-/// keyed before-identity, and order persists from the transition's
-/// <c>AfterOrder</c> plus temporary-identity metadata. No desired or
-/// full-collection DTO is required at any point. Every failure below throws
-/// during <c>Prepare</c>, before any queued write runs; navigation assignment,
-/// tracking, correlation recording, and child wholesale writes all happen in
-/// the execution phase.
-/// </remarks>
+/// <summary>Validates delta-based keyed transitions before mutating and executes the queued sync.</summary>
+/// <remarks>Direct ChangeSet sourcing.</remarks>
 internal static class CollectionSync
 {
     public static void Prepare<TDtoChild, TEntityChild>(
@@ -116,9 +105,7 @@ internal static class CollectionSync
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(actions);
         // Wholesale writes copy from the explicit After snapshot carried by the
-        // parent transition (never a reconstructed root DTO). A null snapshot
-        // is absent and preserves factory state; an empty snapshot means empty
-        // and clears the destination below.
+        // parent transition (never a reconstructed root DTO).
         var snapshot = runtime.SnapshotReader(state.AfterSnapshot)?.ToList();
         if (snapshot is null)
         {
@@ -192,12 +179,8 @@ internal static class CollectionSync
                 state.Entity,
                 path
             );
-            // Replace semantics: the snapshot is complete, so factory- or
-            // constructor-provided children absent from it must not survive to
-            // tracking. Clearing the contents (not the reference) keeps
-            // read-only navigations working, and detaching Added orphans keeps
-            // them out of SaveChanges entirely. Pre-existing tracked rows keep
-            // their own state: relationship fixup owns them.
+            // Replace clears absent children and detaches added orphans while
+            // preserving the navigation reference and existing tracked rows.
             var orphans = list.Cast<object>().ToList();
             if (list.Count > 0)
             {
@@ -222,8 +205,7 @@ internal static class CollectionSync
                 }
 
                 // Nested scopes qualify with the added element's identity so
-                // the same temporary value reused under two new siblings
-                // resolves independently instead of falsely conflicting.
+                // Resolve reused temporary keys independently for each sibling.
                 var key = runtime.DtoKey(dto);
                 string scopeKey;
                 if (key is not null && !runtime.IsUnassigned(key))
@@ -331,11 +313,8 @@ internal static class CollectionSync
 
         if (plan.Added.Count == 0 && plan.Removed.Count == 0 && !view.OrderChanged)
         {
-            // Edits only, order untouched: validate only the addressed keys
-            // (done above) and keep the tracked order as is. Skipping the
-            // AfterOrder completeness proof keeps addressed-key edits safe on
-            // partial loads; membership and order changes below still require
-            // complete evidence.
+            // Edits do not change order, so addressed-key validation is enough
+            // for partial loads.
             plan.PersistOrder = false;
             return plan;
         }
@@ -550,15 +529,8 @@ internal static class CollectionSync
             );
         }
 
-        // Order and membership evidence must be complete before anything
-        // mutates: every assigned AfterOrder key must resolve to a tracked
-        // survivor or an assigned addition, and every surviving tracked key
-        // needs an AfterOrder slot. A filtered Include (partial load) or a
-        // stale caller DTO fails here instead of syncing around unseen state.
-        // SoftDelete is the single exception on the survivor side: previously
-        // flagged rows stay tracked but leave the DTO projection, so their
-        // omission is tolerated and they are retained (PlanOrder appends
-        // them); anything else missing fails.
+        // Validate complete membership and order evidence before mutation; a
+        // partial or stale snapshot fails. Retain soft-deleted rows separately.
         var survivors = tracked.Keys.Where(key => !removedKeys.Contains(key)).ToList();
         var assignedAdds = plan
             .Added.Where(addition => addition.AssignedKey is not null)
@@ -581,10 +553,8 @@ internal static class CollectionSync
         var missing = survivors.Where(survivor => !afterSet.Contains(survivor)).ToList();
         if (missing.Count > 0)
         {
-            // SoftDelete tolerates only provably flagged rows: the predicate
-            // runs here during validation (it must be pure) and stale DTOs
-            // that omit an active child still fail. Anything else missing
-            // fails regardless of policy.
+            // The predicate runs here during validation (it must be pure) and
+            // stale DTOs that omit an active child still fail.
             var proven =
                 runtime.RemoveKind == SparseEntityRemoveKind.SoftDelete
                 && runtime.IsDeletedPredicate is not null

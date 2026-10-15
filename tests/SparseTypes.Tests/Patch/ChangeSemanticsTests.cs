@@ -114,7 +114,7 @@ public partial class ReadOnlySetTransitionModel
     public IReadOnlySet<string> Values { get; set; } = new HashSet<string>();
 }
 
-/// <summary>Pure <see cref="IReadOnlySet{T}"/> with comparer-aware membership (issue #166).</summary>
+/// <summary>Pure <see cref="IReadOnlySet{T}"/> with comparer-aware membership.</summary>
 /// <remarks>Implements only <c>IReadOnlySet&lt;string&gt;</c>, never <c>ISet&lt;string&gt;</c>.</remarks>
 public sealed class CaseInsensitiveReadOnlySet : IReadOnlySet<string>
 {
@@ -292,8 +292,7 @@ public sealed class ChangeSemanticsTests
     public void PureReadOnlySetHonorsCustomMembership()
     {
         // Manually built fragments retain the original comparer-aware sets.
-        // (Fragment.From normalizes exotic sets to ordinal HashSets, so the
-        // model-level Between cannot preserve a custom comparer.)
+        // (Fragment.From normalizes exotic sets to ordinal HashSets.
         static Optional<ReadOnlySetTransitionModel.Fragment?> State(IReadOnlySet<string> values) =>
             Optional<ReadOnlySetTransitionModel.Fragment?>.Present(
                 new ReadOnlySetTransitionModel.Fragment
@@ -302,9 +301,8 @@ public sealed class ChangeSemanticsTests
                 }
             );
 
-        // Mixed representations of the same logical set: empty changeset and
-        // no deltas. Without the IReadOnlySet membership check this reports a
-        // false removal against its own IsChanged.
+        // Mixed representations of the same logical set: empty changeset and no
+        // deltas.
         var mixed = ReadOnlySetTransitionModel.ChangeSet.Between(
             State(new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ABC" }),
             State(new CaseInsensitiveReadOnlySet(["abc"]))

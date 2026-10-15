@@ -96,9 +96,7 @@ internal sealed class SparseFragmentDeclarationEmitter(
     }
 
     /// <summary>Emits strategy caches trailing the public fragment surface.</summary>
-    /// <remarks>These stay internal as genuine cross-family seams: Patch and
-    /// ChangeSet cores read them as <c>Fragment.&lt;field&gt;</c> during merge,
-    /// rebase and equality. Same-family Fragment bodies use them directly.</remarks>
+    /// <remarks>Patch and ChangeSet read these fields; Fragment bodies use them directly.</remarks>
     /// <param name="code">Target builder.</param>
     /// <param name="members">Analyzed members.</param>
     /// <param name="mergeStrategy">Merge strategy base type.</param>

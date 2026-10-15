@@ -7,12 +7,8 @@ using WpfTextBox = System.Windows.Controls.TextBox;
 
 namespace SparseTypes.DesktopBinding.Tests;
 
-/// <summary>WPF smoke binding against the generated observable (issue #262).</summary>
-/// <remarks>
-/// Windows-only: other platforms return early and stay green, with the real
-/// verification owned by Windows legs. Every body runs on a dedicated STA
-/// thread because the runner itself is multithreaded.
-/// </remarks>
+/// <summary>WPF smoke binding against the generated observable.</summary>
+/// <remarks>Windows-only: other platforms return early and stay green, with the real verification owned by Windows legs.</remarks>
 public sealed class WpfBindingSmokeTests
 {
     private static DesktopOrder Order() =>

@@ -71,8 +71,7 @@ internal static class SparseFieldPathResolver
                     }
 
                     // Trailing entry segments validate resolvability while the
-                    // reported field stays the owning member, matching the
-                    // historical bracket spelling.
+                    // reported field stays the owning member.
                     current = ResolveKeyedValue(current, segment.Key, errorPath);
                     break;
                 case SparsePathSegmentKind.TemporaryKey:
@@ -110,8 +109,7 @@ internal static class SparseFieldPathResolver
         }
 
         // Key segments name stable entry identity (the EnumerateChanges
-        // spelling), never positions: even a numeric string key looks up key
-        // identity, while positions use index segments.
+        // spelling), never positions.
         if (collection is IList list)
         {
             return ResolveKeyedElement(list, GetSequenceElementType(collection), key, path);
@@ -203,10 +201,8 @@ internal static class SparseFieldPathResolver
 
         if (collection is IDictionary || TryGetReadOnlyDictionaryInterface(collection, out _))
         {
-            // Historical spelling accepts unquoted numerics as dictionary
-            // keys, so index segments fall back to invariant key text here.
-            // Positions stay list-only; dictionaries never gain positional
-            // identity from this fallback.
+            // Historical spelling accepts unquoted numerics as dictionary keys,
+            // so index segments fall back to invariant key text here.
             return ResolveKeyedValue(
                 collection,
                 index.ToString(CultureInfo.InvariantCulture),
@@ -286,8 +282,7 @@ internal static class SparseFieldPathResolver
 
     private static object ResolveTemporaryValue(object collection, Guid? temporaryKey, string path)
     {
-        // Temporary segments name unassigned-entry identity, never positions:
-        // the element is located through its SparseTemporaryKey member, so the
+        // The element is located through its SparseTemporaryKey member, so the
         // lookup follows row replacement exactly like the keyed lookup does.
         if (collection is string || temporaryKey is null)
         {

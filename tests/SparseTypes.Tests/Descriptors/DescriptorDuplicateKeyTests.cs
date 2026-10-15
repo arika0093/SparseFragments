@@ -61,7 +61,8 @@ public sealed class DescriptorDuplicateKeyTests
             .ShouldBeTrue();
         var array = items.Array.ShouldNotBeNull();
 
-        // Assigned duplicates are still rejected beside unassigned-absent lists.
+        // Assigned duplicates are still rejected beside unassigned-absent
+        // lists.
         array!.TryAdd(new AssignedServer { Id = 7, Name = "duplicate" }).ShouldBeFalse();
         model.Items.Count.ShouldBe(1);
 

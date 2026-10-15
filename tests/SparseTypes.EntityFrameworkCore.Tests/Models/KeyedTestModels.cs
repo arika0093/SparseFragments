@@ -466,11 +466,7 @@ public sealed class BatchEntity
 }
 
 /// <summary>Dependent with a mixed-nullability composite foreign key.</summary>
-/// <remarks>
-/// <c>Tenant</c> is nullable while <c>BatchNo</c> is not, and the relationship
-/// is explicitly optional. Per-property nullability inference would misread
-/// this as required; only <c>IForeignKey.IsRequired</c> is authoritative.
-/// </remarks>
+/// <remarks><c>Tenant</c> is nullable while <c>BatchNo</c> is not, and the relationship is explicitly optional.</remarks>
 public sealed class BatchLineEntity
 {
     /// <summary>Gets or sets the identity.</summary>

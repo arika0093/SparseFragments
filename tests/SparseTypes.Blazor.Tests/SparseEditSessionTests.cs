@@ -56,8 +56,8 @@ public sealed class SparseEditSessionTests
     [Test]
     public void GeneratedCreateEditSessionRequiresNoManualWiring()
     {
-        // Compile-time proof: the parameterless generated factory yields a session
-        // exposing both ChangeSet and Patch operations without reflection.
+        // The parameterless generated factory yields a session exposing both
+        // ChangeSet and Patch operations without reflection.
         var session = Order().CreateEditSession();
 
         OrderDto.ChangeSet changes = session.CreateChangeSet();
@@ -431,15 +431,14 @@ public sealed class SparseEditSessionTests
         var second = session.CreateChangeSet();
         second.IsEmpty.ShouldBeFalse();
 
-        // Applied to the ORIGINAL pre-accept baseline, Number must stay ORD-1:
-        // the second ChangeSet carries no Number change, proving its before-state
-        // is the accepted ORD-2 state rather than the stale ORD-1 baseline.
+        // Applied to the ORIGINAL pre-accept baseline, Number must stay ORD-1.
         var originalBaseline = Present(OrderDto.Fragment.From(Order()));
         var appliedToOriginal = second.ToPatch().Apply(originalBaseline);
         appliedToOriginal.Value!.Number.Value.ShouldBe("ORD-1");
         appliedToOriginal.Value!.Customer.Value!.Email.Value.ShouldBe("new@example.com");
 
-        // Applied to the accepted baseline, the patch reaches the current state.
+        // Applied to the accepted baseline, the patch reaches the current
+        // state.
         var acceptedBaseline = Present(
             OrderDto.Fragment.From(
                 new OrderDto
@@ -484,7 +483,8 @@ public sealed class SparseEditSessionTests
         Raw(session).Number = "ORD-2";
         var changes = session.CreateChangeSet();
 
-        // Disjoint authoritative update (adds a line); local scalar edit replays cleanly.
+        // Disjoint authoritative update (adds a line); local scalar edit
+        // replays cleanly.
         var authoritative = Present(
             OrderDto.Fragment.From(
                 new OrderDto
@@ -522,7 +522,8 @@ public sealed class SparseEditSessionTests
         merged.Value!.Number.Value.ShouldBe("ORD-2");
         merged.Value!.Lines.Value!.Select(line => line.Sku).ShouldBe(["a", "b", "c"]);
 
-        // No automatic live-model replacement: the session still owns its own model.
+        // No automatic live-model replacement: the session still owns its own
+        // model.
         Raw(session).Number.ShouldBe("ORD-2");
         Raw(session).Lines.Count.ShouldBe(2);
         session.HasChanges.ShouldBeTrue();
@@ -531,8 +532,8 @@ public sealed class SparseEditSessionTests
     [Test]
     public void EditSessionChangeSet_SerializeDeserialize_PreservesRebaseAndApplySemantics()
     {
-        // #87/#102: one representative end-to-end test over the typed payload
-        // serialization boundary, not the full #86 matrix.
+        // /: one representative end-to-end test over the typed payload
+        // serialization boundary, not the full  matrix.
         var session = Order().CreateEditSession();
         Raw(session).Number = "ORD-2";
         Raw(session).Customer.Email = "new@example.com";

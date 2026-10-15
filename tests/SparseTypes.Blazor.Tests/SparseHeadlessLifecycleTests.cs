@@ -6,10 +6,8 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace SparseTypes.Blazor.Tests;
 
-// Headless lifecycle for issue #271: session-owned history without extra
-// calls and across remounts, session swaps with fresh edit contexts, BatchEdit
-// coalescing, replacement/reorder/removal without stale writes or listener
-// leaks, and keyed/temporary-key/indexed navigation with collection state.
+// Headless lifecycle for session-owned history without extra calls and across
+// remounts.
 public sealed class SparseHeadlessLifecycleTests
 {
     private static OrderDto Order() =>
@@ -36,9 +34,7 @@ public sealed class SparseHeadlessLifecycleTests
 
     private static object SessionCore(object session)
     {
-        // Generated sessions forward PropertyChanged to a composed core; the
-        // wrapper itself carries no backing field, so listener accounting
-        // targets the core (the same white-box level as the cache tests).
+        // Generated sessions forward PropertyChanged to a composed core.
         for (var type = session.GetType(); type is not null; type = type.BaseType)
         {
             var field = type.GetField("_session", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -565,15 +561,15 @@ public sealed class SparseHeadlessLifecycleTests
         collectionHit.ShouldBeTrue();
         itemAdded.ShouldBeTrue();
 
-        // The context navigation builds the same segments as the generated builder.
+        // The context navigation builds the same segments as the generated
+        // builder.
         var draftsField = drafts.ShouldNotBeNull();
         draftsField
             .TemporaryKey(temporaryId, (BlazorDraftLine row) => row.Title)
             .ShouldBe(BlazorDraftBoard.SparsePath.Drafts.TemporaryKey(temporaryId).Title);
 
         // Collection-root fields report the default semantic state (member
-        // transitions cannot be boxed as the collection value); collection
-        // change info comes from the state view instead.
+        // transitions cannot be boxed as the collection value).
         draftsField.State.IsChanged.ShouldBeFalse();
 
         await tree.DispatchAsync(() => titleField.ValueChanged.InvokeAsync("draft v2"));
@@ -639,9 +635,8 @@ public sealed class SparseHeadlessLifecycleTests
 
         var quantity = field.ShouldNotBeNull();
         vendor.ShouldNotBeNull();
-        // Keyed paths expose no value expression: InputBase rejects a null
-        // expression, so the supported contract is value/callback plus
-        // explicit validation state.
+        // InputBase rejects a null expression, so the supported contract is
+        // value/callback plus explicit validation state.
         quantity.ValueExpression.ShouldBeNull();
         quantity.Value.ShouldBe(2);
 

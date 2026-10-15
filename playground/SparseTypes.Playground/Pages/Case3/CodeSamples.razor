@@ -24,7 +24,8 @@
         var after = new PlaygroundRoster { Quests = [ /* after quests */ ] };
 
         var changes = before.CreateChangeSet(after);
-        // Ordinary application code can use changes.ToPatch() to generate the patch.
+        // Ordinary application code can use changes.ToPatch() to generate the
+        // patch.
         var patch = changes.ToPatch();
         var quests = changes.Quests;
         // Contains keyed adds, removes, field edits, and the final order.
@@ -65,7 +66,8 @@
 
             Console.WriteLine($"add: [{string.Join(", ", added)}] | remove: [{string.Join(", ", removed)}] | edit: [{string.Join(", ", edited)}] | order: [{string.Join("→", order)}]");
         }
-        // Default Playground data: add: [d] | remove: [a] | edit: [b, c] | order: [b→c→d]
+        // Default Playground data: add: [d] | remove: [a] | edit: [b, c] |
+        // order: [b→c→d]
         """;
 
     private const string RosterApplyCode = """
@@ -74,6 +76,7 @@
             throw new InvalidOperationException("The changes could not be applied.");
         }
 
-        // updated holds ["b", "c", "d"]: "a" removed, "b" retitled, "c" rescored.
+        // updated holds ["b", "c", "d"]: "a" removed, "b" retitled, "c"
+        // rescored.
         """;
 }

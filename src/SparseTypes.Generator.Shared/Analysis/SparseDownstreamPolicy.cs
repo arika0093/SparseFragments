@@ -7,11 +7,7 @@ using System.Threading;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Transport disclosure for one member.</summary>
-/// <remarks>
-/// Redaction is a transport policy: in-memory <c>ChangeSet</c> values stay
-/// complete and baseline-aware, while the payload omits the undisclosed
-/// before-state. A redacted payload never reconstructs a <c>ChangeSet</c>.
-/// </remarks>
+/// <remarks>In-memory <c>ChangeSet</c> values stay complete and baseline-aware, while the payload omits the undisclosed before-state.</remarks>
 internal enum SparseMemberTransport
 {
     /// <summary>Before and after states travel together.</summary>
@@ -44,11 +40,7 @@ internal sealed record SparseMemberPolicy
 }
 
 /// <summary>How a redacted-before operation projects to baseline-free operations.</summary>
-/// <remarks>
-/// Passthrough applies the requested after-state without historical comparison,
-/// as for an explicit patch set. Strict failure refuses instead. This hook is
-/// intentionally narrow so the rebase-policy follow-up can extend it.
-/// </remarks>
+/// <remarks>Passthrough applies the requested after-state without historical comparison, as for an explicit patch set.</remarks>
 internal enum SparseRedactedBeforeBehavior
 {
     /// <summary>Project the requested after-state without historical comparison.</summary>
@@ -95,11 +87,7 @@ internal sealed record SparseWriteMember
 }
 
 /// <summary>Write command targeted separately from the read projection.</summary>
-/// <remarks>
-/// Shared never assumes the read and write shapes are the same CLR model.
-/// It projects sparse state into an existing write-command instance by mapped
-/// member names; construction and domain mapping stay downstream.
-/// </remarks>
+/// <remarks>Shared never assumes the read and write shapes are the same CLR model.</remarks>
 internal sealed record SparseWriteContract
 {
     public SparseWriteContract(
@@ -133,18 +121,11 @@ internal sealed record SparseWriteContract
 }
 
 /// <summary>Validation for the downstream emission plan.</summary>
-/// <remarks>
-/// Exposes plan <em>results</em>; diagnostics keep generator-specific IDs and
-/// are owned by each generator through <see cref="SparseGeneratorConfig"/>.
-/// </remarks>
+/// <remarks>Exposes plan <em>results</em>.</remarks>
 internal static class SparseDownstreamPolicy
 {
     /// <summary>Whether a member can carry a non-full transport policy.</summary>
-    /// <remarks>
-    /// Only scalar members qualify: nested members recurse through the child
-    /// model's own member names, and keyed or dictionary members keep full
-    /// disclosure until the mixed-operation follow-up defines their shape.
-    /// </remarks>
+    /// <remarks>Only scalar members qualify.</remarks>
     public static bool IsScalarMember(SparseMemberModel member) =>
         member.ChildModel is null && !SparseFragmentPatchEmitter.IsCollectionPatch(member);
 
@@ -239,11 +220,7 @@ internal static class SparseDownstreamPolicy
     }
 
     /// <summary>Validates the emission plan during analysis.</summary>
-    /// <remarks>
-    /// Checks feature dependencies, unknown policy names, non-scalar policies,
-    /// and generated-name collisions covering emitted families and declared
-    /// product names. Standalone defaults pass without extra configuration.
-    /// </remarks>
+    /// <remarks>Checks feature dependencies, unknown policy names.</remarks>
     public static void ValidateEmissionPlan(
         ImmutableArray<SparseMemberModel> members,
         SparseGeneratorConfig config,
@@ -284,9 +261,7 @@ internal static class SparseDownstreamPolicy
         }
 
         // Member collisions keep the historical reserved set and stay in the
-        // analyzer: names such as Observable are renamed gracefully during
-        // emission. Only product declarations are checked here, against the
-        // reserved names plus the emitted families they would shadow.
+        // analyzer.
         var productNames = config.EffectiveProductExtensionNames;
         var productCollision = productNames
             .Where(product => IsGeneratedName(product, config))

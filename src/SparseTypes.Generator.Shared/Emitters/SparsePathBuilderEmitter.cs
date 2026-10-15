@@ -4,14 +4,7 @@ using System.Linq;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Emits the model-aware fluent <c>SparsePath</c> navigation surface.</summary>
-/// <remarks>
-/// Each model gains a thin <c>T.SparsePath</c> entrypoint plus a generic
-/// <c>SparsePaths&lt;TRoot&gt;</c> root builder and per-member collection
-/// builders. Builders carry only navigation (no storage or helpers): leaves
-/// are compile-time typed paths, so wrong key, value, or root types fail at
-/// compile time on typed APIs. Navigation composes across models through the
-/// root-preserving generic parameter, which also keeps recursive models finite.
-/// </remarks>
+/// <remarks>Each model gains a thin <c>T.SparsePath</c> entrypoint plus a generic <c>SparsePaths&lt.</remarks>
 internal static class SparsePathBuilderEmitter
 {
     internal static void Append(

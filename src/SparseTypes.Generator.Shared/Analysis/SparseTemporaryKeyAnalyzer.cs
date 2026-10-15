@@ -9,13 +9,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Discovers and validates SparseTypes temporary-key metadata on element types.</summary>
-/// <remarks>
-/// A keyed element type may declare exactly one property marked with
-/// parameterless temporary-key attribute whose type is <c>Guid?</c>. The
-/// declaration is product-neutral: the attribute metadata name and diagnostic
-/// IDs come from <see cref="SparseGeneratorConfig"/>, and analysis stays
-/// disabled when the product provides no metadata name.
-/// </remarks>
+/// <remarks>A keyed element may mark one property with a temporary-key attribute.</remarks>
 internal static class SparseTemporaryKeyAnalyzer
 {
     /// <summary>Determines whether temporary-key analysis applies for the product.</summary>
@@ -39,21 +33,7 @@ internal static class SparseTemporaryKeyAnalyzer
     }
 
     /// <summary>Strictly discovers the usable temporary-key property of an element type, if any.</summary>
-    /// <remarks>
-    /// Returns <c>false</c> when analysis is disabled, when no valid
-    /// single-property declaration applies, when the declaration is
-    /// invalid, or when the element's key lacks unassigned semantics (a
-    /// temporary identity without an unassigned state can never activate).
-    /// An explicit property initializer only warns
-    /// (<c>TemporaryKeyInitializer</c>) and keeps the declaration usable.
-    /// Init-only setters are explicitly accepted: callers assign the identity
-    /// through object initializers or constructors, and generated code only
-    /// reads the value. Consumers that must assign post-construction (such as
-    /// the EF Core mapper's temporary-key setter delegate) guard
-    /// <c>IsInitOnly</c> separately instead of relying on this discovery.
-    /// Use <see cref="CollectDiagnostics"/> to report the corresponding
-    /// diagnostics.
-    /// </remarks>
+    /// <remarks>Returns <c>false</c> when analysis is disabled.</remarks>
     public static bool TryGetTemporaryKeyProperty(
         INamedTypeSymbol element,
         SparseGeneratorConfig config,
@@ -110,11 +90,7 @@ internal static class SparseTemporaryKeyAnalyzer
     }
 
     /// <summary>Collects temporary-key diagnostics for an element type.</summary>
-    /// <remarks>
-    /// Returns an empty array when analysis is disabled, when the element has
-    /// no temporary-key declaration at all, or when its single declaration is
-    /// fully valid (an initializer warning is still reported).
-    /// </remarks>
+    /// <remarks>Returns an empty array when analysis is disabled.</remarks>
     public static ImmutableArray<SparseGeneratorDiagnostic> CollectDiagnostics(
         INamedTypeSymbol element,
         SparseGeneratorConfig config,
@@ -223,9 +199,7 @@ internal static class SparseTemporaryKeyAnalyzer
 
             if (!HasUnassignedKeySemantics(element, config, cancellationToken))
             {
-                // Malformed keys already fail through key diagnostics; only a
-                // clean key without unassigned semantics rejects the temporary
-                // declaration here.
+                // Malformed keys already fail through key diagnostics.
                 if (
                     SparseKeyAnalyzer.CollectDiagnostics(element, config, cancellationToken).IsEmpty
                 )
@@ -244,9 +218,8 @@ internal static class SparseTemporaryKeyAnalyzer
                 continue;
             }
 
-            // Syntax-based warning only: legitimate assignments in
-            // constructors or object initializers stay valid. Any explicit
-            // declaration initializer (including = null or = default) warns.
+            // Syntax-based warning only: legitimate assignments in constructors
+            // or object initializers stay valid.
             if (HasExplicitInitializer(property, cancellationToken))
             {
                 diagnostics.Add(
@@ -272,9 +245,6 @@ internal static class SparseTemporaryKeyAnalyzer
     )
     {
         // A temporary identity only activates for unassigned permanent keys.
-        // Invalid key shapes already fail through key diagnostics; only a
-        // well-formed key without unassigned semantics rejects the temporary
-        // declaration here.
         if (
             !SparseKeyAnalyzer.TryGetSingleKeyUnassignedExpression(
                 element,
@@ -363,9 +333,8 @@ internal static class SparseTemporaryKeyAnalyzer
         && property.DeclaredAccessibility == Accessibility.Public
         && property.GetMethod?.DeclaredAccessibility == Accessibility.Public;
 
-    // Init-only setters are intentionally accepted here: the temporary identity
-    // is assigned at construction (object initializers) while generated code
-    // only reads it. Post-construction writers must check IsInitOnly themselves.
+    // The temporary identity is assigned at construction (object initializers)
+    // while generated code only reads it.
     private static bool HasPublicSetter(IPropertySymbol property) =>
         property.SetMethod?.DeclaredAccessibility == Accessibility.Public;
 

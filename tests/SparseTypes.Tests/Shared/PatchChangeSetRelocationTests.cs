@@ -6,14 +6,8 @@ using SparseTypes.Tests.Shared.RelocationWorld;
 
 namespace SparseTypes.Tests.Shared
 {
-    // Relocation contract for issue #194 (stage 4 of #176): model-specific
-    // Patch (apply, compose, invert, rebase and nested/keyed/dictionary
-    // operations) and ChangeSet (Between, Compose, Invert, Rebase, Apply,
-    // EnumerateChanges, projection and restoration) algorithms live in the
-    // external per-model operation container, while the model keeps ergonomic
-    // typed facades. Behavior tests below run against compile-time generated
-    // models in this assembly, so every law is exercised through the new
-    // facade/operations boundary; shape tests pin the split itself.
+    // Pin relocation of Patch and ChangeSet algorithms into the per-model
+    // operation container while preserving typed model facades.
     public sealed class PatchChangeSetRelocationTests
     {
         private static Dictionary<string, string> RunProbe()
@@ -96,9 +90,8 @@ namespace SparseTypes.Tests.Shared
                 )
             );
 
-            // Issue #230: state-bound bodies live in the private nested
-            // Patch.__Core / ChangeSet.__Core with direct private-state access.
-            // The implementation container keeps only public Builder/Paths.
+            // state-bound bodies live in the private nested Patch.__Core /
+            // ChangeSet.__Core with direct private-state access.
             surface.ShouldContain("partial class Patch");
             surface.ShouldContain("partial class ChangeSet");
             surface.ShouldContain("private static class __Core");
@@ -136,9 +129,8 @@ namespace SparseTypes.Tests.Shared
             surface.ShouldContain("public ChangeSet Compose(ChangeSet next)");
             surface.ShouldContain("EnumerateChanges()");
 
-            // Issue #230: facades delegate to the private nested __Core, which
-            // reads private state directly. Top-level Patch/ChangeSet bodies no
-            // longer live in an external operation container.
+            // facades delegate to the private nested __Core, which reads
+            // private state directly.
             surface.ShouldContain("__Core.");
             surface.ShouldContain("private static class __Core");
             surface.ShouldContain("ApplyMembers(Patch self");
@@ -164,7 +156,8 @@ namespace SparseTypes.Tests.Shared
             slot = FragmentOperation<string?>.Remove;
             patch.Title.Kind.ShouldBe(FragmentOperationKind.Remove);
 
-            // Lazy nested identity is preserved: repeated access aliases one patch.
+            // Lazy nested identity is preserved: repeated access aliases one
+            // patch.
             ReferenceEquals(patch.Child, patch.Child).ShouldBeTrue();
             patch.Child.Name = "nested";
             patch.Child.Name.Kind.ShouldBe(FragmentOperationKind.Set);
@@ -208,7 +201,8 @@ namespace SparseTypes.Tests.Shared
             roundTripped.Title.ShouldBe("b");
             roundTripped.Count.ShouldBe(2);
 
-            // Compose equivalence: sequential application equals composed application.
+            // Compose equivalence: sequential application equals composed
+            // application.
             var middle = Optional<Parent.Fragment?>.Present(
                 new Parent.Fragment
                 {
@@ -242,9 +236,7 @@ namespace SparseTypes.Tests.Shared
         [Test]
         public void ComposeNullFirstThrowsArgumentNullException()
         {
-            // Pin #194 "Maintain null/missing semantics": the relocated static
-            // Compose(first, second) must reject a null first argument instead
-            // of silently succeeding through the whole-replacement fast path.
+            // Pin "Maintain null/missing semantics".
             var before = Optional<Parent.Fragment?>.Present(
                 new Parent.Fragment { Title = Optional<string?>.Present("a") }
             );
@@ -273,7 +265,8 @@ namespace SparseTypes.Tests.Shared
             );
             var local = Parent.Patch.Between(basis, desired);
 
-            // Clean rebase onto an untouched concurrent state succeeds empty of conflicts.
+            // Clean rebase onto an untouched concurrent state succeeds empty of
+            // conflicts.
             var clean = Parent.Patch.Rebase(basis, local, basis);
             clean.Conflicts.ShouldBeEmpty();
 

@@ -24,16 +24,8 @@
         var session = model.CreateEditSession();
         session.EnableHistory(); // Opt-in session-owned history; the edit root only observes it.
 
-        // Razor context: `edit` exists only inside this SparseEdit subtree.
-        // <SparseEdit Session="@session" Context="edit">
-        //     <SparseField Path="edit.Path.RetryCount" Context="retryCount">
-        //         <FluentNumberInput TValue="int" @bind-Value="retryCount.Value" />
-        //     </SparseField>
-        //     <SparseField Path="edit.Path.Password" Context="password">
-        //         <input type="password" @bind="password.Value" />
-        //     </SparseField>
-        //     <button @onclick="() => Submit(edit)">Submit</button>
-        // </SparseEdit>
+        // `edit` is available only inside this SparseEdit subtree.
+        // Nested fields bind inputs to its typed paths.
 
         void Submit<TPaths>(SparseEditContext<PlaygroundSettings, TPaths> edit)
             where TPaths : ISparseTypedPath<PlaygroundSettings, PlaygroundSettings>
@@ -54,9 +46,7 @@
         """;
 
     private const string MonitorCode = """
-        // TransitionObserved is for custom observers such as logging. It
-        // works with or without a history; creating a history never
-        // requires subscribing here.
+        // TransitionObserved is for custom observers such as logging.
         session.TransitionObserved += transition =>
         {
             logger.LogInformation(
@@ -66,23 +56,19 @@
         // Unsubscribe with the owner lifetime.
         // session.TransitionObserved -= handler;
         
-        // Appearance-free refresh: the SparseEdit root cascades the session
-        // and re-renders its subtree once per session notification.
-        // <SparseEdit Session="@session" Context="edit"> ... </SparseEdit>
+        // Appearance-free refresh: the SparseEdit root cascades the session and
+        // re-renders its subtree once per session notification.
         """;
 
     private const string HistoryCode = """
         // Opt-in history: without EnableHistory the session retains nothing.
-        // Enabling subscribes the session-owned history automatically, so Undo
-        // and Redo work with no further wiring. Keep it as a field alongside
-        // the session.
         private ISparseEditHistory _history = null!;
 
         void Setup()
         {
             _history = session.EnableHistory();
-            // Bound retention: keep only the newest entries (default 50).
-            // _history = session.EnableHistory(new EditHistoryOptions { MaxEntries = 20 });
+            // Keep only the newest entries (default 50). _history =
+            // session.EnableHistory(new EditHistoryOptions { MaxEntries = 20
         }
 
         void ApplyPreset()
@@ -93,7 +79,8 @@
                 session.Observable.RetryCount = 8;
                 session.Observable.Label = "Batch preset";
             });
-            // The whole preset is one history entry, so one Undo restores every field.
+            // The whole preset is one history entry, so one Undo restores every
+            // field.
         }
 
         void Undo()
@@ -107,15 +94,13 @@
         }
 
         // The session owns the history: it unsubscribes and releases retention.
-        // Disable it with its owner, for example in the component Dispose method.
         public void Dispose()
         {
             session.DisableHistory();
         }
 
         // Accept/revert clear registered histories on success, so submit and
-        // reset need no manual stack handling. Replayed operations are never
-        // re-recorded, and BatchEdit stores one entry per action.
+        // reset need no manual stack handling.
         """;
 
     private const string RedactionCode = """
@@ -134,19 +119,21 @@
         var json = JsonSerializer.Serialize(payload);
         var imported = JsonSerializer.Deserialize<PlaygroundSettings.ChangePayload>(json)!;
 
-        // Redaction applies to the before-value in transport, not local models or complete local history.
-        // The after-value is transmitted. This is not encryption or credential storage.
-        // A redacted payload cannot reconstruct a complete ChangeSet through ToChangeSet() or FromPayload().
+        // Redaction applies to the before-value in transport, not local models
+        // or complete local history.
         var baselineFreePatch = imported.ToPatch();
         var blindUpdate = baselineFreePatch.ApplyTo(current);
 
-        // Use mixed apply when ordinary members still need rebase/conflict checks.
+        // Use mixed apply when ordinary members still need rebase/conflict
+        // checks.
         if (imported.TryApplyMixedTo(current, out var updated, out var result))
         {
-            // A conflict in an ordinary member commits none of the mixed changes.
+            // A conflict in an ordinary member commits none of the mixed
+            // changes.
         }
 
         var reversible = imported.InvertReversibleChanges(out var skipped);
-        // Write-only paths are omitted from the inverse and listed in skipped; this is not a full inverse.
+        // Write-only paths are omitted from the inverse and listed in skipped;
+        // this is not a full inverse.
         """;
 }

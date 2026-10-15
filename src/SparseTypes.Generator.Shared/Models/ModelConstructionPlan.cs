@@ -50,7 +50,7 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
                 }
 
                 // Computed key metadata (a getter-only [SparseKey] property) is
-                // identity, not construction state: it is extracted, never overlaid.
+                // identity, not construction state.
                 if (IsComputedKeyMetadata(property, config, cancellationToken))
                 {
                     continue;
@@ -76,7 +76,8 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
                     && SparsePromotedDiscovery.IsPartialType(pocoType, cancellationToken)
                 )
                 {
-                    // Computed getters are not construction state on partial POCOs.
+                    // Computed getters are not construction state on partial
+                    // POCOs.
                     continue;
                 }
 
@@ -109,17 +110,8 @@ internal readonly record struct ModelConstructionPlan(bool CanOverlayAfterConstr
         return false;
     }
 
-    /// <summary>
-    /// Determines whether a property is computed identity metadata rather than state.
-    /// </summary>
-    /// <remarks>
-    /// A getter-only <c>[SparseKey]</c> property (e.g.
-    /// <c>public (string TenantId, int Id) Key => (TenantId, Id)</c>) is
-    /// extracted for keyed collection identity and never constructed or
-    /// overlaid, so it must not mark the containing type as structurally
-    /// unsupported. Properties with any setter remain construction state and
-    /// keep the existing rules.
-    /// </remarks>
+    /// <summary>Determines whether a property is computed identity metadata rather than state.</summary>
+    /// <remarks>A getter-only <c>[SparseKey]</c> property (e.g.</remarks>
     private static bool IsComputedKeyMetadata(
         IPropertySymbol property,
         SparseGeneratorConfig config,

@@ -1,12 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Temporary-identity surface for keyed-sequence patches.</summary>
-/// <remarks>
-/// Temporary removals and edits need Guid-keyed operation logs because
-/// unassigned permanent keys collide. Adds already carry the identity as
-/// element data. All methods assume a tempkey member; callers branch on
-/// <see cref="SparseKeyedCollectionEmitter.HasTemporaryKey"/>.
-/// </remarks>
+/// <remarks>Temporary removals and edits need Guid-keyed operation logs because unassigned permanent keys collide.</remarks>
 internal static class SparseKeyedSequenceTempSurfaceEmitter
 {
     /// <summary>Emits temporary operation-log fields for a keyed patch.</summary>

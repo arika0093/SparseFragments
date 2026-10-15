@@ -9,12 +9,8 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace SparseTypes.Blazor.Tests;
 
-// Headless component behavior for issue #271: Session-only SparseEdit roots,
-// Path-only SparseField inference, third-party and InputBase wiring against
-// the original model, nested/keyed navigation, and session-owned history.
-// Razor generic inference itself is proven by the compile-only
-// SparseHeadless.razor package consumer; these trees use the same shapes
-// through the inference-preserving Headless fragment builders.
+// Verify headless field wiring, navigation, and session history.
+// Razor generic inference is covered by the SparseHeadless package consumer.
 public sealed class SparseHeadlessComponentTests
 {
     private static OrderDto Order() =>
@@ -138,7 +134,8 @@ public sealed class SparseHeadlessComponentTests
         changed.ShouldBeFalse();
         field!.ValueExpression.ShouldNotBeNull();
 
-        // Invoking the component callback is what a third-party input does on user input.
+        // Invoking the component callback is what a third-party input does on
+        // user input.
         await tree.DispatchAsync(() => vendor!.ValueChanged.InvokeAsync("ORD-2"));
         await tree.FlushAsync();
 
@@ -287,7 +284,8 @@ public sealed class SparseHeadlessComponentTests
                         captured =>
                             builder =>
                             {
-                                // Stale-safe display: removed rows report instead of throwing.
+                                // Stale-safe display: removed rows report
+                                // instead of throwing.
                                 if (captured.TryGetValue(out var value, out var error))
                                 {
                                     builder.AddContent(0, value);
@@ -359,8 +357,8 @@ public sealed class SparseHeadlessComponentTests
             )
         );
 
-        // Nested member access identifies its owner, exactly like a hand-written
-        // () => live.Customer.Name expression: the original nested instance.
+        // Nested member access identifies its owner, exactly like a
+        // hand-written () => live.Customer.Name expression.
         var nameField = nestedName.ShouldNotBeNull();
         var nameIdentifier = FieldIdentifier.Create(nameField.ValueExpression.ShouldNotBeNull());
         nameIdentifier.Model.ShouldBeSameAs(live.Customer);

@@ -3,15 +3,8 @@ using SparseTypes;
 
 namespace SparseTypes.Tests.Patch;
 
-/// <summary>Mixed redacted/write-only payload algebra over generated models (issue #119).</summary>
-/// <remarks>
-/// A member with a known before-state stays a baseline-aware transition while a
-/// member with a redacted before-state is an explicit write-only operation. The
-/// tests below pin the default: write-only members pass their requested
-/// after-state through without historical comparison or three-way rebase, normal
-/// members still validate and rebase, mixed application commits nothing on
-/// conflict, and rollback excludes write-only paths while reporting them.
-/// </remarks>
+/// <summary>Mixed redacted/write-only payload algebra over generated models.</summary>
+/// <remarks>Redacted before-states remain unavailable.</remarks>
 public sealed class MixedPayloadTests
 {
     private const string Secret = "s3cr3t-label-value";
@@ -96,8 +89,7 @@ public sealed class MixedPayloadTests
                 """{"version":"0.1","changes":[{"member":"Label","before":{"state":"redacted"},"after":{"state":"value","value":"{SECRET}"}}]}"""
             )
         );
-        // The current state shares no history with the payload; a baseline-aware
-        // transition could not be validated here, but the blind set still applies.
+        // The current state shares no history with the payload.
         var current = SettingsState("diverged", 7);
 
         var applied = payload.ToPatch().Apply(current);

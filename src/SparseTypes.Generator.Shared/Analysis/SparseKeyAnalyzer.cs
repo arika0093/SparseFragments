@@ -17,14 +17,7 @@ internal enum SparseKeyKind
 }
 
 /// <summary>Validated key metadata for a structural element type.</summary>
-/// <remarks>
-/// <see cref="PropertyNames"/> holds the single key property and
-/// <see cref="KeyTypeName"/> is the declared property type. The key type may
-/// itself be a tuple or value object for composite identity; comparison uses
-/// <c>EqualityComparer&lt;TKey&gt;.Default</c> on the whole key value.
-/// <see cref="TemporaryKeyProperty"/> holds the <c>Guid?</c> temporary-identity
-/// property when the element opts in, or null otherwise.
-/// </remarks>
+/// <remarks><see cref="PropertyNames"/> holds the single key property and <see cref="KeyTypeName"/> is the declared property type.</remarks>
 internal sealed record SparseKeyInfo(
     SparseKeyKind Kind,
     ImmutableArray<string> PropertyNames,
@@ -34,15 +27,7 @@ internal sealed record SparseKeyInfo(
 );
 
 /// <summary>Discovers and validates SparseTypes key metadata on element types.</summary>
-/// <remarks>
-/// Exactly one property marked with parameterless <c>[SparseKey]</c> declares
-/// the identity of a structural element type. Type-level <c>[SparseKey]</c>
-/// usage is invalid and reported as <c>SPF014</c>; the C# compiler additionally
-/// rejects it because the attribute only targets properties. Validation is
-/// strict: any invalid shape yields diagnostics and no key (callers must fail
-/// generation for the affected model rather than silently selecting another
-/// key source).
-/// </remarks>
+/// <remarks>Exactly one property marked with parameterless <c>[SparseKey]</c> declares the identity of a structural element type.</remarks>
 internal static class SparseKeyAnalyzer
 {
     /// <summary>Determines whether an element type declares any key metadata.</summary>
@@ -58,12 +43,7 @@ internal static class SparseKeyAnalyzer
     }
 
     /// <summary>Strictly discovers the usable key of an element type, if any.</summary>
-    /// <remarks>
-    /// Returns <c>false</c> when no valid single-property key applies or when
-    /// the declaration is invalid (multiple marks, type-level usage, bad
-    /// shapes, unusable key types). Use <see cref="CollectDiagnostics"/> to
-    /// report the corresponding diagnostics.
-    /// </remarks>
+    /// <remarks>Returns <c>false</c> when no valid single-property key applies or when the declaration is invalid (multiple marks.</remarks>
     public static bool TryGetKeyInfo(
         INamedTypeSymbol element,
         SparseGeneratorConfig config,
@@ -116,13 +96,7 @@ internal static class SparseKeyAnalyzer
     }
 
     /// <summary>Collects key-shape diagnostics for an element type.</summary>
-    /// <remarks>
-    /// Returns an empty array when the element has no key declaration at all
-    /// (callers then report the configured unkeyed-sequence diagnostic for
-    /// structural sequences) or when its single property key is fully valid.
-    /// Any invalid shape yields one or more configured key-shape diagnostics
-    /// and no key.
-    /// </remarks>
+    /// <remarks>No diagnostics are returned when no key is declared.</remarks>
     public static ImmutableArray<SparseGeneratorDiagnostic> CollectDiagnostics(
         INamedTypeSymbol element,
         SparseGeneratorConfig config,
@@ -234,16 +208,8 @@ internal static class SparseKeyAnalyzer
         return diagnostics.ToImmutable();
     }
 
-    /// <summary>
-    /// Validates keys for keyed-sequence candidates reachable from root members (root
-    /// members plus transitively promoted nested models) and returns diagnostics that
-    /// must fail generation of the analyzed root.
-    /// </summary>
-    /// <remarks>
-    /// The generic unkeyed-sequence diagnostic is still owned by
-    /// <see cref="SparseModelDiagnostics"/> for root members; this helper only reports
-    /// specific key-shape errors so callers can prefer them.
-    /// </remarks>
+    /// <summary>Validates keys on keyed sequences reachable from a root and returns diagnostics that fail generation.</summary>
+    /// <remarks>The generic unkeyed-sequence diagnostic is still owned by <see cref="SparseModelDiagnostics"/> for root members.</remarks>
     public static ImmutableArray<SparseGeneratorDiagnostic> CollectNestedKeyDiagnostics(
         ImmutableArray<SparseSymbolMemberModel> rootMembers,
         SparseGeneratorConfig config,
@@ -332,12 +298,7 @@ internal static class SparseKeyAnalyzer
     }
 
     /// <summary>Determines whether a member is a keyed-sequence candidate needing a key.</summary>
-    /// <remarks>
-    /// Mirrors the escape-hatch rule of
-    /// <see cref="SparseCollectionAnalyzer.IsUnkeyedStructuralSequence"/>: explicit
-    /// <c>Append</c>/<c>SetUnion</c>/<c>Custom</c> merge modes and explicitly
-    /// selected <c>Replace</c> keep whole-collection semantics without a key.
-    /// </remarks>
+    /// <remarks>Honors the unkeyed-sequence escape hatch.</remarks>
     public static bool RequiresKeyedSemantics(
         SparseSymbolMemberModel member,
         SparseGeneratorConfig config,
@@ -362,13 +323,7 @@ internal static class SparseKeyAnalyzer
     }
 
     /// <summary>Discovers the unassigned sentinel of a single key declaration, if any.</summary>
-    /// <remarks>
-    /// Returns <c>false</c> when the element lacks exactly one key mark or when
-    /// its sentinel is invalid (key-shape diagnostics cover those cases).
-    /// A <c>true</c> result carries the sentinel expression, or null when the
-    /// key has no unassigned semantics. Temporary-identity validation uses this
-    /// without recursing into full key analysis.
-    /// </remarks>
+    /// <remarks>Returns the sentinel expression when one is declared.</remarks>
     internal static bool TryGetSingleKeyUnassignedExpression(
         INamedTypeSymbol element,
         SparseGeneratorConfig config,
@@ -659,8 +614,7 @@ internal static class SparseKeyAnalyzer
     )
     {
         // Temporary identity is advisory here: shape diagnostics belong to
-        // SparseTemporaryKeyAnalyzer. Only a fully valid declaration flows
-        // into keyed emission; anything else behaves as if absent.
+        // SparseTemporaryKeyAnalyzer.
         if (
             SparseTemporaryKeyAnalyzer.TryGetTemporaryKeyProperty(
                 element,
@@ -685,13 +639,8 @@ internal static class SparseKeyAnalyzer
 
     private static string NonNullableTypeName(ITypeSymbol type)
     {
-        // Mirror the extraction operator: the generated key reader appends the
-        // null-forgiving operator, which turns string? into string but leaves
-        // Nullable<T> (including nullable tuples) untouched. Only a top-level
-        // reference-type annotation is dropped; nested and value-type
-        // annotations stay so the generated key type matches the property.
-        // TypeFormat renders nested nullability, which FullyQualifiedFormat
-        // omits; without it tuple element annotations would be lost.
+        // Match the generated null-forgiving key reader: drop only top-level
+        // reference nullability, preserving nested and value-type annotations.
         var text = type.ToDisplayString(SparseNaming.TypeFormat);
         if (type.IsReferenceType && text.EndsWith("?", StringComparison.Ordinal))
         {

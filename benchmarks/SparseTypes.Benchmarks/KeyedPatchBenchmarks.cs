@@ -35,35 +35,8 @@ public partial class BenchKeyedGroupHolder
     public List<BenchKeyedGroup> Groups { get; set; } = new();
 }
 
-/// <summary>
-/// Keyed structural sequence patch-algebra benchmarks (issue #56).
-/// Covers scalar-payload elements (<see cref="BenchKeyedServer"/>) and
-/// structural-payload elements with nested keyed collections
-/// (<see cref="BenchKeyedGroup"/> via <see cref="BenchKeyedGroupHolder"/>)
-/// at sizes 16 / 256 / 2048: no-op, 1 edit, many edits, add, remove, mixed,
-/// reorder-only, reorder+content, plus <c>Between</c>, <c>Apply</c>,
-/// <c>Compose</c>, <c>Invert</c>, and clean / already-applied / conflicting
-/// <c>Rebase</c>.
-/// </summary>
-/// <remarks>
-/// Expected asymptotics (N = collection size, K = touched keys):
-/// <list type="bullet">
-/// <item><c>Between</c>: O(N) — one pass builds the before/after key maps plus
-/// the after-order list; removed/added/edited derivation is O(N); the final
-/// order comparison is O(N). An 8x size step must scale ~8x, never ~64x.</item>
-/// <item><c>Apply</c>: O(N + K) — one map build over the source plus O(1) edits
-/// per touched key; result materialization is a single pass.</item>
-/// <item><c>Compose</c>: O(K1 + K2) in the touched keys — net add/remove/edit
-/// maps are dictionary-indexed; order filtering is linear in the order lists.</item>
-/// <item><c>Invert</c>: same as <c>Between</c> (implemented as
-/// <c>Between(Apply(baseline), baseline)</c>).</item>
-/// <item><c>Rebase</c>: O(N + K) — base/current/desired maps are built once and
-/// locally touched keys are pre-indexed into comparer-correct sets/maps, so
-/// per-key merge decisions are O(1). The pre-index fix in the generated keyed
-/// rebase removes the former O(N x K) <c>Exists</c> scans over the local
-/// added/removed lists.</item>
-/// </list>
-/// </remarks>
+/// <summary>Keyed structural sequence patch-algebra benchmarks.</summary>
+/// <remarks>Expected asymptotics (N = collection size, K = touched keys).</remarks>
 [MemoryDiagnoser]
 public class KeyedPatchBenchmarks
 {
@@ -546,14 +519,7 @@ public class KeyedPatchBenchmarks
         );
 }
 
-/// <summary>
-/// Keyed rebase benchmarks with independent total size N and touched-key count K
-/// (issue #56). The local patch edits exactly K distinct keys while the
-/// collection holds N elements, so a regression from O(N + K) toward O(N x K)
-/// shows up when K grows at fixed N (1 -&gt; 8 -&gt; 64 at N=2048 must stay
-/// ~flat, never ~64x) and when N grows at fixed K (8x N step must scale ~8x).
-/// Touched counts larger than N are clamped to N.
-/// </summary>
+/// <summary>Measures keyed rebase cost across collection sizes and touched-key counts.</summary>
 [MemoryDiagnoser]
 public class KeyedRebaseBenchmarks
 {

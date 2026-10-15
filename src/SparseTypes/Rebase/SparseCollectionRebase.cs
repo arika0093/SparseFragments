@@ -6,9 +6,7 @@ namespace SparseTypes;
 /// <summary>Domain-neutral collection rebase rules shared by generated append and set-union members.</summary>
 internal static class SparseCollectionRebase
 {
-    /// <summary>
-    /// Reapplies an append edit (a suffix of added elements) onto a newer collection, or reports why it cannot.
-    /// </summary>
+    /// <summary>Reapplies an append edit (a suffix of added elements) onto a newer collection, or reports why it cannot.</summary>
     /// <param name="before">The baseline collection.</param>
     /// <param name="desired">The locally edited collection.</param>
     /// <param name="current">The newer collection.</param>

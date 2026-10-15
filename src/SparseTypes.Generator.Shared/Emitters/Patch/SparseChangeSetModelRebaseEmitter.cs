@@ -1,11 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Model-targeted rebase entry point for generated change sets.</summary>
-/// <remarks>
-/// Split from <see cref="SparseChangeSetRebaseEmitter"/> to keep emitter
-/// files focused: the ordinary-model overload delegates to the
-/// presence-aware core while the facade keeps the ergonomic signature.
-/// </remarks>
+/// <remarks>The ordinary-model overload delegates to the presence-aware core while the facade keeps the ergonomic signature.</remarks>
 internal static class SparseChangeSetModelRebaseEmitter
 {
     internal static void AppendModelRebase(

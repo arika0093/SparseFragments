@@ -5,17 +5,7 @@ using SparseTypes.Generator.Shared;
 
 namespace PackageShared.Generator;
 
-/// <summary>
-/// Package-only downstream generator probe (#70).
-/// Exercises representative Shared categories so a missing Shared source file
-/// fails compilation: model/collection analysis, IR/model types, naming
-/// infrastructure, emitter/helpers, and the downstream policy/config surface
-/// (#121: feature selection, member transport and rebase policies, write
-/// contracts). All Shared sources arrive via the
-/// SparseTypes.Generator.Shared NuGet package (contentFiles +
-/// build/SparseTypes.Generator.Shared.props); there is no sibling-source
-/// fallback in PackageShared.Generator.csproj.
-/// </summary>
+/// <summary>Package-only downstream generator probe.</summary>
 [Generator]
 public sealed class ProbeGenerator : IIncrementalGenerator
 {
@@ -86,8 +76,8 @@ internal static class ProbeSurface
             "global::System.String"
         );
 
-        // Shared model/collection analysis (Analysis/). Referencing the analyzer
-        // types proves their sources were compiled from the package.
+        // Shared model/collection analysis (Analysis/). Referencing the
+        // analyzer types proves their sources were compiled from the package.
         var analysisTypes = new[]
         {
             typeof(SparseCollectionAnalyzer),
@@ -96,10 +86,7 @@ internal static class ProbeSurface
             typeof(SparseMergeValidation),
         };
 
-        // Rebase policy surface (Emitters/Patch/, Analysis/). Referencing the
-        // options/policy emitters and the rebase field default proves a
-        // downstream generator can configure rebase semantics from the package
-        // without a SparseTypes runtime reference.
+        // Rebase policy surface (Emitters/Patch/, Analysis/).
         var rebaseTypes = new[]
         {
             typeof(SparseRebaseOptionEmitter),
@@ -108,9 +95,8 @@ internal static class ProbeSurface
         };
         var rebaseFieldPrefix = SparseWellKnownNames.RebasePolicyFieldPrefix;
 
-        // Downstream product contract (issue #121): feature selection, member
-        // transport and rebase policies, and write contracts. Touching these
-        // types keeps the probe covering the policy/config surface.
+        // Downstream product contract: feature selection, member transport and
+        // rebase policies, and write contracts.
         var features = SparseEmissionFeatures.Standalone;
         var transport = SparseMemberTransport.RedactedBefore;
         var memberPolicy = new SparseMemberPolicy("Secret", transport);

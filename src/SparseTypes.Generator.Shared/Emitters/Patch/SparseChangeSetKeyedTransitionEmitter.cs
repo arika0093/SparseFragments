@@ -63,7 +63,8 @@ internal static class SparseChangeSetKeyedTransitionEmitter
                 + SparseChangeSetContractEmitter.KeyedBases(dialect, member)
         );
         code.AppendLineAt(2, "{");
-        // Public surface first, then the internal constructor, then private storage.
+        // Public surface first, then the internal constructor, then private
+        // storage.
         code.AppendLineAt(
             3,
             "/// <summary>Gets whether this transition contains no changes.</summary>"
@@ -350,8 +351,7 @@ internal static class SparseChangeSetKeyedTransitionEmitter
         if (target is not null)
         {
             // Projection algorithms move into the change-set operation
-            // container; the typed shell above stays on the facade. The key
-            // extractor is only used by the build helper, so it moves along.
+            // container; the typed shell above stays on the facade.
             code = target.ChangeSetOperations;
             code.AppendLineAt(
                 2,
@@ -398,8 +398,8 @@ internal static class SparseChangeSetKeyedTransitionEmitter
 
     internal static string KeyOfBody(SparseMemberModel member)
     {
-        // Single-property keys only: the key type is the declared property type,
-        // which may itself be a tuple or value object for composite identity.
+        // The key type is the declared property type, which may itself be a
+        // tuple or value object for composite identity.
         var keys = member.Collection.KeyPropertyNames;
         if (keys.Length == 1)
             return "return element."

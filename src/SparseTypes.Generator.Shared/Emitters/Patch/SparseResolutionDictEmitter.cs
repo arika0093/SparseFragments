@@ -3,7 +3,7 @@ using static SparseTypes.Generator.Shared.SparseChangeSetBasicsEmitter;
 
 namespace SparseTypes.Generator.Shared;
 
-/// <summary>Dictionary branches of the resolution fragment applier (issue #203).</summary>
+/// <summary>Dictionary branches of the resolution fragment applier.</summary>
 internal static class SparseResolutionDictEmitter
 {
     internal static void AppendDictBranch(
@@ -162,7 +162,8 @@ internal static class SparseResolutionDictEmitter
         );
         body.AppendLineAt(5, "return false;");
         body.AppendLineAt(4, "}");
-        // Typed lookup honors the dictionary comparer; no display-text fallback.
+        // Typed lookup honors the dictionary comparer; no display-text
+        // fallback.
         body.AppendLineAt(
             4,
             "var found" + id + " = editable" + id + ".TryGetValue(dictKey" + id + ", out _);"

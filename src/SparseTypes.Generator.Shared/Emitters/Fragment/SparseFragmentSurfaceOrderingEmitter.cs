@@ -4,12 +4,7 @@ using System.Linq;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Orders split-mode Fragment surface public-first.</summary>
-/// <remarks>
-/// Extracted from <c>SparseFragmentEmitter</c> to keep that file under the
-/// size guideline; it owns only the public-first assembly of the Fragment
-/// facade (public tail, internal bridges, private constructor and JSON
-/// shell) with no semantic changes.
-/// </remarks>
+/// <remarks>Extracted from <c>SparseFragmentEmitter</c> to keep that file under the size guideline.</remarks>
 internal static class SparseFragmentSurfaceOrderingEmitter
 {
     /// <summary>Emits the split-mode public fragment tail after Diff.</summary>
@@ -58,7 +53,7 @@ internal static class SparseFragmentSurfaceOrderingEmitter
         code.AppendLineAt(2, "/// <returns>The seeded builder.</returns>");
         code.AppendLineAt(2, "public FragmentBuilder ToBuilder() => new(this);");
         // JSON converters need both the requested family and a compatible
-        // probed compilation surface (issues #242/#243).
+        // probed compilation surface.
         if (features.EmitJsonConverters && patchDialect.EmitJson)
         {
             if (
@@ -94,11 +89,7 @@ internal static class SparseFragmentSurfaceOrderingEmitter
     }
 
     /// <summary>Emits split-mode Fragment surface in public-first order.</summary>
-    /// <remarks>
-    /// Facade overloads keep public members ahead of internal bridges; member
-    /// caches, equality helpers and the private projection constructor trail
-    /// the public tail, with the private JSON shell last.
-    /// </remarks>
+    /// <remarks>Facade overloads keep public members ahead of internal bridges.</remarks>
     internal static void AppendFragmentSplitSurface(
         SharedIndentedBuilder code,
         string modelType,
@@ -193,7 +184,8 @@ internal static class SparseFragmentSurfaceOrderingEmitter
             AppendWritableMemberWriter(code, modelType, writableMembersSplit);
         }
 
-        // Private group trails internal helpers: projection constructor then JSON shell.
+        // Private group trails internal helpers: projection constructor then
+        // JSON shell.
         core.AppendFragmentClonePrivateCtor(code, members);
         if (
             features.EmitJsonConverters
@@ -390,9 +382,8 @@ internal static class SparseFragmentSurfaceOrderingEmitter
             string equality;
             if (member.Property.IsTemporaryKey)
             {
-                // Temporary identity is correlation metadata, not business value:
-                // assigned-key precedence already scopes it out of identity, so
-                // differing remnants (or a later null) never compare as edits.
+                // Temporary identity is correlation metadata, not business
+                // value.
                 equality = "true";
             }
             else if (member.ChildModel is not null)

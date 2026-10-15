@@ -1,15 +1,5 @@
 #!/usr/bin/env bash
-# Verifies the packed SparseTypes NuGet package as users consume it (#11).
-#
-# Builds and runs tests/fixtures/consumers/package-sparse against the packed
-# packages via a local feed: the fixture resolves SparseTypes from
-# RestoreAdditionalProjectSources instead of falling back to ProjectReference,
-# for net8.0 and net10.0, and must reach its success marker. It also builds
-# tests/fixtures/consumers/package-sparse-netstandard, a netstandard2.0 class
-# library covering the lowest shipped TFM (#27): build-only, since
-# netstandard2.0 has no runnable host, so compilation success is the gate.
-#
-# Usage: verify-package-sparse-consumer.sh <package-directory>
+# Verifies the packed SparseTypes NuGet package as users consume it.
 set -euo pipefail
 
 package_directory="${1:-}"
@@ -28,7 +18,7 @@ if [[ ! -f "${fixture_csproj}" ]]; then
 fi
 
 # The core glob pins the version digit so the Blazor package
-# (SparseTypes.Blazor.*.nupkg, #46) never resolves here.
+# (SparseTypes.Blazor.*.nupkg, ) never resolves here.
 package="$(ls "${package_directory}"/SparseTypes.[0-9]*.nupkg 2>/dev/null | head -n 1 || true)"
 if [[ -z "${package}" ]]; then
     echo "No SparseTypes package found in '${package_directory}'." >&2
@@ -41,10 +31,7 @@ if [[ -z "${version}" ]]; then
 fi
 feed="$(realpath "${package_directory}")"
 
-# Isolated restore (#79): restore into a fresh global-packages directory so a
-# stale same-version entry in ~/.nuget/packages cannot satisfy restore without
-# proving the fresh nupkg is consumable. External feeds stay available; the
-# local feed is appended via RestoreAdditionalProjectSources.
+# Use a fresh cache to avoid stale packages with the same version.
 isolated_packages="$(mktemp -d)"
 trap 'rm -rf "${isolated_packages}"' EXIT
 if command -v cygpath >/dev/null 2>&1; then
@@ -95,11 +82,8 @@ dotnet build "${netstandard_csproj}" \
     -p:RestoreAdditionalProjectSources="${feed}"
 assert_candidate_resolved "tests/fixtures/consumers/package-sparse-netstandard/obj/project.assets.json"
 
-# Serializer-free consumer (issues #242/#243): a netstandard2.0 class library
-# with no System.Text.Json reference. Compilation success is the gate: the
-# netstandard2.0 targeting pack ships no System.Text.Json, so any generated
-# JSON token fails the build. The fixture sources and the restore closure must
-# both stay free of System.Text.Json.
+# Compile a netstandard2.0 consumer without System.Text.Json.
+# Any generated JSON dependency must fail this build.
 nojson_dir="tests/fixtures/consumers/package-sparse-nojson"
 nojson_csproj="${nojson_dir}/PackageSparse.NoJson.Consumer.csproj"
 if [[ ! -f "${nojson_csproj}" ]]; then

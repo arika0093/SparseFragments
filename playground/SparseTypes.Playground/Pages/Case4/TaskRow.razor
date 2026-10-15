@@ -58,8 +58,7 @@
     public TaskObservable Task { get; set; } = null!;
 
     // Render-scoped row snapshot captured once by the parent list, so rows
-    // share one collection view instead of diffing per row. Field highlights
-    // come from each SparseField's own render-scoped state above.
+    // share one collection view instead of diffing per row.
     [Parameter, EditorRequired]
     public SparseCollectionItemState RowState { get; set; }
 
@@ -72,8 +71,7 @@
     private int Index => Session.Observable.Tasks.IndexOf(Task);
 
     // Row highlights reuse the canonical keyed semantics instead of a
-    // hand-rolled baseline map: added rows report IsAdded, surviving rows
-    // report IsReordered on relative-rank changes.
+    // hand-rolled baseline map.
     private string RowClass =>
         RowState.IsAdded
             ? "pg-roster-row pg-added"
@@ -83,10 +81,8 @@
 
     protected override void OnParametersSet()
     {
-        // Identity edits are keyed, not positional: only the id draft tracks
-        // the row, and only across row identity changes so in-progress typing
-        // survives re-renders. Title/Points bindings live in the SparseField
-        // components above, which rebind when the keyed path changes.
+        // Only the id draft tracks the row, and only across row identity
+        // changes so in-progress typing survives re-renders.
         if (!ReferenceEquals(_lastTask, Task) || !string.Equals(_lastBoundId, Task.Id, StringComparison.Ordinal))
         {
             _lastTask = Task;
@@ -148,8 +144,7 @@
     private async Task RemoveTask()
     {
         // Keyed removal resolves the live position per call, so a row kept
-        // across a reorder still removes itself. Unknown keys are stale rows
-        // and stay silent, matching the previous index-based guard.
+        // across a reorder still removes itself.
         var editor = Session.EditCollection<PlaygroundTask, string>(
             PlaygroundSettings.SparsePath.Tasks
         );
@@ -179,8 +174,6 @@
         }
 
         // Keyed move keeps one batched reorder instead of remove/insert.
-        // Stale identity cannot occur here on the UI thread, so a failure
-        // would only mean the row vanished between lookup and move.
         editor.TryMoveByKey(Task.Id, target, out _);
     }
 }

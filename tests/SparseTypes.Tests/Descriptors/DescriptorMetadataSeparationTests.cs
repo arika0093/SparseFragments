@@ -29,7 +29,7 @@ public partial class MetadataSeparationModel
     public Dictionary<string, int> Scores { get; set; } = [];
 }
 
-/// <summary>Static/instance/change-access separation regressions (issue #185).</summary>
+/// <summary>Static/instance/change-access separation regressions.</summary>
 public sealed class DescriptorMetadataSeparationTests
 {
     [Test]
@@ -134,9 +134,8 @@ public sealed class DescriptorMetadataSeparationTests
         var current = new MetadataSeparationModel { Name = "after" };
         var changes = baseline.CreateChangeSet(current);
 
-        // Merge-time seam (#176 DescriptorFactory): per-model ChangeInfo
-        // entries project into the model-independent record contract. Numeric
-        // kinds align (Changed=0, Added=1, Removed=2, Order=3); no reflection.
+        // Merge-time seam ( DescriptorFactory): per-model ChangeInfo entries
+        // project into the model-independent record contract.
         var records = changes
             .EnumerateChanges()
             .Select(entry => new SparseChangeRecord(

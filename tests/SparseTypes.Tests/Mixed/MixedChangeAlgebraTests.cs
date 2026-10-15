@@ -2,12 +2,8 @@ using SparseTypes;
 
 namespace SparseTypes.Tests.Mixed;
 
-/// <summary>Mixed-operation descriptor algebra (issue #119).</summary>
-/// <remarks>
-/// Table-driven proof of the deterministic composition, rollback, and projection
-/// rules. Descriptors carry paths only, so these tests also pin the secrecy
-/// boundary: no rule consumes or produces secret values.
-/// </remarks>
+/// <summary>Mixed-operation descriptor algebra.</summary>
+/// <remarks>Table-driven proof of the deterministic composition, rollback, and projection rules.</remarks>
 public sealed class MixedChangeAlgebraTests
 {
     private static MixedMemberOperation Transition(
@@ -36,7 +32,8 @@ public sealed class MixedChangeAlgebraTests
             MixedAfterKind.Value,
             true
         ),
-        // Transition then blind set keeps the real baseline without further checks.
+        // Transition then blind set keeps the real baseline without further
+        // checks.
         (
             Transition("Label"),
             Blind("Label"),
@@ -58,7 +55,8 @@ public sealed class MixedChangeAlgebraTests
             MixedAfterKind.Missing,
             false
         ),
-        // Blind set then transition stays blind and still needs a value-level check.
+        // Blind set then transition stays blind and still needs a value-level
+        // check.
         (
             Blind("Label"),
             Transition("Label"),
@@ -73,7 +71,8 @@ public sealed class MixedChangeAlgebraTests
             MixedAfterKind.Missing,
             true
         ),
-        // Blind set then blind set stays blind, including null and removal vocabulary.
+        // Blind set then blind set stays blind, including null and removal
+        // vocabulary.
         (Blind("Label"), Blind("Label"), MixedHistoryKind.BlindSet, MixedAfterKind.Value, false),
         (
             Blind("Label"),
@@ -170,7 +169,8 @@ public sealed class MixedChangeAlgebraTests
         overwrite.ResultHistory.ShouldBe(MixedHistoryKind.BlindSet);
         overwrite.RequiresContinuityCheck.ShouldBeFalse();
 
-        // A leading blind whole-root set absorbs memberwise operations that follow.
+        // A leading blind whole-root set absorbs memberwise operations that
+        // follow.
         var absorb = MixedChangeAlgebra.Compose(wholeBlind, Blind("Label", MixedAfterKind.Missing));
         absorb.Succeeded.ShouldBeTrue();
         absorb.ResultIsWholeRoot.ShouldBeTrue();
@@ -183,13 +183,15 @@ public sealed class MixedChangeAlgebraTests
         wholeThenWhole.Succeeded.ShouldBeTrue();
         wholeThenWhole.ResultIsWholeRoot.ShouldBeTrue();
 
-        // Whole-root transitions keep history but still need value-level checks.
+        // Whole-root transitions keep history but still need value-level
+        // checks.
         var wholeContinuity = MixedChangeAlgebra.Compose(wholeTransition, wholeTransition);
         wholeContinuity.Succeeded.ShouldBeTrue();
         wholeContinuity.ResultHistory.ShouldBe(MixedHistoryKind.Transition);
         wholeContinuity.RequiresContinuityCheck.ShouldBeTrue();
 
-        // Memberwise then whole-root transition regains history from the real baseline.
+        // Memberwise then whole-root transition regains history from the real
+        // baseline.
         var regain = MixedChangeAlgebra.Compose(Blind("Label"), wholeTransition);
         regain.Succeeded.ShouldBeTrue();
         regain.ResultIsWholeRoot.ShouldBeTrue();
@@ -210,7 +212,8 @@ public sealed class MixedChangeAlgebraTests
         {
             // Disjoint nested leaf under a shared parent.
             Transition("Nested.Port"),
-            // Overlapping blind path: blind then transition stays blind with a check.
+            // Overlapping blind path: blind then transition stays blind with a
+            // check.
             Transition("Secret", MixedAfterKind.Null),
             // Disjoint keyed and dictionary edits.
             Blind("Items"),

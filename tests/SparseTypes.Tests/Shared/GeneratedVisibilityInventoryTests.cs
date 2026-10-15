@@ -4,14 +4,8 @@ using SparseTypes.Generator;
 
 namespace SparseTypes.Tests.Shared;
 
-// Roslyn symbol-based inventory for issue #230: locks down the model-facing
-// public/internal surface and detects newly leaked internal helpers.
-// Grouping: model-facing root (Fragment/Patch/ChangeSet/Observable), nested
-// family (transitions, collection patches, __Core), per-model implementation
-// container (Builder/Paths only), Generated-Once (internal BCL helpers).
-// Remaining internal bridges are narrow cross-boundary seams with documented
-// call sites (see remarks on each assertion). Payload DTOs stay public per
-// the documented E1 exception (trimming/source-generation).
+// Inventory the generated public/internal surface and detect leaked helpers.
+// Payload DTOs remain public for trimming and source generation.
 public sealed class GeneratedVisibilityInventoryTests
 {
     private const string ProbeSource = """
@@ -88,8 +82,7 @@ public sealed class GeneratedVisibilityInventoryTests
     private static string EffectiveAccessibility(ISymbol symbol)
     {
         // Effective visibility: a member inside a private nested type never
-        // escapes the facade, even when declared internal. Only members whose
-        // entire containing chain is public/internal are assembly-visible.
+        // escapes the facade, even when declared internal.
         var current = symbol;
         var effective = symbol.DeclaredAccessibility;
         var container = symbol.ContainingType;
@@ -155,9 +148,6 @@ public sealed class GeneratedVisibilityInventoryTests
         }
 
         // Documented narrow seams: Patch<->ChangeSet, payload, collection.
-        // Call sites: ChangeSet.ToPatch/FromPatch via public Apply/typed setters,
-        // payload readers via __SparseIsEmpty/__SparseSet*, collection patches
-        // via public IsEmpty/mutators. These stay internal (minimum necessary).
         foreach (
             var bridge in new[]
             {
@@ -243,9 +233,7 @@ public sealed class GeneratedVisibilityInventoryTests
         var fragment = RequireNested(root, "Fragment");
 
         // Cross-family seams (Patch/ChangeSet reading Fragment strategies and
-        // equality): genuinely cross-type, minimum internal. Call sites:
-        // Patch algebra/rebase via Fragment.<strategy>/__SparseAreEqual,
-        // ChangeSet projections via Fragment.__SparseEqual_*.
+        // equality): genuinely cross-type, minimum internal.
         foreach (var name in new[] { "__SparseAreEqual", "__SparseWriteWritableTo" })
         {
             var member = fragment.GetMembers(name).FirstOrDefault();
@@ -255,8 +243,6 @@ public sealed class GeneratedVisibilityInventoryTests
 
         // Observable bridges (DescriptorFactory/EditSession): inter-model
         // descriptor and session boundaries, retained as necessary seams.
-        // Call sites: DescriptorFactory via observable.__model/__Raise,
-        // EditSession via observable.__SparseRefresh.
         var observable =
             root.GetTypeMembers("Observable").FirstOrDefault()
             ?? root.GetTypeMembers("SparseObservable").FirstOrDefault();
@@ -291,8 +277,7 @@ internal static class PartialHelper
     internal static bool IsPartial(this INamedTypeSymbol symbol)
     {
         // Roslyn does not expose 'partial' directly; partial types have
-        // multiple declarations. Generated facades declare 'partial'
-        // explicitly, so check syntax when available.
+        // multiple declarations.
         var refs = symbol.DeclaringSyntaxReferences;
         if (refs.Length > 1)
         {

@@ -3,12 +3,7 @@ using System.Reflection;
 
 namespace SparseTypes.PublicApi.Tests;
 
-/// <summary>
-/// Guards the SparseTypes API boundary from issue #320, reduced by issue #2.
-/// Every public runtime type belongs to exactly one audience: first-class user API
-/// (ordinary IntelliSense), extension/tooling API (<see cref="EditorBrowsableState.Advanced"/>),
-/// or generated-code plumbing (<see cref="EditorBrowsableState.Never"/>).
-/// </summary>
+/// <summary>Guards the SparseTypes API boundary from, reduced by.</summary>
 public sealed class SparseTypesApiAudienceTests
 {
     private static readonly string[] FirstClass =

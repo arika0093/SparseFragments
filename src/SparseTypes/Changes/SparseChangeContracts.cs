@@ -7,12 +7,7 @@ using SparseTypes.Generated;
 namespace SparseTypes;
 
 /// <summary>Read-only scalar (atomic) member transition between two states.</summary>
-/// <remarks>
-/// Implemented by generated per-member transition types (scalar members and set
-/// members). <c>Before</c> and <c>After</c> preserve presence exactly:
-/// <c>Missing</c> means the member was absent, <c>Present(null)</c> means it was
-/// present with a null value, and <c>Present(value)</c> carries the value.
-/// </remarks>
+/// <remarks>Implemented by generated per-member transition types (scalar members and set members).</remarks>
 /// <typeparam name="T">The member value type.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public interface ISparseValueChange<T>
@@ -28,16 +23,7 @@ public interface ISparseValueChange<T>
 }
 
 /// <summary>Read-only baseline-aware change set shared across generated models.</summary>
-/// <remarks>
-/// Implemented by every generated <c>ChangeSet</c> type. External consumers
-/// (for example persistence mappers) traverse scalar, nested, keyed-sequence,
-/// and dictionary members through the <c>TryGet*</c> entry points using member
-/// CLR names and value/key CLR types, without referencing generated nested CLR
-/// type names. Flattened inspection reuses the same projection as the typed
-/// <c>EnumerateChanges()</c> surface: <see cref="EnumerateChangeRecords"/>
-/// carries the same paths (including typed key segments, temporary-key
-/// segments, and order entries) with model-independent values.
-/// </remarks>
+/// <remarks>Implemented by every generated <c>ChangeSet</c> type.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public interface ISparseChangeSet
 {
@@ -103,19 +89,7 @@ public interface ISparseChangeSet
 public interface ISparseChangeSet<TModel> : ISparseChangeSet { }
 
 /// <summary>Read-only keyed-sequence transition with typed permanent keys.</summary>
-/// <remarks>
-/// Implemented by generated per-member keyed transition types. Additions,
-/// removals, and edits follow the semantic before/after states (never the
-/// patch operation shape); order observation follows surviving-key relative
-/// rank. Members whose element type opts into temporary identity implement
-/// <see cref="ISparseTemporaryKeyedChange{TKey, TElement, TElementChange}"/>
-/// instead, which adds collection-scoped temporary lookup.
-/// <para>
-/// Item enumeration is a named method (not <c>IEnumerable&lt;T&gt;</c>) so the
-/// existing typed <c>IEnumerable&lt;Item&gt;</c> keeps unambiguous LINQ
-/// inference.
-/// </para>
-/// </remarks>
+/// <remarks>Implemented by generated per-member keyed transition types.</remarks>
 /// <typeparam name="TKey">The stable key type.</typeparam>
 /// <typeparam name="TElement">The element type.</typeparam>
 /// <typeparam name="TElementChange">The element change-set type.</typeparam>
@@ -157,13 +131,7 @@ public interface ISparseKeyedChange<TKey, TElement, TElementChange>
 }
 
 /// <summary>A single typed keyed item change.</summary>
-/// <remarks>
-/// Implemented by generated per-member keyed item types. <c>BeforeIndex</c> and
-/// <c>AfterIndex</c> are absolute collection indexes; <c>IsReordered</c>
-/// observes surviving-key relative rank, so membership-only shifts leave it
-/// false. The unassigned sentinel is never a stable lookup: unknown keys
-/// produce the shared empty item.
-/// </remarks>
+/// <remarks>Implemented by generated per-member keyed item types.</remarks>
 /// <typeparam name="TKey">The stable key type.</typeparam>
 /// <typeparam name="TElement">The element type.</typeparam>
 /// <typeparam name="TElementChange">The element change-set type.</typeparam>
@@ -174,11 +142,7 @@ public interface ISparseKeyedItemChange<TKey, TElement, TElementChange>
     TKey Key { get; }
 
     /// <summary>Gets the temporary identity for unassigned entries.</summary>
-    /// <remarks>
-    /// Non-null only when the entry key is unassigned and the element type opts
-    /// into temporary identity; assigned keys always take precedence. The value
-    /// is scoped to its keyed collection, never a root-global identity.
-    /// </remarks>
+    /// <remarks>Non-null only when the entry key is unassigned and the element type opts into temporary identity.</remarks>
     Guid? TemporaryKey { get; }
 
     /// <summary>Gets the value before the transition.</summary>
@@ -216,14 +180,7 @@ public interface ISparseKeyedItemChange<TKey, TElement, TElementChange>
 }
 
 /// <summary>Read-only keyed-sequence transition with collection-scoped temporary identity.</summary>
-/// <remarks>
-/// Implemented by generated keyed transitions whose element type declares a
-/// temporary-identity property. Temporary lookup is scoped to its keyed
-/// collection: the same identifier reused under a different collection path
-/// resolves independently there. A valid assigned permanent key always wins,
-/// so assigned entries are never returned from temporary lookup even when
-/// they retain a temporary value.
-/// </remarks>
+/// <remarks>Implemented by generated keyed transitions whose element type declares a temporary-identity property.</remarks>
 /// <typeparam name="TKey">The stable key type.</typeparam>
 /// <typeparam name="TElement">The element type.</typeparam>
 /// <typeparam name="TElementChange">The element change-set type.</typeparam>
@@ -238,13 +195,7 @@ public interface ISparseTemporaryKeyedChange<TKey, TElement, TElementChange>
 }
 
 /// <summary>Read-only dictionary transition with typed keys and values.</summary>
-/// <remarks>
-/// Implemented by generated per-member dictionary transition types.
-/// <typeparamref name="TEdited"/> is the value type for scalar values and the
-/// value change-set type for structural values. Entry enumeration is a named
-/// method (not <c>IEnumerable&lt;T&gt;</c>) so the existing typed
-/// <c>IEnumerable&lt;Item&gt;</c> keeps unambiguous LINQ inference.
-/// </remarks>
+/// <remarks>Implemented by generated per-member dictionary transition types.</remarks>
 /// <typeparam name="TKey">The dictionary key type.</typeparam>
 /// <typeparam name="TValue">The dictionary value type.</typeparam>
 /// <typeparam name="TEdited">The edited-projection type.</typeparam>

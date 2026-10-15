@@ -6,13 +6,7 @@ using SparseTypes.Generated;
 namespace SparseTypes;
 
 /// <summary>One UI-neutral change row projected from a flattened change record.</summary>
-/// <remarks>
-/// Rows keep the record's typed path and presence-aware endpoints next to their
-/// formatted text, so a table renders <see cref="BeforeText"/> and
-/// <see cref="AfterText"/> while tooltips or editors can still inspect
-/// <see cref="Before"/> and <see cref="After"/> to tell <c>Missing</c> apart
-/// from <c>Present(null)</c>. Plain data: no components, CSS, or dialogs.
-/// </remarks>
+/// <remarks>Rows keep the record's typed path and presence-aware endpoints next to their formatted text.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed record SparseChangeRow
 {
@@ -42,13 +36,7 @@ public sealed record SparseChangeRow
 }
 
 /// <summary>Options controlling change-row projection.</summary>
-/// <remarks>
-/// Display strings stay under application control: every hook is optional and
-/// the defaults are invariant tokens (kind names, <c>ToString</c> values), never
-/// localized prose. Formatting hooks must be total for the values the model can
-/// produce; a throwing hook degrades that cell to
-/// <see cref="GetErrorText"/> instead of aborting the table.
-/// </remarks>
+/// <remarks>Every hook is optional and the defaults are invariant tokens (kind names, <c>ToString</c> values), never localized prose.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed record SparseChangeRowOptions
 {
@@ -56,11 +44,7 @@ public sealed record SparseChangeRowOptions
     public Func<SparseChangeKind, string>? FormatOperation { get; init; }
 
     /// <summary>Gets the value formatter, or null for a <c>ToString</c> fallback.</summary>
-    /// <remarks>
-    /// The hook receives the unwrapped value, including null for
-    /// <c>Present(null)</c>; <c>Missing</c> endpoints never reach it and render
-    /// as <see cref="MissingText"/> instead.
-    /// </remarks>
+    /// <remarks>The hook receives the unwrapped value.</remarks>
     public Func<object?, string>? FormatValue { get; init; }
 
     /// <summary>Gets the text for <c>Missing</c> endpoints.</summary>
@@ -77,10 +61,7 @@ public sealed record SparseChangeRowOptions
 
     /// <summary>Builds the display text for one presence-aware endpoint.</summary>
     /// <param name="value">The endpoint to format.</param>
-    /// <returns>
-    /// <see cref="MissingText"/> for <c>Missing</c>; otherwise the formatted value,
-    /// or <see cref="GetErrorText"/> when the value hook throws.
-    /// </returns>
+    /// <returns><see cref="MissingText"/> for <c>Missing</c>.</returns>
     public string GetValueText(Optional<object?> value)
     {
         if (!value.IsPresent)
@@ -117,13 +98,7 @@ public sealed record SparseChangeRowOptions
 }
 
 /// <summary>Projects flattened change records into UI-neutral table rows.</summary>
-/// <remarks>
-/// The projection reuses <see cref="ISparseChangeSet.EnumerateChangeRecords"/>,
-/// so every generated model works without naming its CLR change types; typed
-/// values stay on the row until the value hook formats them. Enumeration order
-/// is preserved, keeping stable keyed entries and <c>Order</c> rows in the
-/// deterministic order the change set produced.
-/// </remarks>
+/// <remarks>The projection reuses <see cref="ISparseChangeSet.EnumerateChangeRecords"/>.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public static class SparseChangeRowProjection
 {
@@ -131,7 +106,8 @@ public static class SparseChangeRowProjection
     /// <param name="changes">The change set to inspect.</param>
     /// <param name="options">The operation, value, missing, and error policy; null keeps defaults.</param>
     /// <returns>One row per flattened record, in enumeration order.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="changes"/> is null.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="changes"/> is
+    /// null.</exception>
     /// <exception cref="ArgumentException">A record in the change set is null.</exception>
     public static IReadOnlyList<SparseChangeRow> Project(
         ISparseChangeSet changes,
@@ -146,8 +122,10 @@ public static class SparseChangeRowProjection
     /// <param name="records">The records to project, in the desired row order.</param>
     /// <param name="options">The operation, value, missing, and error policy; null keeps defaults.</param>
     /// <returns>One row per record, in list order.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="records"/> is null.</exception>
-    /// <exception cref="ArgumentException">A record in <paramref name="records"/> is null.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="records"/> is
+    /// null.</exception>
+    /// <exception cref="ArgumentException">A record in
+    /// <paramref name="records"/> is null.</exception>
     public static IReadOnlyList<SparseChangeRow> Project(
         IReadOnlyList<SparseChangeRecord> records,
         SparseChangeRowOptions? options = null
@@ -184,7 +162,8 @@ public static class SparseChangeRowProjection
         return rows;
     }
 
-    // An operation hook failure degrades that label instead of dropping the row.
+    // An operation hook failure degrades that label instead of dropping the
+    // row.
     private static string SafeOperation(SparseChangeRowOptions options, SparseChangeKind kind)
     {
         try

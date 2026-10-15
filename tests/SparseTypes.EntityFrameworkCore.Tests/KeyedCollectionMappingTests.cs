@@ -724,7 +724,8 @@ public sealed partial class KeyedCollectionMappingTests
         var entity = SeedOrder(context);
         var baseline = ReadOrderDto(entity);
 
-        // Client edit session over the baseline: one edit plus one temporary addition.
+        // Client edit session over the baseline: one edit plus one temporary
+        // addition.
         var draft = CloneOrder(baseline);
         var session = draft.CreateEditSession();
         draft.Lines.Single(static line => line.Quantity == 2).Quantity = 20;
@@ -740,7 +741,8 @@ public sealed partial class KeyedCollectionMappingTests
         );
         var submitted = session.CreateChangeSet();
 
-        // Server: rebase onto the authoritative read, then map onto the tracked entity.
+        // Server: rebase onto the authoritative read, then map onto the tracked
+        // entity.
         var rebased = submitted.RebaseOnto(baseline);
         rebased.HasConflicts.ShouldBeFalse();
         var accepted = rebased.Rebased;

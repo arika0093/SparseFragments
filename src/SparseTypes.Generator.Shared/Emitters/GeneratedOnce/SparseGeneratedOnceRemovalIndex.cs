@@ -2,16 +2,8 @@ using System.Threading;
 
 namespace SparseTypes.Generator.Shared;
 
-/// <summary>Builds the compilation-scoped ordered removal-index source (#183).</summary>
-/// <remarks>
-/// Ports the ordered-removal bookkeeping out of
-/// <c>SparseDictionaryRemovalIndexEmitter</c> verbatim: the removal list,
-/// optional indexed hash slots, cancellation, de-duplication and index
-/// capacity management. The mechanics depend only on the key type and its
-/// default equality comparer, not the containing model, so one generic
-/// helper serves dictionary and keyed-sequence patches. Per-member patch
-/// storage keeps its sparse/lazy fields and calls these kernels.
-/// </remarks>
+/// <summary>Builds the compilation-scoped ordered removal-index source.</summary>
+/// <remarks>The removal list, optional indexed hash slots, cancellation, de-duplication and index capacity management.</remarks>
 internal static class SparseGeneratedOnceRemovalIndex
 {
     /// <summary>Builds the shared removal-index source for the explicit namespace.</summary>
@@ -39,7 +31,8 @@ internal static class SparseGeneratedOnceRemovalIndex
             "internal static class " + SparseGeneratedOnceNames.RemovalIndex + "<TKey>"
         );
         code.AppendLineAt(1, "{");
-        // Internal-first ordering: public-equivalent kernels precede private helpers.
+        // Internal-first ordering: public-equivalent kernels precede private
+        // helpers.
         code.AppendLineAt(
             2,
             "internal static void CancelRemoval(global::System.Collections.Generic.List<TKey> removed, ref int[]? lookup, TKey key)"

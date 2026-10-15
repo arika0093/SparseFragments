@@ -8,7 +8,7 @@ namespace SparseTypes.Tests.Shared;
 
 /// <summary>
 /// Direct shared-unit tests plus generator-level parity coverage for the
-/// centralized validation helpers (issue #29).
+/// centralized validation helpers.
 /// </summary>
 public sealed class ShapeValidationTests
 {

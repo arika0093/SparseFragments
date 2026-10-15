@@ -4,11 +4,7 @@ using System.Collections.Immutable;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Product-neutral fragment algebra emission, configured with runtime names.</summary>
-/// <remarks>
-/// This type is the shared entry point used by the SparseTypes
-/// generator. Each generation concept is owned by a focused stage emitter; this
-/// class only wires them together so generation concepts share one surface.
-/// </remarks>
+/// <remarks>This type is the shared entry point used by the SparseTypes generator.</remarks>
 internal sealed class SparseFragmentCoreEmitter
 {
     private readonly SparseFragmentDeclarationEmitter _declaration;

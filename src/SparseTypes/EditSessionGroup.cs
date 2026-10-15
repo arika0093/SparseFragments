@@ -8,20 +8,7 @@ using System.Threading.Tasks;
 namespace SparseTypes;
 
 /// <summary>Coordinates typed edit sessions as independent sections of a submission.</summary>
-/// <remarks>
-/// The group owns section identity and acknowledgement revisions. Session edits may
-/// continue after preparation; acknowledging the captured change set advances only
-/// that transition, leaving later edits pending. The group does not provide a
-/// transaction across sessions or an implicit transport or persistence layer.
-/// A session instance backs at most one live section: registering the same instance
-/// twice is rejected because the two sections would share one session baseline.
-/// Acknowledgement should flow through the group. External acknowledgement of a
-/// registered session (direct <c>AcceptChanges</c>, <c>TryReconcile</c>, or reload)
-/// moves the session baseline without moving group revisions; the next group
-/// acknowledgement detects the outcome, preserves the original session error, and
-/// resynchronizes revisions, but callers must re-prepare afterwards. Prefer
-/// <c>Unregister</c> or <c>Replace</c> before acknowledging a session outside the group.
-/// </remarks>
+/// <remarks>The group owns section identity and acknowledgement revisions.</remarks>
 public sealed class EditSessionGroup
 {
     private readonly object _gate = new();
@@ -35,8 +22,9 @@ public sealed class EditSessionGroup
     /// <param name="sectionId">A non-empty identifier, compared with ordinal case-sensitive rules.</param>
     /// <param name="registration">Typed operations and readiness checks for the session.</param>
     /// <returns>A typed handle used to read and acknowledge submitted changes.</returns>
-    /// <exception cref="ArgumentException">The identifier is invalid, already registered, or the session instance already backs another live section.</exception>
-    /// <exception cref="ArgumentNullException"><paramref name="registration"/> is null.</exception>
+    /// <exception cref="ArgumentException">The identifier is invalid or already registered, or the session is already in use.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="registration"/>
+    /// is null.</exception>
     public EditSessionSectionHandle<TModel, TChangeSet> Register<TModel, TChangeSet>(
         string sectionId,
         EditSessionGroupRegistration<TModel, TChangeSet> registration
@@ -112,7 +100,8 @@ public sealed class EditSessionGroup
         {
             var previous = GetCurrentSection(handle);
             EnsureRemovalAllowed(previous, policy);
-            // Release first so replacing a section with its own session stays valid.
+            // Release first so replacing a section with its own session stays
+            // valid.
             _sessions.Remove(previous.Session);
             if (!_sessions.Add(registration.Session))
             {
@@ -136,13 +125,7 @@ public sealed class EditSessionGroup
     }
 
     /// <summary>Captures an immutable submission and validates registered sections synchronously.</summary>
-    /// <remarks>
-    /// Preparation runs in order: capture immutable change sets, then evaluate the live-session
-    /// readiness hook, then validate the captured change sets. Submission validators observe only
-    /// the captured <c>TChangeSet</c> placed in the eventual submission; later session edits remain
-    /// pending and do not alter what validators observe. The group never holds its internal gate
-    /// across user callbacks.
-    /// </remarks>
+    /// <remarks>Capture immutable change sets, then evaluate the live-session readiness hook, then validate the captured change sets.</remarks>
     /// <exception cref="EditSessionGroupValidationException">A section is unready or cannot be captured.</exception>
     public EditSessionGroupSubmission Prepare()
     {
@@ -172,22 +155,8 @@ public sealed class EditSessionGroup
         return CreateSubmission(captures);
     }
 
-    /// <summary>
-    /// Captures all registered change sets synchronously, then validates the immutable capture asynchronously.
-    /// </summary>
-    /// <remarks>
-    /// Preparation runs in order: synchronously capture immutable change sets, evaluate the live-session
-    /// readiness hook and synchronous captured validators, then await asynchronous validators that each
-    /// receive the captured change set. Post-capture edits remain pending and do not retroactively alter
-    /// what validators observe. After awaits the group re-evaluates whether a section was unregistered or
-    /// replaced and whether its baseline revision advanced; such changes fail
-    /// validation. Ordinary local edits do not invalidate the captured submission, and the live readiness
-    /// hook is not re-evaluated after awaits. The group never holds its internal gate across user callbacks
-    /// or awaits, so validators may call back into the group without deadlocking; structural changes made
-    /// during validation fail the in-flight preparation. Synchronous validator exceptions (other than
-    /// cancellation) become validation issues; asynchronous validator exceptions become validation issues
-    /// while cancellation propagates as <see cref="OperationCanceledException"/>.
-    /// </remarks>
+    /// <summary>Captures all registered change sets synchronously, then validates the immutable capture asynchronously.</summary>
+    /// <remarks>Preparation runs in order.</remarks>
     /// <param name="cancellationToken">The token used to cancel asynchronous validation.</param>
     /// <returns>The immutable submission after all section validation succeeds.</returns>
     /// <exception cref="EditSessionGroupValidationException">A section is unready or fails validation.</exception>
@@ -226,12 +195,8 @@ public sealed class EditSessionGroup
             {
                 if (section.IsTransitionAcknowledged(entry))
                 {
-                    // The session committed before failing (a post-commit
-                    // notification handler threw, or the baseline moved
-                    // outside the group): the submitted transition no longer
-                    // pends, so the group revision must follow the session
-                    // instead of reporting a stale submission. The original
-                    // error is preserved untouched.
+                    // A post-commit failure must not leave the group revision
+                    // stale; preserve the original exception.
                     AdvanceBaselineRevision(section);
                     throw;
                 }
@@ -309,8 +274,7 @@ public sealed class EditSessionGroup
         IEditSessionGroupSection[] registeredSections;
         lock (_gate)
         {
-            // Snapshot identities only; user capture delegates run outside the gate
-            // so re-entrant group calls from those delegates cannot deadlock.
+            // Run capture delegates outside the lock to allow re-entrant calls.
             registeredSections = _sections
                 .Values.OrderBy(value => value.SectionId, StringComparer.Ordinal)
                 .ToArray();
@@ -358,7 +322,8 @@ public sealed class EditSessionGroup
     {
         cancellationToken.ThrowIfCancellationRequested();
         var issues = new List<EditSessionGroupValidationIssue>();
-        // Phase 1: readiness (live session) and synchronous captured validation, no gate held.
+        // Phase 1: readiness (live session) and synchronous captured
+        // validation, no gate held.
         foreach (var capture in captures)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -372,7 +337,8 @@ public sealed class EditSessionGroup
                 );
         }
 
-        // Phase 2: asynchronous captured validation, no gate held across awaits.
+        // Phase 2: asynchronous captured validation, no gate held across
+        // awaits.
         foreach (var capture in captures)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -405,7 +371,8 @@ public sealed class EditSessionGroup
             }
         }
 
-        // Phase 3: re-evaluate registration identity and baseline revisions after awaits.
+        // Phase 3: re-evaluate registration identity and baseline revisions
+        // after awaits.
         lock (_gate)
         {
             foreach (var capture in captures)
@@ -668,9 +635,7 @@ public sealed class EditSessionGroup
         }
 
         /// <summary>Evaluates the live-session readiness hook.</summary>
-        /// <remarks>
-        /// May inspect the current mutable session. It does not observe the captured submission.
-        /// </remarks>
+        /// <remarks>May inspect the current mutable session. It does not observe the captured submission.</remarks>
         public bool TryValidate(out string? error)
         {
             error = null;
@@ -800,12 +765,7 @@ internal interface IEditSessionGroupSection
     void AcceptChanges(EditSessionSubmittedSection submission);
 
     /// <summary>Tests whether a submitted transition no longer pends on the live session.</summary>
-    /// <remarks>
-    /// Used to tell a rejected acknowledgement (the transition still pends)
-    /// from a post-commit failure (the session baseline advanced and only a
-    /// later step, such as a notification handler, threw). Probes through the
-    /// registration delegates and reports unknown as not acknowledged.
-    /// </remarks>
+    /// <remarks>Distinguishes rejected acknowledgements from post-commit failures.</remarks>
     bool IsTransitionAcknowledged(EditSessionSubmittedSection entry);
 
     bool TryReconcile(EditSessionSubmittedSection submission, object persisted, out string? error);

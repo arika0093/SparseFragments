@@ -3,23 +3,7 @@ namespace SparseTypes;
 /// <summary>
 /// Computes per-element origin attributions for built-in collection merges.
 /// </summary>
-/// <remarks>
-/// <para>
-/// Live-merge counterpart to the post-hoc <see cref="SparseCollectionProvenance"/>
-/// explanation: where provenance explains which contribution index supplied each
-/// effective element, these helpers map the same first-accepted semantics
-/// directly onto origin strings. Set comparer discovery reuses
-/// <see cref="SparseCollectionProvenance"/> so union attribution agrees with
-/// merge membership.
-/// </para>
-/// <para>
-/// All helpers run only when at least one merging side already carries origin
-/// information; merges without any origin state skip them entirely. Element
-/// attributions fall back to the contributing member attribution, which itself
-/// falls back to the contributing fragment origin (<c>null</c> is Unknown at
-/// every level).
-/// </para>
-/// </remarks>
+/// <remarks>Live-merge counterpart to the post-hoc <see cref="SparseCollectionProvenance"/> explanation.</remarks>
 internal static class SparseOriginMerger
 {
     /// <summary>
@@ -63,16 +47,8 @@ internal static class SparseOriginMerger
         return result.ToArray();
     }
 
-    /// <summary>
-    /// Tracks first-accepted attributions for a set-union merge in effective enumeration order.
-    /// </summary>
-    /// <remarks>
-    /// The effective comparer wins, otherwise the first active contribution
-    /// comparer wins, otherwise the default comparer applies, mirroring
-    /// <see cref="SparseCollectionProvenance.TryExplainSet{T}"/>. When the
-    /// effective and contribution comparers disagree the attribution is
-    /// Unknown rather than fabricated.
-    /// </remarks>
+    /// <summary>Tracks first-accepted attributions for a set-union merge in effective enumeration order.</summary>
+    /// <remarks>The effective comparer wins, otherwise the first active contribution comparer wins.</remarks>
     public static string?[] MergeSetOrigins<T>(
         IEnumerable<T> lower,
         string?[]? lowerOrigins,
@@ -90,9 +66,7 @@ internal static class SparseOriginMerger
             return new string?[effectiveList.Count];
         }
 
-        // First-origin tracking while building the union: each distinct value
-        // records the lowest contribution that supplied it, so the effective
-        // enumeration below needs no second scan over the contributions.
+        // First-origin tracking while building the union.
         var firstByValue = new Dictionary<T, string?>(comparer);
         AddFirst(lower, lowerOrigins, lowerFallback, firstByValue);
         AddFirst(higher, higherOrigins, higherFallback, firstByValue);

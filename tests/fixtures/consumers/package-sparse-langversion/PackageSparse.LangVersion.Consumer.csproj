@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- C# 9.0 minimum-language gate (#116). This is explicit on purpose: it
+    <!-- C# 9.0 minimum-language gate. This is explicit on purpose: it
       must not silently inherit LangVersion=preview from
       tests/Directory.Build.props, or the gate would prove nothing. -->
     <LangVersion>9.0</LangVersion>
@@ -29,7 +29,7 @@
   </ItemGroup>
   <!-- Down-level targets have no inbox System.Text.Json: JSON transport needs
     an explicit reference now that the base runtime brings none transitively
-    (issue #242). Modern targets keep the shared-framework copy. -->
+  Modern targets keep the shared-framework copy. -->
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' Or '$(TargetFramework)' == 'net48'">
     <PackageReference Include="System.Text.Json" Version="10.0.0" />
   </ItemGroup>

@@ -33,7 +33,8 @@ internal static class SparseValueComparer
 
         private static bool IsKnownScalar()
         {
-            // Custom structs retain object equality and enumerable structs retain sequence equality.
+            // Custom structs retain object equality and enumerable structs
+            // retain sequence equality.
             var type = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
             return type.IsPrimitive
                 || type.IsEnum
@@ -58,10 +59,8 @@ internal static class SparseValueComparer
             return false;
         }
 
-        // Keep native sequence access concrete so the JIT can optimize indexing.
-        // Exact List types preserve custom/derived non-generic comparison views.
-        // Concrete shapes delegate to the statically specialized implementation so
-        // typed and dynamic paths share one algorithm (issue #187).
+        // Keep native sequence access concrete so the JIT can optimize
+        // indexing.
         if (left is T[] leftArray && right is T[] rightArray)
         {
             return SparseConcreteComparisons.AreSequenceEqual(leftArray, rightArray);
@@ -82,7 +81,8 @@ internal static class SparseValueComparer
             return SparseConcreteComparisons.AreSequenceEqual((List<T>)left, mixedRightArray);
         }
 
-        // Derived/custom collections keep their existing non-generic comparison views.
+        // Derived/custom collections keep their existing non-generic comparison
+        // views.
         return AreEqual((object?)left, (object?)right);
     }
 
@@ -157,8 +157,8 @@ internal static class SparseValueComparer
             return false;
         }
 
-        // Concrete shapes read their comparer statically and skip reflection-based
-        // discovery; mixed or custom shapes keep the existing fallback below.
+        // Concrete shapes read their comparer statically and skip
+        // reflection-based discovery.
         if (left is HashSet<T> leftHash && right is HashSet<T> rightHash)
         {
             return SparseConcreteComparisons.AreSetEqual(leftHash, rightHash);

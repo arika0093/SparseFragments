@@ -31,10 +31,8 @@ internal static class SparseReadOnlyViewEmitter
         var modelFieldName = HelperName(MemberNames(members), "__model");
         var allMemberNames = MemberNames(members)
             .AddRange(readOnlyViewModels.SelectMany(static view => MemberNames(view.Members)));
-        // Generated-Once (#181): with an explicit namespace the generic
-        // adapters live once per compilation; per-model output only names
-        // them. Null keeps the legacy single-file emission for downstream
-        // dialects without a placement namespace.
+        // Generated-Once: with an explicit namespace the generic adapters live
+        // once per compilation; per-model output only names them.
         var useShared = !string.IsNullOrEmpty(implementationNamespace);
         var collectionName = useShared
             ? SparseGeneratedOnceNames.QualifiedListAdapter(implementationNamespace!)
@@ -103,9 +101,8 @@ internal static class SparseReadOnlyViewEmitter
             }
         }
 
-        // Shared adapters (#181) are emitted once per compilation; only the
-        // legacy single-file path redefines the generic adapters per model.
-        // The private backing field trails the public surface.
+        // Shared adapters are emitted once per compilation; only the legacy
+        // single-file path redefines the generic adapters per model.
         code.AppendLineAt(2, "private readonly " + modelType + " " + modelFieldName + ";");
         if (!useShared)
         {

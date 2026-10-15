@@ -3,12 +3,7 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>Well-known error origins for <see cref="SparseValidationStore{TModel}"/>.</summary>
-/// <remarks>
-/// Origins keep validators independent: replacing or clearing one origin never
-/// touches errors recorded under another. Applications may use any non-empty
-/// custom origin string beyond these three; origins are opaque and compared
-/// ordinally.
-/// </remarks>
+/// <remarks>Origins keep validators independent: replacing or clearing one origin never touches errors recorded under another.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public static class SparseValidationOrigins
 {

@@ -4,7 +4,7 @@ using System.Linq;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Emits ChangePayload patch synchronization for one model.</summary>
-/// <remarks>A ChangePayload carries baseline-aware transitions and baseline-free commands side by side. These helpers build the command core from a patch and project any core back to a patch without ever fabricating a baseline.</remarks>
+/// <remarks>A payload can contain transitions and baseline-free commands.</remarks>
 internal static class SparseChangePayloadPatchSyncEmitter
 {
     /// <summary>Emits the patch-side command core builder inside <c>Patch</c>.</summary>
@@ -126,12 +126,7 @@ internal static class SparseChangePayloadPatchSyncEmitter
     }
 
     /// <summary>Emits the fail-closed guard for JSON-ignored members in transport cores.</summary>
-    /// <remarks>
-    /// Transport excludes STJ <c>JsonIgnore</c> members, so exporting a change
-    /// that touches one would silently lose it (issue #165). The guard names
-    /// the omitted paths instead, keeping <c>ToPayload</c> lossless while
-    /// ordinary <c>Fragment</c> JSON keeps honoring <c>JsonIgnore</c>.
-    /// </remarks>
+    /// <remarks>Transport excludes STJ <c>JsonIgnore</c> members, so exporting a change that touches one would silently lose it.</remarks>
     internal static void AppendIgnoredTransportGuard(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members
@@ -184,11 +179,7 @@ internal static class SparseChangePayloadPatchSyncEmitter
     }
 
     /// <summary>Emits the fail-closed guard for JSON-ignored patch fields.</summary>
-    /// <remarks>
-    /// Patch transport excludes STJ <c>JsonIgnore</c> members, so a patch that
-    /// sets one cannot export losslessly (issue #165). Runs inside
-    /// <c>Patch</c>, where collection and operation internals are visible.
-    /// </remarks>
+    /// <remarks>Patch transport excludes STJ <c>JsonIgnore</c> members, so a patch that sets one cannot export losslessly.</remarks>
     private static void AppendIgnoredPatchGuard(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
@@ -687,9 +678,7 @@ internal static class SparseChangePayloadPatchSyncEmitter
             );
             if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
             {
-                // Temporary order restores parallel to the key order; absent
-                // orders with temporary items are malformed, and slot counts
-                // must align exactly instead of guessing positions.
+                // Temporary order restores parallel to the key order.
                 code.AppendLineAt(
                     7,
                     "if (entry"

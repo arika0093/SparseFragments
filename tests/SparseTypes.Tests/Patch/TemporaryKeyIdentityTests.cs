@@ -3,7 +3,7 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-/// <summary>Temporary-identity behavior for keyed collections (issue #207).</summary>
+/// <summary>Temporary-identity behavior for keyed collections.</summary>
 public sealed class TemporaryKeyIdentityTests
 {
     private static Optional<TempOrderHolder.Fragment?> F(params TempOrderLine[] items) =>

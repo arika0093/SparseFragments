@@ -6,13 +6,7 @@ namespace SparseTypes.EntityFrameworkCore.Mapping;
 /// <summary>
 /// Executes a validated keyed-collection sync plan.
 /// </summary>
-/// <remarks>
-/// Runs only after <see cref="CollectionSync" /> validated keys, delta
-/// coverage, relationships, and policies, so execution performs no further
-/// checks besides the final order-coverage guard. Null navigation assignment,
-/// tracking, correlation recording, and child wholesale writes all happen
-/// here, never during preflight validation.
-/// </remarks>
+/// <remarks>Runs only after <see cref="CollectionSync" /> validated keys.</remarks>
 internal static class CollectionExecution
 {
     public static void ExecuteSync<TDtoChild, TEntityChild>(
@@ -30,7 +24,8 @@ internal static class CollectionExecution
         where TDtoChild : class
         where TEntityChild : class
     {
-        // Child edits already have queued writes; an edits-only plan changes no collection state.
+        // Child edits already have queued writes; an edits-only plan changes no
+        // collection state.
         if (plan.Added.Count == 0 && plan.Removed.Count == 0 && !plan.OrderChanged)
             return;
 
@@ -73,8 +68,7 @@ internal static class CollectionExecution
                 }
                 else
                 {
-                    // Legacy bucket keeps its contents for compatible reads;
-                    // precise duplicate detection runs on the parent-scoped record.
+                    // Legacy bucket keeps its contents for compatible reads.
                     scope[addition.TemporaryKey.Value] = addition.Entity;
                     if (!nestedScopes.TryGetValue(path, out var table))
                     {
@@ -110,8 +104,7 @@ internal static class CollectionExecution
             }
 
             // Nested scopes qualify with the added parent's identity so the
-            // same temporary value reused under two new parents resolves
-            // independently instead of falsely conflicting.
+            // Resolve a reused temporary key independently for each new parent.
             var sub = new PlanWriteState(
                 context,
                 addition.Entity,

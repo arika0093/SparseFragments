@@ -3,15 +3,7 @@ using System.Collections.Immutable;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Compilation-scoped descriptor helpers requested by analyzed models.</summary>
-/// <remarks>
-/// Static per-model metadata is emitted once per model and cached; generic
-/// descriptor implementations (set, array/dictionary/set shapes, value
-/// conversion) are shared once per compilation where contract identity
-/// permits. Today the generic implementations live in the shared runtime
-/// (once per assembly, which already de-duplicates); this capability records
-/// the Generated-Once plan so the #178 pipeline can emit product-owned
-/// variants without forking emitters.
-/// </remarks>
+/// <remarks>Static per-model metadata is emitted once per model and cached.</remarks>
 [System.Flags]
 internal enum SparseDescriptorCapability
 {
@@ -41,13 +33,7 @@ internal enum SparseDescriptorCapability
 }
 
 /// <summary>Capability aggregation for descriptor helpers.</summary>
-/// <remarks>
-/// Merge-time seam: the Generated-Once pipeline (#178) aggregates these flags
-/// across models; the ownership design (#177) decides runtime versus
-/// generated-once placement per helper family. Per-model static metadata keeps
-/// using the #176 DescriptorFactory placement seam; compilation-scoped helper
-/// hint names stay stable and unique through the configured dialect.
-/// </remarks>
+/// <remarks>Merge-time seam: the Generated-Once pipeline aggregates these flags across models.</remarks>
 internal static class SparseDescriptorCapabilities
 {
     /// <summary>Aggregates descriptor needs for one compilation.</summary>

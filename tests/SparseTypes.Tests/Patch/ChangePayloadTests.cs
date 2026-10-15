@@ -61,7 +61,7 @@ public sealed class ChangePayloadTests
         restored.Version.ShouldBe("0.1");
         restored.Changes!.ShouldHaveSingleItem();
         restored.Changes![0].GetType().Name.ShouldStartWith("Change");
-        // Stage 3 (#192): typed DTOs live in the per-model implementation
+        // Stage 3: typed DTOs live in the per-model implementation
         // namespace; the envelope facade stays nested in the model.
         typeof(Settings)
             .GetNestedTypes(BindingFlags.Public | BindingFlags.NonPublic)
@@ -564,8 +564,8 @@ public sealed class ChangePayloadTests
             return;
         }
 
-        // Missing/unknown versions and missing/null changes deserialize but must
-        // fail root-envelope validation before producing a ChangeSet.
+        // Missing/unknown versions and missing/null changes deserialize but
+        // must fail root-envelope validation before producing a ChangeSet.
         Should.Throw<ArgumentException>(() => payload!.ToChangeSet());
         deserialized.ShouldBeTrue();
     }
@@ -681,7 +681,8 @@ public sealed class ChangePayloadTests
         }
         catch (System.Text.Json.JsonException)
         {
-            // Unknown enum tokens fail at deserialization; both rejections are valid.
+            // Unknown enum tokens fail at deserialization; both rejections are
+            // valid.
         }
     }
 

@@ -1,12 +1,7 @@
 using SparseTypes;
 
-// Canonical compile-checked mirror of docs/keyed-collections.md (#45).
-// Covers the representative element-identity mechanisms users are expected to
-// copy: single-property [SparseKey], computed tuple keys, and normalized
-// value-object keys, plus keyed Between/Apply add/remove/edit semantics and
-// reorder-by-final-key-order. Temporary Guid identity ([SparseTemporaryKey])
-// and the DTO reconcile flow mirror the pending-addition sections of the same
-// guide.
+// Compile-checked keyed collection samples for docs/keyed-collections.md.
+// Covers key shapes, edits, reordering, and temporary-key reconciliation.
 public static class KeyedCollectionsSamples
 {
     public static void Run()
@@ -120,10 +115,8 @@ public static class KeyedCollectionsSamples
             },
         };
 
-        // Typed observation mirrors docs/keyed-collections.md "Observe typed
-        // collection transitions": Added/Removed/Edited projections,
-        // BeforeOrder/AfterOrder/OrderChanged, per-item enumeration, and
-        // keyed GetChange lookup.
+        // Added/Removed/Edited projections,
+        // BeforeOrder/AfterOrder/OrderChanged, per-item enumeration, and keyed
         var servers = before.CreateChangeSet(after).Servers;
         DocsCheck.Require(servers.IsChanged, "collection transition is non-empty");
         DocsCheck.Require(
@@ -228,7 +221,8 @@ public static class KeyedCollectionsSamples
             },
         };
 
-        // Computed tuple key: the property type is the key type, compared whole.
+        // Computed tuple key: the property type is the key type, compared
+        // whole.
         var applied = before.CreateChangeSet(after).ToPatch().ApplyTo(before);
         DocsCheck.Require(applied.Servers.Single().Host == "A2", "tuple key element edit");
     }
@@ -429,8 +423,7 @@ public partial class DocsNormalizedInventory
 }
 
 // Temporary identity: an opt-in Guid? property beside a property-level
-// [SparseKey] with unassigned semantics. New rows are built with object
-// initializers; the property itself carries no initializer.
+// [SparseKey] with unassigned semantics.
 [SparseModel]
 public partial class DocsTempOrder
 {

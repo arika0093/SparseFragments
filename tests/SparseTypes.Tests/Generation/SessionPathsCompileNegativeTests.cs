@@ -4,7 +4,7 @@ using SparseTypes.Generator;
 
 namespace SparseTypes.Tests.Generation;
 
-// Compile-time proofs for issue #270: wrong root, value, and key types fail
+// Compile-time proofs for wrong root, value, and key types fail
 // on session-owned navigation.
 public sealed class SessionPathsCompileNegativeTests
 {

@@ -16,11 +16,6 @@ public enum SparsePathSegmentKind
     Index = 2,
 
     /// <summary>A temporary-identity entry of a keyed collection.</summary>
-    /// <remarks>
-    /// Temporary segments address elements whose permanent key is unassigned
-    /// through their stable <c>Guid</c> identity. They never equal
-    /// <see cref="Key"/> segments, even when the permanent key type is
-    /// <see cref="Guid"/>, so path identity stays stable across ID assignment.
-    /// </remarks>
+    /// <remarks>Temporary segments address elements whose permanent key is unassigned through their stable <c>Guid</c> identity.</remarks>
     TemporaryKey = 3,
 }

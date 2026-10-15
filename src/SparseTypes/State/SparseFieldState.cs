@@ -27,29 +27,7 @@ public enum SparseFieldChangeKind
 /// <summary>
 /// Point-in-time semantic state for one path within a change set.
 /// </summary>
-/// <remarks>
-/// <para>
-/// The state derives from a single retained change set: <see cref="IsChanged"/>
-/// reports an exact transition at <see cref="Path"/>, <see cref="HasAncestorChange"/>
-/// reports a transition at a strict ancestor (for example a replaced nested
-/// object or an added collection), and <see cref="HasDescendantChange"/> reports
-/// transitions strictly below the path. <see cref="Before"/> and
-/// <see cref="After"/> carry the presence-aware endpoints of the exact
-/// transition only; they are both <c>Missing</c> when <see cref="IsChanged"/>
-/// is false, which means "no tracked transition", not "absent member".
-/// Presence is preserved exactly: <c>Missing</c> never collapses into
-/// <c>Present(null)</c>.
-/// </para>
-/// <para>
-/// Lifetime: the state is a snapshot of the change set it was queried from.
-/// Change-set queries are point-in-time (change sets are immutable), while
-/// edit-session queries diff the live model afresh on every call and never
-/// retain subscriptions or per-field baseline caches. A single query scans the
-/// flattened change records once, so one query costs O(R) for R records plus
-/// the records allocation; session queries additionally pay one baseline diff.
-/// Snapshot one change set and reuse it for repeated lookups.
-/// </para>
-/// </remarks>
+/// <remarks>The state derives from a single retained change set.</remarks>
 /// <typeparam name="T">The addressed value type.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public readonly record struct SparseFieldState<T>
@@ -75,20 +53,12 @@ public readonly record struct SparseFieldState<T>
     /// <summary>
     /// Gets the presence-aware value before the exact transition.
     /// </summary>
-    /// <remarks>
-    /// Meaningful only when <see cref="IsChanged"/> is true; otherwise
-    /// <c>Missing</c>. A replaced ancestor leaves both endpoints
-    /// <c>Missing</c> because identity mapping across the replacement is
-    /// undefined; query the ancestor path for its own transition.
-    /// </remarks>
+    /// <remarks>Meaningful only when <see cref="IsChanged"/> is true; otherwise <c>Missing</c>.</remarks>
     public Optional<T> Before { get; internal init; }
 
     /// <summary>
     /// Gets the presence-aware value after the exact transition.
     /// </summary>
-    /// <remarks>
-    /// Meaningful only when <see cref="IsChanged"/> is true; otherwise
-    /// <c>Missing</c>. See <see cref="Before"/> for replaced-ancestor behavior.
-    /// </remarks>
+    /// <remarks>Meaningful only when <see cref="IsChanged"/> is true; otherwise <c>Missing</c>.</remarks>
     public Optional<T> After { get; internal init; }
 }

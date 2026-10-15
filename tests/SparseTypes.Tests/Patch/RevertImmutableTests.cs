@@ -1,6 +1,6 @@
 namespace SparseTypes.Tests;
 
-/// <summary>RevertChanges on immutable models needs an explicit recovery path (#171).</summary>
+/// <summary>RevertChanges on immutable models needs an explicit recovery path.</summary>
 public sealed class RevertImmutableTests
 {
     // Raw live-model access now hides behind ISparseEditSession<TModel>.

@@ -2,7 +2,7 @@ using SparseTypes.Generated;
 
 namespace SparseTypes.Tests;
 
-/// <summary>UI-neutral change-row projection over flattened records (issue #256).</summary>
+/// <summary>UI-neutral change-row projection over flattened records.</summary>
 public sealed class SparseChangeRowProjectionTests
 {
     private static KeyedServerHolder Holder() =>
@@ -63,7 +63,8 @@ public sealed class SparseChangeRowProjectionTests
             }
         );
 
-        // Present(null) reaches the hook as null and stays distinct from Missing.
+        // Present(null) reaches the hook as null and stays distinct from
+        // Missing.
         var nulled = rows.ShouldHaveSingleItem();
         nulled.PathText.ShouldBe(nameof(Settings.Label));
         nulled.Kind.ShouldBe(SparseChangeKind.Changed);

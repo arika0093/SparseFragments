@@ -153,8 +153,7 @@ internal static class SparseKeyedSequenceRebaseEmitter
         );
         code.AppendLineAt(5, "return new " + resultType + "(result, conflicts);");
         code.AppendLineAt(4, "}");
-        // Granular: if base == current keep local; if desired == current drop; else per-key merge with nested rebase where possible.
-        // NOTE: desired is computed defensively below (missing/duplicate base yields a conflict, not a throw).
+        // Unchanged keys bypass nested rebase.
         var editedTempCopyFragment = string.Empty;
         if (SparseKeyedCollectionEmitter.HasTemporaryKey(member))
         {
@@ -236,9 +235,7 @@ internal static class SparseKeyedSequenceRebaseEmitter
                 member.Id
             );
         }
-        // Build maps. Capacity hints use a netstandard2.0-safe
-        // ICollection/IReadOnlyCollection probe (0 when the member shape
-        // exposes no Count); duplicate-key validation is unchanged.
+        // Build maps.
         code.AppendLineAt(
             4,
             "var __baseCapacity = baseState.GetValueOrDefault() is global::System.Collections.Generic.ICollection<"
@@ -390,12 +387,8 @@ internal static class SparseKeyedSequenceRebaseEmitter
                 + SparseKeyedCollectionEmitter.AddUniqueEntry("desiredMap", "k", "item")
                 + " }"
         );
-        // Pre-index locally touched keys once (O(K)) so the per-key loop below
-        // resolves touches with O(1) comparer-correct lookups instead of O(K)
-        // List.Exists scans per union key (former O(N x K) behavior). For valid
-        // patches (unique added/removed keys, as enforced by Add/Remove and by
-        // Between/Compose construction) the maps below resolve exactly the same
-        // keys as the scans did.
+        // Index touched keys once for comparer-aware constant-time lookups in
+        // the union-key loop.
         code.AppendLineAt(
             4,
             "var __touchedAdded = new global::System.Collections.Generic.HashSet<"
@@ -442,9 +435,8 @@ internal static class SparseKeyedSequenceRebaseEmitter
                 + comparer
                 + ");"
         );
-        // Seed from edited keys for an exact capacity hint, then merge other local touches.
-        // Removing keys while scanning base/current/desired preserves first-occurrence
-        // key identity and conflict order without allocating an O(N) union.
+        // Seed from edited keys for an exact capacity hint, then merge other
+        // local touches.
         code.AppendLineAt(
             4,
             "var __pendingKeys = new global::System.Collections.Generic.HashSet<"
@@ -578,7 +570,8 @@ internal static class SparseKeyedSequenceRebaseEmitter
                     member.Id
                 );
             }
-            // Order: keep local order only when current order unchanged and no order conflict.
+            // Order: keep local order only when current order unchanged and no
+            // order conflict.
             code.AppendLineAt(4, "if (local.__order is not null && local.__order.Count > 0)");
             code.AppendLineAt(4, "{");
             code.AppendLineAt(

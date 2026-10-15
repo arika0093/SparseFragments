@@ -42,10 +42,7 @@ public partial class LifecycleSecret
     public string Password { get; set; } = string.Empty;
 }
 
-// Cross-boundary edit, ChangePayload, apply, acknowledge, and reload
-// lifecycle (issue #175). Each test walks the full optimistic-concurrency
-// round trip and asserts identity, ordering, revision, and notification
-// state at every step instead of re-proving pairwise API behavior.
+// Cross-boundary edit, ChangePayload, apply, acknowledge, and reload lifecycle.
 public sealed class CrossBoundaryLifecycleTests
 {
     // Raw live-model access now hides behind ISparseEditSession<TModel>.

@@ -1,17 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Shared expressions for model/fragment clones, semantic equality and built-in collection merging.</summary>
-/// <remarks>
-/// Collection equality is chosen statically per declared member shape (issue #187): sequences
-/// emit <c>AreSequenceEqual{T}</c>, sets emit <c>AreSetEqual{T}</c>, and dictionaries emit
-/// <c>AreDictionaryEqual{TKey,TValue}</c> through the injected value-comparer reference, so a
-/// downstream runtime can bind concrete shapes (<c>T[]</c>, <c>List{T}</c>, <c>HashSet{T}</c>,
-/// <c>Dictionary{TKey,TValue}</c>, ...) to specialized overloads without runtime shape
-/// probing. Members with a custom comparison comparer keep their generated comparer field;
-/// nested fragment elements and dictionary values pass a generated semantic comparer lambda.
-/// Members declared as <c>object</c> or with unsupported shapes keep the dynamic
-/// <c>AreEqual</c> fallback, which preserves unknown/custom collection semantics.
-/// </remarks>
+/// <remarks>Collection equality is chosen statically per declared member shape.</remarks>
 internal sealed class SparseFragmentExpressions(
     string cloneContext,
     string valueComparer,
@@ -57,29 +47,20 @@ internal sealed class SparseFragmentExpressions(
     // compile unchanged; products with their own names pass their bindings.
     private SparseFamilyNames Family { get; } = familyNames ?? SparseFamilyNames.Standalone;
 
-    // Generated-Once (#182): with an explicit prefix the collection clone
-    // calls resolve to the compilation-scoped kernels; null keeps the legacy
-    // per-model private helpers for downstream dialects without placement.
+    // Generated-Once: with an explicit prefix the collection clone calls
+    // resolve to the compilation-scoped kernels.
     private string? CloneKernelsPrefix { get; } = cloneKernelsPrefix;
 
     private string CloneKernel(string name) =>
         CloneKernelsPrefix is null ? name : CloneKernelsPrefix + "." + name;
 
     /// <summary>Builds the equality expression for one member's present values.</summary>
-    /// <remarks>
-    /// Custom comparer members use their generated comparer field. Array/list shapes use the
-    /// typed sequence overload (with a fragment-equality lambda for fragment elements);
-    /// dictionary shapes use the typed dictionary overload (with a fragment-equality lambda
-    /// for fragment values); set shapes use the typed set overload; everything else uses
-    /// the dynamic fallback. Overload resolution against the member's declared type picks
-    /// any statically specialized runtime overload; interface-declared or unknown shapes
-    /// transparently keep the enumerable fallback with identical semantics.
-    /// </remarks>
+    /// <remarks>Custom comparer members use their generated comparer field.</remarks>
     public string ValueEqualityExpression(SparseMemberModel member, string left, string right)
     {
         if (member.ComparisonComparerType is not null)
         {
-            // Stage 4 (#193): operations-class emission qualifies the generated
+            // Stage 4: operations-class emission qualifies the generated
             // comparer field through the Fragment alias; surface code is bare.
             return memberFieldQualifier
                 + SparseFragmentEmitHelpers.ComparisonComparerField(member)
@@ -169,9 +150,8 @@ internal sealed class SparseFragmentExpressions(
         var cloneHelperName = type.PocoCloneHelperName;
         if (cloneHelperName is not null)
         {
-            // Stage 4 (#193): POCO helpers live in the per-model operations
-            // class under split emission; the qualifier keeps surface bridges
-            // resolving while operations bodies stay bare.
+            // Stage 4: POCO helpers live in the per-model operations class
+            // under split emission.
             var qualified = pocoHelperQualifier + cloneHelperName;
             return type.IsReferenceType
                 ? $"{access} is null ? default! : {qualified}({access}, {CloneContext})"
@@ -260,8 +240,8 @@ internal sealed class SparseFragmentExpressions(
         };
     }
 
-    // A null selector means the existing clone policy keeps each element unchanged.
-    // Recursive elements continue to receive their context-aware clone delegate.
+    // A null selector means the existing clone policy keeps each element
+    // unchanged.
     private string CloneSelector(SparseTypeModel type, string parameter)
     {
         var expression = CloneValueExpression(type, parameter);

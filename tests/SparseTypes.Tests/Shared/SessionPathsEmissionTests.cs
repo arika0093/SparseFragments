@@ -4,9 +4,8 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Shared;
 
-// Emitter contracts for issue #270: the session Paths surface and the
-// collection typed-value contract stay opt-in so downstream products without
-// the contracts keep byte-identical output (isolated consumer probe).
+// Emitter contracts for the session Paths surface and the collection
+// typed-value contract stay opt-in so downstream products without the
 public sealed class SessionPathsEmissionTests
 {
     private static SparseTypeModel ScalarType(string name) =>

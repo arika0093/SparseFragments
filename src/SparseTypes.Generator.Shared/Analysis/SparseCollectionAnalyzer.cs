@@ -18,10 +18,7 @@ internal enum SparseCollectionKind
 }
 
 /// <summary>Clone-relevant collection category used by generated fragments.</summary>
-/// <remarks>
-/// Intentionally narrow: first-class shapes are arrays, lists, sets and dictionaries.
-/// Other BCL containers are <see cref="Unsupported"/> and require an explicit custom clone/merge policy.
-/// </remarks>
+/// <remarks>Intentionally narrow: first-class shapes are arrays, lists, sets and dictionaries.</remarks>
 internal enum SparseCloneCollectionKind
 {
     Unsupported,
@@ -148,8 +145,7 @@ internal static class SparseCollectionAnalyzer
             or "System.Collections.Generic.IDictionary<TKey, TValue>"
             or "System.Collections.Generic.IReadOnlyDictionary<TKey, TValue>" =>
                 SparseCloneCollectionKind.Dictionary,
-            // Other BCL shapes are intentionally unsupported; use an array, List, HashSet or
-            // Dictionary shape, or provide a custom clone/merge policy.
+            // Other BCL shapes are intentionally unsupported.
             _ => SparseCloneCollectionKind.Unsupported,
         };
 
@@ -163,12 +159,7 @@ internal static class SparseCollectionAnalyzer
     }
 
     /// <summary>Determines whether an element type needs keyed granular semantics.</summary>
-    /// <remarks>
-    /// Keyed semantics apply only to fragment/promotable elements (types with
-    /// generated Fragment/Patch). Plain POCO sequences remain atomic scalar
-    /// sequences to preserve backward compatibility; only fragment element
-    /// sequences without a usable key report the configured unkeyed-sequence diagnostic.
-    /// </remarks>
+    /// <remarks>Keyed semantics apply only to fragment/promotable elements (types with generated Fragment/Patch).</remarks>
     public static bool IsStructuralElement(
         ITypeSymbol element,
         SparseGeneratorConfig config,
@@ -191,12 +182,7 @@ internal static class SparseCollectionAnalyzer
     }
 
     /// <summary>Classifies the granular-merge semantic of a discovered collection.</summary>
-    /// <remarks>
-    /// Dictionaries are keyed by <c>TKey</c> inherently. Only ordered sequences
-    /// (<c>Array</c>/<c>List</c> kinds) with structural elements are keyed-sequence
-    /// candidates; sets keep set semantics (<see cref="SparseCollectionSemantic.None"/>)
-    /// and scalar element sequences need no key.
-    /// </remarks>
+    /// <remarks>Dictionaries are keyed by <c>TKey</c> inherently.</remarks>
     public static SparseCollectionSemantic ClassifySemantic(
         SparseSymbolCollectionInfo collection,
         SparseGeneratorConfig config,
@@ -257,11 +243,7 @@ internal static class SparseCollectionAnalyzer
     ) => SparseKeyAnalyzer.TryGetKeyInfo(element, config, cancellationToken, out info);
 
     /// <summary>Determines whether a member requires the configured unkeyed-sequence diagnostic.</summary>
-    /// <remarks>
-    /// Explicit <c>Replace</c>, <c>Append</c>, <c>SetUnion</c>, and <c>Custom</c>
-    /// merge modes use whole-collection semantics without a key. <c>Default</c>
-    /// and explicit <c>Deep</c> still require keyed identity.
-    /// </remarks>
+    /// <remarks>Explicit <c>Replace</c>, <c>Append</c>.</remarks>
     public static bool IsUnkeyedStructuralSequence(
         SparseSymbolMemberModel member,
         SparseGeneratorConfig config,

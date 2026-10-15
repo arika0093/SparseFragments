@@ -45,11 +45,7 @@ public sealed class WidgetEntity
 }
 
 /// <summary>Baseline widget mapping: ignores the display member.</summary>
-/// <remarks>
-/// Carries <c>[SparseFragmentMapper{TEntity, TDto}]</c> so the ordinary generator emits the
-/// conventional defaults (same-name scalars) for this pair end to end; the
-/// explicit ignores below replace the generated identity/token defaults.
-/// </remarks>
+/// <remarks>Uses the SparseFragmentMapper attribute.</remarks>
 [SparseFragmentMapper<WidgetEntity, WidgetDto>]
 public sealed partial class WidgetMapper
 {

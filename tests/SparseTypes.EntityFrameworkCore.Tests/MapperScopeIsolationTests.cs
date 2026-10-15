@@ -4,13 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace SparseTypes.EntityFrameworkCore.Tests;
 
 /// <summary>Builder-scope isolation for the generated mapper bridge.</summary>
-/// <remarks>
-/// The generated <c>Map</c> member is backed by the builder active for the
-/// current plan build only. These tests prove that repeated and overlapping
-/// <c>Create</c> calls on one (singleton) mapping instance cannot mix, retain,
-/// or corrupt scopes, that failures clear the scope, and that out-of-context
-/// access fails deterministically.
-/// </remarks>
+/// <remarks>The generated <c>Map</c> member is backed by the builder active for the current plan build only.</remarks>
 public sealed partial class MapperScopeIsolationTests
 {
     /// <summary>DTO with one same-name scalar for the defaults-only fixture.</summary>

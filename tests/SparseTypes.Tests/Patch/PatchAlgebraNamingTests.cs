@@ -51,7 +51,8 @@ public sealed class PatchAlgebraNamingTests
         restored.Compose.Value.ShouldBe(1);
         restored.@class.Value.ShouldBe(2);
         restored.Child.Value!.Compose.Value.ShouldBe(3);
-        // Rebase and composition do not consume or mutate the original transition.
+        // Rebase and composition do not consume or mutate the original
+        // transition.
         Apply(patch, before).Value!.Compose.Value.ShouldBe(4);
         Apply(rebased.Rebased, before).Value!.Compose.Value.ShouldBe(8);
     }

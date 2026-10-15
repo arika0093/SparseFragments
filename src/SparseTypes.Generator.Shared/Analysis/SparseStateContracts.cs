@@ -1,14 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Product-owned type names for the semantic field and collection state surface.</summary>
-/// <remarks>
-/// Shared emission references these state types only through this configuration:
-/// no <c>global::SparseTypes.*</c> literal appears in the emitters. Null
-/// disables state emission so products without the runtime state types keep
-/// byte-identical output. The state surface additionally requires the
-/// transition contracts (typed transitions back the collection view) and the
-/// typed-path interface (typed field queries).
-/// </remarks>
+/// <remarks>Shared emission references these state types only through this configuration.</remarks>
 internal sealed record SparseStateContracts(
     string FieldStateType,
     string CollectionStateType,

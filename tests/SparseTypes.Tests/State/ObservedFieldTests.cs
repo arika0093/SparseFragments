@@ -3,7 +3,7 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-/// <summary>Opt-in observable field state with binding notifications (issue #260).</summary>
+/// <summary>Opt-in observable field state with binding notifications.</summary>
 public sealed class ObservedFieldTests
 {
     private static KeyedServerHolder Holder(params (string Id, string Name)[] rows) =>

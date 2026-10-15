@@ -3,12 +3,8 @@ using System.Windows.Forms;
 
 namespace SparseTypes.DesktopBinding.Tests;
 
-/// <summary>WinForms smoke binding against the generated observable (issue #262).</summary>
-/// <remarks>
-/// Windows-only: other platforms return early and stay green, with the real
-/// verification owned by Windows legs. Every body runs on a dedicated STA
-/// thread because control creation requires a single-threaded apartment.
-/// </remarks>
+/// <summary>WinForms smoke binding against the generated observable.</summary>
+/// <remarks>Windows-only: other platforms return early and stay green, with the real verification owned by Windows legs.</remarks>
 public sealed class WinFormsBindingSmokeTests
 {
     private static DesktopOrder Order() =>
@@ -91,9 +87,7 @@ public sealed class WinFormsBindingSmokeTests
             {
                 list.Items.Count.ShouldBe(2);
 
-                // The list view exposes IList and INotifyCollectionChanged, not
-                // IBindingList, so the WinForms currency manager does not track
-                // adds on its own. The application refreshes explicitly.
+                // The list view exposes IList and INotifyCollectionChanged.
                 session.Observable.Lines.AddModel(
                     new DesktopOrderLine { Id = "c", Name = "third" }
                 );

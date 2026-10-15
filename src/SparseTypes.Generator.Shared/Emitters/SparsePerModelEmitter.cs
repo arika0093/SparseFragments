@@ -5,18 +5,11 @@ using System.Threading;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Per-model emission path, separated from the compilation-scoped plane.</summary>
-/// <remarks>
-/// Per-model output holds type-safe state, transitions, and behavior for
-/// one analyzed model. It may call into <see cref="SparseGeneratedOnceEmitter"/>
-/// helpers but never re-emits them. Compilation-scoped helpers aggregate
-/// separately through the capability plan.
-/// </remarks>
+/// <remarks>Per-model output holds type-safe state, transitions, and behavior for one analyzed model.</remarks>
 internal static class SparsePerModelEmitter
 {
     // The wide parameter list mirrors SparseFragmentEmitter.BuildSource
-    // one-to-one: this type is a thin plane-separation seam, not a new API
-    // surface, so folding parameters into a config object would only alias
-    // the downstream signature. Keep the arity aligned instead.
+    // one-to-one.
     /// <summary>Builds the per-model surface source for one explicit root.</summary>
     /// <param name="model">Model identity.</param>
     /// <param name="members">Analyzed members.</param>
@@ -121,11 +114,7 @@ internal static class SparsePerModelEmitter
         );
 
     /// <summary>Builds split surface and implementation sources for one explicit root.</summary>
-    /// <remarks>Union of the reloc-2 payload/Fragment-operations split (stage 3, #192)
-    /// and the reloc-3 Patch/ChangeSet operation split (issue #194): the implementation
-    /// source carries payload DTOs, Fragment operations/converter plus Patch/ChangeSet
-    /// operations under the shared resolver hint with the configured suffix;
-    /// null means legacy single-file emission.</remarks>
+    /// <remarks>Union of the reloc-2 payload/Fragment-operations split (stage 3, ) and the reloc-3 Patch/ChangeSet operation split.</remarks>
     public static (string Surface, SparseGeneratedSource? Implementation) BuildSplitSurface(
         SparseModelInfo model,
         ImmutableArray<SparseMemberModel> members,

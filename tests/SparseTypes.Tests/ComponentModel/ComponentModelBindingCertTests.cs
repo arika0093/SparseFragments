@@ -3,14 +3,7 @@ using System.ComponentModel;
 
 namespace SparseTypes.Tests;
 
-/// <summary>
-/// Framework-neutral ComponentModel binding certification (issue #262).
-/// Covers the binding surface desktop frameworks consume: scalar and nested
-/// <see cref="INotifyPropertyChanged"/> notifications, collection
-/// notifications, typed paths, semantic dirty state, and keyed reorder.
-/// Child-session lifecycle, bound-target boundaries, validation display,
-/// disposal, and threading live in <c>ComponentModelChildSessionCertTests</c>.
-/// </summary>
+/// <summary>Framework-neutral ComponentModel binding certification.</summary>
 public sealed class ComponentModelBindingCertTests
 {
     private static List<string> Watch(INotifyPropertyChanged source)
@@ -261,10 +254,7 @@ public sealed class ComponentModelBindingCertTests
         session.Observable.Items.ShouldBeAssignableTo<System.Collections.IList>();
         session.Observable.Items.ShouldBeAssignableTo<INotifyCollectionChanged>();
 
-        // Desktop grids bind these standard interfaces. Row currency and
-        // multi-cycle row editing contracts stay out on purpose: no
-        // IBindingList adapter and no IEditableObject wrapper are provided
-        // without demonstrated consumer evidence.
+        // Desktop grids bind these standard interfaces.
         session
             .Observable.Items.GetType()
             .GetInterfaces()

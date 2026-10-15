@@ -4,10 +4,7 @@ using SparseTypes;
 
 #pragma warning disable CA1001 // Benchmark harness owns view lifetimes; disposal is part of what is measured.
 
-// Reproducible proxy/prune profiles for issue #114: cold acquisition, repeated
-// enumeration, random indexed reads, and batched mutations with all element
-// proxies populated (the PruneProxies worst case). Sizes spread 8x to expose
-// quadratic scaling as complexity changes rather than single-point timings.
+// Reproducible proxy/prune profiles for cold acquisition.
 [MemoryDiagnoser]
 public class ObservableProxyBenchmarks
 {

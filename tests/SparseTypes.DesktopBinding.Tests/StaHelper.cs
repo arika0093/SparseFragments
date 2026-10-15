@@ -2,11 +2,7 @@ using System.Runtime.ExceptionServices;
 
 namespace SparseTypes.DesktopBinding.Tests;
 
-/// <summary>
-/// Runs desktop binding bodies on a dedicated STA thread. WPF and WinForms
-/// controls require a single-threaded apartment, while the test runner uses
-/// multithreaded apartments, so every control interaction is marshaled here.
-/// </summary>
+/// <summary>Runs desktop binding bodies on a dedicated STA thread.</summary>
 internal static class StaHelper
 {
     internal static void Run(Action body)

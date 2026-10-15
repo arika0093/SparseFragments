@@ -4,13 +4,7 @@ using SparseTypes.Generated;
 namespace SparseTypes;
 
 /// <summary>Entry points for the path-addressed collection editing facade.</summary>
-/// <remarks>
-/// The descriptor set (for example <c>session.Descriptors</c>) supplies live
-/// resolution while the batch runner (for example <c>session.BatchEdit</c>)
-/// groups each operation into one transition notification. Generated edit
-/// sessions add a session-rooted <c>EditCollection</c> overload that forwards
-/// here, so handwritten code keeps the same behavior without regeneration.
-/// </remarks>
+/// <remarks>Uses generated descriptors to edit collection members.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public static class SparseCollectionEditors
 {

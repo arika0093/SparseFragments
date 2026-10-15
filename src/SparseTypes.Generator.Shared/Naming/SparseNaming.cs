@@ -95,11 +95,7 @@ internal static class SparseNaming
 }
 
 /// <summary>Canonical bracket-key path suffixes shared by descriptors and change sets.</summary>
-/// <remarks>
-/// Every key renders double-quoted with backslash and quote escaping, using the
-/// InvariantCulture text of the key. Numeric and Guid keys are not distinguished
-/// from strings; consumers parse the quoted text back with the key type.
-/// </remarks>
+/// <remarks>Every key renders double-quoted with backslash and quote escaping, using the InvariantCulture text of the key.</remarks>
 internal static class SparseCanonicalKeyPath
 {
     /// <summary>Builds a path-suffix expression for converted key text.</summary>
@@ -120,12 +116,7 @@ internal static class SparseCanonicalKeyPath
 
     /// <summary>Builds a path-suffix expression for already-escaped key text.</summary>
     /// <param name="escapedTextExpression">Expression producing escaped key text.</param>
-    /// <remarks>
-    /// No further escaping is applied, so change-set paths composed as
-    /// <c>__SparseEscapeKey(__SparseKeyText(key))</c> (issues #137/#138) keep
-    /// their canonical <c>Name["key"]</c> grammar without double-escaping.
-    /// Raw key text uses <see cref="AppendQuoted"/> instead.
-    /// </remarks>
+    /// <remarks>No further escaping is applied.</remarks>
     internal static string AppendEscaped(string escapedTextExpression) =>
         " + \"[\\\"\" + " + escapedTextExpression + " + \"\\\"]\"";
 }

@@ -3,26 +3,12 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>Per-rebase options for generated <c>RebaseOnto</c> and <c>TryApplyTo</c> entry points.</summary>
-/// <remarks>
-/// This type is the isolated adapter between the typed payload flow and rebase
-/// semantics. Redacted (write-only) members are named by dotted path
-/// (<c>"Secret"</c>, <c>"Nested.Token"</c>, <c>""</c> for the whole
-/// contribution); the wire version stays <c>"0.1"</c> and carries no redacted
-/// markers, so callers populate <see cref="RedactedBeforePaths"/> from their
-/// own metadata until the payload format learns them.
-/// A redacted member is never <see cref="Optional{T}.Missing"/>: the desired
-/// value is present, only its before-state is withheld.
-/// </remarks>
+/// <remarks>This type is the isolated adapter between the typed payload flow and rebase semantics.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed record ChangePayloadRebaseOptions
 {
     /// <summary>Whether a redacted-before member fails rebase instead of passing through.</summary>
-    /// <remarks>
-    /// Defaults to <c>false</c>: the desired operation applies as its explicit
-    /// patch operation with no historical comparison, no invented baseline, and
-    /// no automatic undo. Set to <c>true</c> to fail with a secret-safe
-    /// <see cref="SparseConflictKind.RedactedBefore"/> conflict instead.
-    /// </remarks>
+    /// <remarks>Defaults to <c>false</c>.</remarks>
     public bool RejectChangesWithRedactedBeforeValuesDuringRebase { get; init; }
 
     /// <summary>Dotted paths treated as redacted-before for this rebase attempt.</summary>
@@ -33,10 +19,7 @@ public sealed record ChangePayloadRebaseOptions
     public IReadOnlyList<string> RedactedBeforePaths { get; init; } = Array.Empty<string>();
 
     /// <summary>Fallback reconciliation for members without explicit rebase configuration.</summary>
-    /// <remarks>
-    /// Applies to scalar and whole-replace members only; nested, keyed,
-    /// dictionary, and merge-collection members always reconcile granularly.
-    /// </remarks>
+    /// <remarks>Applies to scalar and whole-replace members only.</remarks>
     public SparseRebaseMode DefaultRebaseMode { get; init; } = SparseRebaseMode.Default;
 
     /// <summary>Whether the given dotted path is redacted-before under these options.</summary>
@@ -53,11 +36,8 @@ public sealed record ChangePayloadRebaseOptions
     }
 
     /// <summary>Returns options with paths rebased one level down for a nested member.</summary>
-    /// <remarks>
-    /// The nested rebase receives root-relative paths stripped of
-    /// <paramref name="segment"/>; an exact match becomes whole-subtree
-    /// redaction. Other settings pass through unchanged.
-    /// </remarks>
+    /// <remarks>The nested rebase receives root-relative paths stripped of
+    /// <paramref name="segment"/>.</remarks>
     public ChangePayloadRebaseOptions Nest(string segment)
     {
         ArgumentNullException.ThrowIfNull(segment);

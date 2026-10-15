@@ -2,25 +2,8 @@ using System.ComponentModel;
 
 namespace SparseTypes;
 
-/// <summary>
-/// Point-in-time snapshot of one keyed or dictionary entry within a collection state.
-/// </summary>
-/// <remarks>
-/// <para>
-/// Snapshots map one-to-one from the typed keyed/dictionary item transitions:
-/// <see cref="IsAdded"/>, <see cref="IsRemoved"/>, <see cref="IsEdited"/>, and
-/// (keyed only) <see cref="IsReordered"/> mirror the transition flags without
-/// reimplementing them. Unknown keys and identities without temporary support
-/// produce the empty state (<see cref="IsEmpty"/>), matching the typed
-/// <c>GetChange</c> contract. A member-level whole transition (for example a
-/// null-to-populated nullable collection) does not suppress row states: rows
-/// still resolve through the typed transition's granular items.
-/// </para>
-/// <para>
-/// Lifetime: the snapshot is detached from the change set. Querying it never
-/// touches the live model.
-/// </para>
-/// </remarks>
+/// <summary>Point-in-time snapshot of one keyed or dictionary entry within a collection state.</summary>
+/// <remarks>Snapshots map one-to-one from the typed keyed/dictionary item transitions.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public readonly record struct SparseCollectionItemState
 {
@@ -55,10 +38,7 @@ public readonly record struct SparseCollectionItemState
     /// <summary>
     /// Gets whether the entry was reordered.
     /// </summary>
-    /// <remarks>
-    /// Keyed only; dictionary entries always report false. Reorder observes
-    /// surviving-key relative rank, so membership-only shifts leave it false.
-    /// </remarks>
+    /// <remarks>Keyed only; dictionary entries always report false.</remarks>
     public bool IsReordered { get; private init; }
 
     /// <summary>Gets whether this state carries no semantic change for the requested key.</summary>
@@ -117,24 +97,7 @@ public readonly record struct SparseCollectionItemState
 /// <summary>
 /// Point-in-time state view over one keyed or dictionary collection member.
 /// </summary>
-/// <remarks>
-/// <para>
-/// The view is built from the member's typed transition, so row states reuse
-/// the canonical added/removed/edited/reordered semantics (including
-/// collection-scoped temporary identities) instead of rederiving them. It
-/// addresses a single collection member at a root-level member path; deeper
-/// paths and non-collection members fail fast with
-/// <see cref="ArgumentException"/>. Keyed sub-collections below a key segment
-/// are out of scope for this view; navigate the change set to the nested
-/// transition and query its item states instead.
-/// </para>
-/// <para>
-/// Lifetime: the view snapshots the change set captured when it was created.
-/// Row lookups against the view are cheap dictionary probes; creating the view
-/// from a session diffs the live model once. The view retains its change set,
-/// so dropping the view releases it.
-/// </para>
-/// </remarks>
+/// <remarks>The view is built from the member's typed transition.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public readonly record struct SparseCollectionState
 {
@@ -170,21 +133,13 @@ public readonly record struct SparseCollectionState
     /// <remarks>Keyed collections only; dictionary members always report false.</remarks>
     public bool OrderChanged { get; }
 
-    /// <summary>
-    /// Looks up the state for a stable key; never returns an uninitialized state.
-    /// </summary>
+    /// <summary>Looks up the state for a stable key; never returns an uninitialized state.</summary>
     /// <param name="key">The stable key to look up.</param>
     /// <returns>The item state, or the empty state for unknown keys.</returns>
-    /// <remarks>
-    /// The key must be assignable to the collection key type. Null keys for
-    /// value-type keys report the empty state; other invalid keys follow the
-    /// underlying typed transition behavior.
-    /// </remarks>
+    /// <remarks>The key must be assignable to the collection key type.</remarks>
     public SparseCollectionItemState GetItemState(object? key) => _getItem(key);
 
-    /// <summary>
-    /// Looks up the state for a temporary identity; never returns an uninitialized state.
-    /// </summary>
+    /// <summary>Looks up the state for a temporary identity; never returns an uninitialized state.</summary>
     /// <param name="temporaryKey">The collection-scoped temporary identity.</param>
     /// <returns>The item state, or the empty state for unknown identities.</returns>
     /// <remarks>

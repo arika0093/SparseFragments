@@ -6,13 +6,7 @@ using System.Threading;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Builds the relocated per-model descriptor factory.</summary>
-/// <remarks>
-/// Reuses the existing descriptor emitters for the graph body, then rewrites
-/// instance access from <c>this</c> to the factory <c>observable</c> parameter
-/// and child proxy accessors to child factories. Internal observable bridges
-/// (`__model`, `__onChanged`, `__onRawModelAccess`, `__Raise`) stay in the
-/// same assembly so the factory binds live state without public surface.
-/// </remarks>
+/// <remarks>Reuses the existing descriptor emitters for the graph body.</remarks>
 internal static class SparseDescriptorFactoryEmitter
 {
     /// <summary>Builds the descriptor-factory additional source.</summary>
@@ -54,8 +48,8 @@ internal static class SparseDescriptorFactoryEmitter
             cancellationToken
         );
         var body = RewriteReceiver(relocated, cancellationToken);
-        // Legacy emits "internal IDescriptorSet __SparseGetDescriptors_<hash>(pathType pathPrefix) { ... }".
-        // The factory exposes a stable per-model Create entry instead.
+        // Legacy emits "internal IDescriptorSet
+        // __SparseGetDescriptors_<hash>(pathType pathPrefix) {... }".
         body = Regex.Replace(
             body,
             @"internal\s+\S+\s+__SparseGetDescriptors_[0-9A-F]{8}\s*\(\s*\S+\s+pathPrefix\s*\)",
@@ -103,9 +97,7 @@ internal static class SparseDescriptorFactoryEmitter
         code.AppendLineAt(1, "}");
         code.AppendLine("}");
         // Fix indentation: legacy body used indent 2/3/4 for nested Observable;
-        // inside "namespace/container/factory" it needs one extra level. The
-        // code still compiles with the old indents, so keep the body as-is to
-        // avoid reflowing generated text.
+        // inside "namespace/container/factory" it needs one extra level.
         _ = observableSimple;
         var source = code.ToString();
         return new SparseGeneratedSource(
@@ -137,12 +129,8 @@ internal static class SparseDescriptorFactoryEmitter
     /// <returns>The body bound to the <c>observable</c> parameter.</returns>
     internal static string RewriteReceiver(string source, CancellationToken cancellationToken)
     {
-        // Instance state moves from "this" to the factory parameter. Order
-        // matters: longer names first so "__onRawModelAccess" does not get a
-        // partial "__model" rewrite. Child proxy accessors stay as
-        // "current.__SparseGet_X(path)": each model-nested Observable keeps a
-        // thin bridge delegating to its own factory. Replacement skips string
-        // literals and comments so member-name literals stay intact.
+        // Rewrite instance references to the factory parameter, longest names
+        // first; skip literals and comments to preserve their contents.
         source = SparseCodeRewrite.ReplaceOutsideLiteralsAndComments(
             source,
             "this.",

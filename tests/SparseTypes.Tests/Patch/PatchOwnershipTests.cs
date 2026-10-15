@@ -3,7 +3,8 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-// Plain (non-partial, non-fragment) value held directly: atomic replace semantics.
+// Plain (non-partial, non-fragment) value held directly: atomic replace
+// semantics.
 public sealed class MutableAtomicValue
 {
     public string Name { get; set; } = string.Empty;
@@ -17,16 +18,7 @@ public partial class AtomicValueHolder
     public MutableAtomicValue? Payload { get; set; }
 }
 
-/// <summary>
-/// Ownership contract for mutable values assigned through a <c>Patch</c>:
-/// assignment and <c>Apply</c> share the supplied reference instead of cloning.
-/// The patch, the assigned source value, and the resulting fragment alias the
-/// same instance, so callers own mutation discipline. This matches
-/// <c>Merge</c> (<c>Replace</c>), <c>ApplyChanges</c>, and <c>ToModel</c>;
-/// only <c>Fragment.From</c>, <c>DeepClone</c>, whole-contribution
-/// <c>Set(model)</c> (which snapshots through <c>From</c>), and Patch/ChangeSet
-/// JSON deserialization (freshly deserialized values) produce isolated copies.
-/// </summary>
+/// <summary>Assignment and <c>Apply</c> share the supplied reference instead of cloning.</summary>
 public sealed class PatchOwnershipTests
 {
     [Test]
@@ -41,12 +33,12 @@ public sealed class PatchOwnershipTests
         ReferenceEquals(result.Tags.Value, tags).ShouldBeTrue();
         ReferenceEquals(patch.Tags.Value, tags).ShouldBeTrue();
 
-        // Mutating the source list after Apply is visible through the patch and the result...
+        // Mutating the source list after Apply is visible through both values.
         tags.Add("b");
         result.Tags.Value!.ShouldBe(["a", "b"]);
         patch.Tags.Value!.ShouldBe(["a", "b"]);
 
-        // ...but the basis fragment keeps its own list.
+        //but the basis fragment keeps its own list.
         basis.Tags.Value!.ShouldBe(["x"]);
 
         // Mutating through the patch value is equally visible in the result.
@@ -88,11 +80,11 @@ public sealed class PatchOwnershipTests
 
         ReferenceEquals(result.Scores.Value, scores).ShouldBeTrue();
 
-        // Mutating the source dictionary after Apply is visible in the result...
+        // Mutating the source dictionary after Apply is visible in the result.
         scores["b"] = 2;
         result.Scores.Value!["b"].ShouldBe(2);
 
-        // ...but the basis fragment keeps its own dictionary.
+        //but the basis fragment keeps its own dictionary.
         basis.Scores.Value!.ContainsKey("b").ShouldBeFalse();
         basis.Scores.Value["x"].ShouldBe(0);
     }
@@ -107,17 +99,17 @@ public sealed class PatchOwnershipTests
 
         var result = basis.Apply(patch);
 
-        // Whole-value replacement: the result aliases the patch instance...
+        // Whole-value replacement preserves the patch instance.
         ReferenceEquals(result.Payload.Value, payload).ShouldBeTrue();
         ReferenceEquals(patch.Payload.Value, payload).ShouldBeTrue();
 
-        // ...so post-Apply mutation from either side is visible in the result...
+        // Mutations after Apply are visible through both sides.
         payload.Name = "mutated";
         result.Payload.Value!.Name.ShouldBe("mutated");
         patch.Payload.Value!.Count = 42;
         result.Payload.Value.Count.ShouldBe(42);
 
-        // ...while the basis keeps its own instance untouched.
+        //while the basis keeps its own instance untouched.
         ReferenceEquals(basis.Payload.Value, basisPayload).ShouldBeTrue();
         basisPayload.Name.ShouldBe("basis");
         basis.Payload.Value!.Name.ShouldBe("basis");
@@ -149,7 +141,8 @@ public sealed class PatchOwnershipTests
         var patch = new ScalarSequenceHolder.Patch();
         patch.Set(model);
 
-        // Whole-contribution Set clones at Set time, so later source mutation is isolated.
+        // Whole-contribution Set clones at Set time, so later source mutation
+        // is isolated.
         model.Tags.Add("mutated");
 
         var applied = patch.Apply(Optional<ScalarSequenceHolder.Fragment?>.Missing);
@@ -160,15 +153,7 @@ public sealed class PatchOwnershipTests
     private static string ChangeSetJson(ScalarSequenceHolder.ChangeSet changes) =>
         JsonSerializer.Serialize(changes.ToPayload());
 
-    /// <summary>
-    /// ChangeSet ownership (issue #170): unlike <c>Patch</c> above, a
-    /// <c>ChangeSet</c> snapshots its inputs. Whole-root fragments are
-    /// deep-cloned and member collection containers are copied at capture
-    /// (comparers preserved), so caller-side mutation after <c>Between</c> or
-    /// through typed <c>Before</c>/<c>After</c> endpoints cannot alter history.
-    /// Element values stay shared by reference; exotic container shapes fall
-    /// back to the borrowed reference.
-    /// </summary>
+    /// <summary>ChangeSet ownership: unlike <c>Patch</c> above, a <c>ChangeSet</c> snapshots its inputs.</summary>
     [Test]
     public void ChangeSetSnapshotsWholeRootFragments()
     {

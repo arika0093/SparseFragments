@@ -2,15 +2,8 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-/// <summary>ChangeSet sparse-transition Compose/Rebase algebra (issue #97).</summary>
-/// <remarks>
-/// Proves composition and rebase operate directly on canonical sparse transition state:
-/// disjoint paths compose without full-state equality, overlapping paths require semantic
-/// contiguity (including nested leaves, keyed stable-key transitions, and Missing/null/value
-/// presence), whole-root endpoints compose with memberwise transitions through shared-baseline
-/// algebra, and rebase consumes only the retained transition plus the supplied current state
-/// (scalar/custom/nested/keyed/Append/SetUnion) with structured per-path conflicts.
-/// </remarks>
+/// <summary>ChangeSet sparse-transition Compose/Rebase algebra.</summary>
+/// <remarks>Proves composition and rebase operate directly on canonical sparse transition state.</remarks>
 public sealed class ChangeSetSparseAlgebraTests
 {
     private static Optional<Settings.Fragment?> Present(Settings.Fragment fragment) =>
@@ -59,8 +52,8 @@ public sealed class ChangeSetSparseAlgebraTests
     [Test]
     public void DisjointRootMembersComposeFromDifferingSnapshots()
     {
-        // First changes Label only; second was produced from an unrelated Label snapshot
-        // and changes RetryCount only. Unrelated state must not prevent composition.
+        // First changes Label only; second was produced from an unrelated Label
+        // snapshot and changes RetryCount only.
         var first = Settings.ChangeSet.Between(
             Present(State("Alice", 1)),
             Present(State("Bob", 1))
@@ -88,8 +81,8 @@ public sealed class ChangeSetSparseAlgebraTests
     [Test]
     public void DisjointNestedLeavesComposeUnderSharedParent()
     {
-        // Host and Port leaves share the Nested parent but change independently and were
-        // produced from differing Host snapshots. No whole-Database equality is required.
+        // Host and Port leaves share the Nested parent but change independently
+        // and were produced from differing Host snapshots.
         var first = Settings.ChangeSet.Between(
             Present(NestState("a", 1)),
             Present(NestState("b", 1))
@@ -173,7 +166,8 @@ public sealed class ChangeSetSparseAlgebraTests
     [Test]
     public void MissingNullValueContinuity()
     {
-        // Missing -> "x" then "x" -> Missing collapses back to no change on that path.
+        // Missing -> "x" then "x" -> Missing collapses back to no change on
+        // that path.
         var missingBefore = Present(
             new Settings.Fragment { RetryCount = Optional<int>.Present(3) }
         );

@@ -223,11 +223,7 @@ internal static class SparseKeyedCollectionEmitter
 
     internal static string KeyOfMethod(SparseMemberModel member) => "__SparseKeyOf_" + member.Id;
 
-    /// <summary>
-    /// Builds a duplicate-key guard plus add for keyed map construction.
-    /// <c>Dictionary.TryAdd</c> is unavailable on netstandard2.0, so generated
-    /// code uses <c>ContainsKey</c>/<c>Add</c> with identical throw behavior.
-    /// </summary>
+    /// <summary>Builds a duplicate-key guard plus add for keyed map construction.</summary>
     internal static string AddUniqueEntry(string map, string key, string value) =>
         "if ("
         + map
@@ -314,8 +310,8 @@ internal static class SparseKeyedCollectionEmitter
             indent + 1,
             "if ((object?)element is null) throw new global::System.InvalidOperationException(\"Null elements have no stable key.\");"
         );
-        // Single-property keys only: the key type is the declared property type,
-        // which may itself be a tuple or value object for composite identity.
+        // The key type is the declared property type, which may itself be a
+        // tuple or value object for composite identity.
         if (keys.Length == 1)
         {
             code.AppendLineAt(
@@ -383,12 +379,12 @@ internal static class SparseKeyedCollectionEmitter
     )
     {
         var collection = member.Collection;
-        // CloneKind Array (includes IEnumerable/IReadOnlyList/array) -> ToArray; else new List.
+        // CloneKind Array (includes IEnumerable/IReadOnlyList/array) ->
+        // ToArray; else new List.
         if (collection.CloneKind == SparseCloneCollectionKind.Array)
         {
-            // Preserve T[]/IEnumerable shape: materialize then convert to member type via helper.
-            // The member type may be T[] or IEnumerable<T>; ToArray covers both.
-            // For IEnumerable<T> declared as List-compatible? Analyzer maps IEnumerable->Array kind.
+            // Preserve T[]/IEnumerable shape: materialize then convert to
+            // member type via helper.
             return runtime
                 + "Optional<"
                 + member.Property.Type.Name
@@ -407,17 +403,15 @@ internal static class SparseKeyedCollectionEmitter
 
     internal static string ConvertSequenceToMember(SparseMemberModel member, string variable)
     {
-        // If member is List<T> or IList<T>, new List<T>(variable) when variable is already List<T> would copy; use variable directly if types match?
-        // Simplest: if CloneKind is Array -> ToArray(variable); else if member type definition contains "List" -> new List<T>(variable) if needed else variable.
+        // If member is List<T> or IList<T>.
         if (member.Collection.CloneKind == SparseCloneCollectionKind.Array)
         {
             // variable is List<T>; member wants array/enumerable.
-            // For T[] or IEnumerable<T>/IReadOnlyList<T>, ToArray then implicit? IEnumerable<T> accepts T[].
-            // If member type is exactly T[], ToArray is perfect.
             return "global::System.Linq.Enumerable.ToArray(" + variable + ")";
         }
 
-        // List shape: if variable is already List<T>, reuse when member is List<T>/IList<T>.
+        // List shape: if variable is already List<T>, reuse when member is
+        // List<T>/IList<T>.
         return variable;
     }
 

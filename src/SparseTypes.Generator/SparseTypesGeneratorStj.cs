@@ -5,12 +5,7 @@ using SparseTypes.Generator.Shared;
 namespace SparseTypes.Generator;
 
 /// <summary>System.Text.Json capability wiring for the standalone generator.</summary>
-/// <remarks>
-/// Split from <c>SparseTypesGenerator</c> to keep the entry file within
-/// the size guideline; it owns only the compilation capability probe, the
-/// per-compilation configuration derivation, and the partial-surface
-/// diagnostic (issues #242/#243) with no analysis changes.
-/// </remarks>
+/// <remarks>Split from <c>SparseTypesGenerator</c> to keep the entry file within the size guideline.</remarks>
 public sealed partial class SparseTypesGenerator
 {
     /// <summary>Probes the consuming compilation for usable System.Text.Json APIs.</summary>
@@ -31,12 +26,7 @@ public sealed partial class SparseTypesGenerator
             .WithTrackingName("SparseTypesGenerator.StjCapabilities");
 
     /// <summary>Reports an actionable diagnostic when the surface is partial but JSON is requested.</summary>
-    /// <remarks>
-    /// A fully absent surface stays silent so core-only consumers that never
-    /// opted out of the default JSON families still build cleanly. Partial
-    /// surfaces omit the JSON artifacts in the emitters; this diagnostic names
-    /// the missing APIs instead of failing silently.
-    /// </remarks>
+    /// <remarks>Core-only consumers need no JSON diagnostic.</remarks>
     /// <param name="context">Generator initialization context.</param>
     /// <param name="stjCapabilities">Capability snapshot provider.</param>
     /// <param name="hasModels">Whether the compilation declares any model.</param>
@@ -77,11 +67,7 @@ public sealed partial class SparseTypesGenerator
     }
 
     /// <summary>Derives the per-compilation configuration from probed capabilities.</summary>
-    /// <remarks>
-    /// The probed snapshot travels through both the config layer (top-level
-    /// decisions) and the patch dialect (deep emitters that only receive the
-    /// dialect), keeping one capability source for the whole render.
-    /// </remarks>
+    /// <remarks>Shares probed capabilities across config and patch dialects.</remarks>
     private static SparseGeneratorConfig WithCapabilities(
         SparseGeneratorConfig configuration,
         bool allowFileScopedTypes,

@@ -56,9 +56,7 @@
     [Parameter, EditorRequired]
     public PlaygroundOrderDto Draft { get; set; } = null!;
 
-    // Collection field captured by the parent list: navigates to the row's
-    // member paths with root-preserving typing, keyed by store identity for
-    // persisted rows and by temporary identity for new rows.
+    // Collection field captured by the parent list.
     [Parameter, EditorRequired]
     public SparseFieldContext<PlaygroundOrderDto, List<PlaygroundOrderLineDto>> Lines { get; set; } = null!;
 
@@ -96,10 +94,7 @@
                 Line.TemporaryId ?? Guid.Empty,
                 static line => line.Qty);
 
-    // Row and field highlights reuse the shared collection state. New rows
-    // carry no store identity, exactly as before: they render added. Moved
-    // observes surviving-key relative rank, matching the old manual rank
-    // comparison. Added rows never query per-field state.
+    // Row and field highlights reuse the shared collection state.
     private SparseCollectionItemState ItemState =>
         Roster is { } roster
             ? Line.Id is int id

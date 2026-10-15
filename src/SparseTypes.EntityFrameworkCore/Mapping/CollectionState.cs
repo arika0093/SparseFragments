@@ -7,24 +7,7 @@ namespace SparseTypes.EntityFrameworkCore.Mapping;
 /// <summary>
 /// Reads and indexes the tracked collection state for delta-based keyed sync.
 /// </summary>
-/// <remarks>
-/// Read-only during preflight: indexing never mutates entities, assigns no
-/// navigation, attaches nothing, and queries nothing. Added children come from
-/// the ChangeSet <c>Added</c> After snapshots, edits recurse through child
-/// ChangeSets, and removals resolve from keyed before-identity. No desired or
-/// full-collection DTO is required. Every inconsistency surfaces as an
-/// explicit mapping failure. Navigation assignment happens only in the
-/// execution phase via <see cref="EnsureList{TDtoChild, TEntityChild}" />.
-/// <para>
-/// A loaded navigation is not proof of completeness (a filtered
-/// <c>Include</c> marks the navigation loaded while omitting elements).
-/// Delta add/edit operations touch only addressed keys and stay safe on
-/// partial loads; order persistence and removal validation require complete
-/// evidence and fail explicitly otherwise. Callers must load collections with
-/// unfiltered <c>Include</c>/<c>Load</c>; filtered includes are unsupported
-/// for reordered or removal-bearing transitions.
-/// </para>
-/// </remarks>
+/// <remarks>Read-only during preflight: indexing never mutates entities, assigns no navigation, attaches nothing, and queries nothing.</remarks>
 internal static class CollectionState
 {
     public static IList ReadTrackedList<TDtoChild, TEntityChild>(
@@ -48,8 +31,7 @@ internal static class CollectionState
         if (current is null && runtime.CollectionSetter is not null)
         {
             // Read-only preflight stand-in: execution assigns the real list via
-            // EnsureList. Removals and edits resolve against the empty set and
-            // fail as KeyNotFound; pure additions proceed.
+            // EnsureList.
             return new List<TEntityChild>();
         }
 
@@ -88,11 +70,7 @@ internal static class CollectionState
         );
     }
 
-    /// <summary>
-    /// Returns the collection list, assigning a new list for a null settable
-    /// navigation. Execution phase only; never call during preflight
-    /// validation.
-    /// </summary>
+    /// <summary>Returns the collection list, assigning a new list for a null settable navigation.</summary>
     public static IList EnsureList<TDtoChild, TEntityChild>(
         CollectionRuntime<TDtoChild, TEntityChild> runtime,
         DbContext context,

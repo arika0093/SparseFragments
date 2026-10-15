@@ -5,13 +5,8 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Shared;
 
-// Regression tests pinning string-rewrite safety for relocation (reloc-1
-// review hardening, #190/#191). Relocation rewrites generated sources with
-// text replacement; the same text inside string literals or comments must
-// never be rewritten, and member names colliding with rewritten identifiers
-// must keep working. The synthetic cases below feed crafted sources straight
-// into the rewrite; the product-generator cases in RelocatedUiPlacementTests
-// pin the end-to-end behavior.
+// Verify relocation rewrites avoid literals/comments and preserve colliding
+// member names, including through the product generator.
 public sealed class RelocatedRewriteSafetyTests
 {
     private const string ChildName = "global::Ns.Child";

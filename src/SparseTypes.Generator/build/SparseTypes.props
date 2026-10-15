@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <!-- Generated init accessors need IsExternalInit on legacy reference assemblies. -->
+    <!-- Adds IsExternalInit for legacy reference assemblies. -->
     <SparseTypesEmitIsExternalInit Condition="'$(SparseTypesEmitIsExternalInit)' == ''"
       >true</SparseTypesEmitIsExternalInit>
   </PropertyGroup>

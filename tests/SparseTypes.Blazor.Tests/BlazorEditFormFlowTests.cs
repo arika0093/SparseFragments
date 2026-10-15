@@ -3,11 +3,8 @@ using Microsoft.AspNetCore.Components.Forms;
 
 namespace SparseTypes.Blazor.Tests;
 
-// Deterministic counterpart of docs/how-to/blazor-edit-form.md (#211).
-// Exercises the full form lifecycle against OrderDto: Observable input with
-// EditContext field tracking, validation failure, successful save with
-// server normalisation, conflict display with retain-and-retry, and
-// transport failure without baseline movement.
+// Verify the documented form lifecycle: validation, save, conflict retry,
+// and transport failure without baseline movement.
 public sealed class BlazorEditFormFlowTests
 {
     private abstract record SaveResult;

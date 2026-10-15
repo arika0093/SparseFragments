@@ -4,11 +4,8 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Shared;
 
-// Semantic-role reference tests (#179): shared generation derives child
-// and nested type references from product-owned family bindings through
-// SparseSemanticReference instead of rebuilding product literals in
-// emitters. The standalone vocabulary stays the default; a downstream
-// product binds its own names and only its names appear in references.
+// Verify shared generation uses product-owned semantic bindings and emits
+// downstream names instead of standalone vocabulary.
 public sealed class SemanticReferenceTests
 {
     private static readonly SparseFamilyNames CustomFamily = new(

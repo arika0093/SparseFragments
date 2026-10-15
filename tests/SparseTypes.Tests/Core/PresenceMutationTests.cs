@@ -2,12 +2,7 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-/// <summary>
-/// Guards the presence-preserving mutation helpers (issue #32):
-/// <see cref="OptionalExtensions"/> and <see cref="FragmentOperationExtensions"/>
-/// mutate <c>ref</c> storage without collapsing Missing vs. Present(null)/default,
-/// and converting copies invoke the converter only for present/set inputs.
-/// </summary>
+/// <summary>Guards the presence-preserving mutation helpers.</summary>
 public sealed class PresenceMutationTests
 {
     [Test]

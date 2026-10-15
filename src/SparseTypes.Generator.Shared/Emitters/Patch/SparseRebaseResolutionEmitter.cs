@@ -2,15 +2,8 @@ using System.Collections.Immutable;
 
 namespace SparseTypes.Generator.Shared;
 
-/// <summary>Path-based rebase conflict resolution surface and build core (issue #203).</summary>
-/// <remarks>
-/// Emits the public <c>ChangeSet.Resolution</c> state plus <c>BeginResolution</c>
-/// factories and the baseline-aware <c>TryCreateResolved</c> core. Per-path value
-/// application lives in <see cref="SparseResolutionApplyEmitter"/>; this file owns
-/// the workflow shape only. Product specifics flow through the existing patch
-/// dialect (runtime namespace, path type, conflict and rebase-result types), so no new
-/// dialect surface is introduced.
-/// </remarks>
+/// <summary>Path-based rebase conflict resolution surface and build core.</summary>
+/// <remarks>Emits the configured public rebase result.</remarks>
 internal static class SparseRebaseResolutionEmitter
 {
     internal static void AppendResolution(
@@ -44,10 +37,7 @@ internal static class SparseRebaseResolutionEmitter
             target
         );
 
-        // Internal infrastructure trails the public surface: generated members
-        // stay ordered public-first, so single-file bodies collect in a
-        // caller-flushed buffer while relocated bodies stream to the
-        // operations container (internal-only, already ordered).
+        // Internal infrastructure trails the public surface.
         var body = target?.ChangeSetOperations ?? infra ?? code;
         AppendBeginResolutionBody(body, rebaseResult, optionalFragment, target);
         SparseResolutionApplyEmitter.AppendForwarderShell(
@@ -92,8 +82,8 @@ internal static class SparseRebaseResolutionEmitter
         SharedIndentedBuilder? surfaceInfra = null
     )
     {
-        // Structural hosts and other model-less change sets still participate as
-        // recursion targets through the fragment applier, without resolution state.
+        // Structural hosts and other model-less change sets still participate
+        // as recursion targets through the fragment applier.
         var runtime = dialect.RuntimeNamespace;
         var optionalObject = runtime + "Optional<object?>";
         var conflict = dialect.ConflictType;

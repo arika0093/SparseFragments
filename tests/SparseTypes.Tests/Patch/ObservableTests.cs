@@ -778,9 +778,8 @@ public sealed class ObservableTests
         var session = model.CreateEditSession();
         var notifications = Events(session.Observable);
 
-        // Every modeled instance property, including the event-name
-        // collision, is described. Static generated helpers (such as the
-        // SparsePath entrypoint) are not model state.
+        // Every modeled instance property, including the event-name collision,
+        // is described.
         var modeled = typeof(ObservableCollision)
             .GetProperties()
             .Where(static property =>
@@ -829,8 +828,8 @@ public sealed class ObservableTests
         descriptor.ViewType.ShouldBe(typeof(List<string>));
         ((List<string>)descriptor.GetValue()!).ShouldBe(["a"]);
 
-        // No proxy or view exists for this name: structural access is omitted
-        // rather than bound to a wrong instance, and replacement is unsupported.
+        // Structural access is omitted rather than bound to a wrong instance,
+        // and replacement is unsupported.
         descriptor.IsEditable.ShouldBeFalse();
         descriptor.TrySetValue(new List<string>()).ShouldBeFalse();
         descriptor.Array.ShouldBeNull();

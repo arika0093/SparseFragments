@@ -22,12 +22,7 @@ public partial class BenchDictionaryRecord
     public Dictionary<string, int> Values { get; set; } = new(StringComparer.Ordinal);
 }
 
-/// <summary>
-/// Small/medium/large runtime collection benchmarks: sequence, set, and
-/// dictionary equality; Append and SetUnion merge; Append and SetUnion patch
-/// rebase. Covers default and custom comparers plus no-op, one-change, and
-/// many-change cases so algorithmic regressions show up as complexity changes.
-/// </summary>
+/// <summary>Sequence, set, and dictionary equality; Append and SetUnion merge; Append and SetUnion patch rebase.</summary>
 [MemoryDiagnoser]
 public class RuntimeCollectionBenchmarks
 {

@@ -38,9 +38,8 @@ public partial class ReadOnlyDictHolder
     public IReadOnlyDictionary<string, int> SortedReadOnly { get; set; } =
         new SortedDictionary<string, int> { ["b"] = 2, ["a"] = 1 };
 
-    // NOTE: SortedDictionary/SortedList as DECLARED member types still fail in the
-    // fragment WriteTo emitter (it patterns matches Dictionary<K,V>), which is
-    // outside descriptors. Sorted runtimes behind interface declarations work here.
+    // NOTE: SortedDictionary/SortedList as DECLARED member types still fail in
+    // the fragment WriteTo emitter (it patterns matches Dictionary<K.
     public IReadOnlyDictionary<string, int>? MaybeScores { get; set; }
 
     [SparseMerge(MergeMode.Replace)]

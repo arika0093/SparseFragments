@@ -1,14 +1,5 @@
 #!/usr/bin/env bash
-# SparseTypes NativeAOT diagnostic gate (#317).
-#
-# Usage: assert-sparse-aot-diagnostics.sh <publish-log>
-#
-# Fails on any IL trimming/AOT diagnostic in the publish log. The standalone
-# SparseTypes consumer is expected to be fully warning-clean (generated
-# fragment converters plus an explicit source-generated resolver path with no
-# reflection fallback), so there is intentionally no allowlist here: any
-# diagnostic — including any SparseTypes-origin (SparseTypes.*,
-# or consumer code) diagnostic — fails the gate.
+# SparseTypes NativeAOT diagnostic gate.
 set -euo pipefail
 
 publish_log="${1:?publish log path required}"

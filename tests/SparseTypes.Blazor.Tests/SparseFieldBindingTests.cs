@@ -25,7 +25,7 @@ public partial class BindingNested
     public string Label { get; set; } = string.Empty;
 }
 
-// Typed-path-first binding over Observable + original-model EditContext (#253).
+// Typed-path-first binding over Observable + original-model EditContext.
 public sealed class SparseFieldBindingTests
 {
     private static T Raw<T>(ISparseEditSession<T> session)
@@ -333,8 +333,7 @@ public sealed class SparseFieldBindingTests
         var context = session.CreateEditContext();
         var binding = session.Bind(OrderDto.SparsePath.Number, context);
 
-        // A third-party control rarely names its parameters Value/ValueChanged;
-        // the binding stays usable by mapping its Value/SetAsync onto any names.
+        // A third-party control rarely names its parameters Value/ValueChanged.
         var control = new FakeThirdPartyField
         {
             Current = binding.Value,

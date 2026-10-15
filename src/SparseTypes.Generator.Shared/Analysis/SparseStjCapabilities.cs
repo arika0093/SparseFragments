@@ -1,15 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Product-neutral System.Text.Json API surface available to generated code.</summary>
-/// <remarks>
-/// Probed from the consuming compilation's referenced symbols (issue #243),
-/// never from the target-framework name or the generator host's own
-/// dependencies. Each flag maps to emitted syntax that requires the matching
-/// symbol or member signature; <see cref="SupportsV1Wire"/> gates the
-/// ChangePayload version-1 contract as a whole so generation never silently
-/// weakens wire validation or drifts field order, casing, discriminators, or
-/// unknown-member rejection when an API is unavailable.
-/// </remarks>
+/// <remarks>Probed from the consuming compilation's referenced symbols.</remarks>
 internal readonly record struct SparseStjCapabilities(
     bool HasSystemTextJson,
     bool HasJsonPropertyName,
@@ -42,14 +34,7 @@ internal readonly record struct SparseStjCapabilities(
     public static SparseStjCapabilities None { get; } = default;
 
     /// <summary>Whether the ChangePayload v1 wire contract can be emitted as specified.</summary>
-    /// <remarks>
-    /// V1 needs every flag: named/ordered properties, null/default omission,
-    /// polymorphic discriminators, strict unknown-member rejection, endpoint
-    /// converters, and the UTF-8 reader/writer surface. A partial surface must
-    /// omit the JSON artifacts (with a diagnostic when explicitly requested)
-    /// rather than emit code that fails to compile or silently changes the
-    /// contract.
-    /// </remarks>
+    /// <remarks>V1 needs every flag: named/ordered properties.</remarks>
     public bool SupportsV1Wire =>
         HasSystemTextJson
         && HasJsonPropertyName

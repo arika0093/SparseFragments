@@ -13,28 +13,12 @@ internal enum GeneratedDefaultsStatus
     IncompatibleCompanion,
 }
 
-/// <summary>
-/// Applies source-generated conventional defaults emitted by the ordinary
-/// <c>SparseTypes.Generator</c> for <c>[SparseFragmentMapper{TEntity, TDto}]</c> types.
-/// </summary>
-/// <remarks>
-/// The generator discovers mapper Entity/DTO pairs (including DTOs in a
-/// referenced Contracts assembly) and emits a companion type named
-/// <c>{Mapper}_SparseEfDefaults</c> in the mapper's namespace with a static
-/// <c>RegisterDefaults</c> method carrying source-level member selectors.
-/// Reflection here only locates that explicitly registered companion; it never
-/// scans DTO members for fallback implicit mapping. Registrations run in
-/// generated-default mode so the generated bridge's explicit <c>Configure</c>
-/// entries replace each default exactly once at the same DTO path.
-/// </remarks>
+/// <summary>Applies defaults emitted for supported mapper types.</summary>
+/// <remarks>The generator emits a companion per mapper pair.</remarks>
 internal static class GeneratedDefaults
 {
     /// <summary>Gets whether a mapping opts into source-generated defaults.</summary>
-    /// <remarks>
-    /// True for <c>[SparseFragmentMapper{TEntity, TDto}]</c> mappings, whose
-    /// companion must exist at mapper creation; otherwise creation fails fast
-    /// instead of silently falling back to runtime inference.
-    /// </remarks>
+    /// <remarks>True when the mapper has the marker attribute.</remarks>
     /// <param name="mappingType">The mapper implementation type.</param>
     /// <returns>True when the mapper carries the marker attribute.</returns>
     public static bool RequiresGeneratedDefaults(Type mappingType)

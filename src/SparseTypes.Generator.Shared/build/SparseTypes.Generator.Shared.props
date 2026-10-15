@@ -1,6 +1,6 @@
 <Project>
   <!--
-    Source-only consumption (#70): compile the shared generator sources directly
+    Source-only consumption: compile the shared generator sources directly
     into the consuming generator. contentFiles are restored under the package
     folder, so reference them relative to this props file. LinkBase keeps the
     compiled items out of the consumer's default glob surface while preserving

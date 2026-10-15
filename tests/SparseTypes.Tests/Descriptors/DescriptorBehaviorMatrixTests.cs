@@ -3,12 +3,7 @@ using SparseTypes.Generated;
 namespace SparseTypes.Tests;
 
 /// <summary>Tabular contract matrix over the primary descriptor shapes.</summary>
-/// <remarks>
-/// Each row pins one shape: which live accessors exist, which static shapes
-/// are reported, and whether the member is editable. Per-issue suites cover
-/// deeper behavior; this matrix locks the cross-cutting contract in one place,
-/// including intentionally unsupported capabilities.
-/// </remarks>
+/// <remarks>Each row pins one shape: which live accessors exist, which static shapes are reported, and whether the member is editable.</remarks>
 public sealed class DescriptorBehaviorMatrixTests
 {
     private sealed record MatrixRow
@@ -85,8 +80,7 @@ public sealed class DescriptorBehaviorMatrixTests
 
         IDescriptor Get(object session, string name)
         {
-            // Generated edit sessions share no common Descriptors contract, so the
-            // matrix resolves through the public duck-typed surface instead.
+            // Generated edit sessions share no common Descriptors contract.
             dynamic duck = session;
             IDescriptorSet descriptors = duck.Descriptors;
             descriptors.TryGet(name, out IDescriptor? found).ShouldBeTrue();

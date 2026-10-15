@@ -86,10 +86,7 @@
             return Task.CompletedTask;
         }
 
-        // SortableList names the drop position in pre-move coordinates, where
-        // Count addresses the end; facade moves name the final position, so
-        // the end maps to Count - 1. Forward moves need no adjustment: both
-        // spellings land the item at the named position.
+        // SortableList names the drop position in pre-move coordinates.
         var target = Math.Min(newIndex, count - 1);
         if (oldIndex == target)
         {

@@ -25,14 +25,7 @@ internal static class SparseChangeSetKeyedBetweenEmitter
     /// <summary>
     /// Emits Between-time sparse diff for a keyed sequence member.
     /// </summary>
-    /// <remarks>
-    /// Declares locals __h/&#95;_whole/&#95;_wb/&#95;_wa/&#95;_items/&#95;_bO/&#95;_aO.
-    /// Whole presence/null transitions retain whole endpoints; granular
-    /// Value-&gt;Value transitions retain only per-changed-key items (added-&gt;after,
-    /// removed-&gt;before, edited nested ChangeSet + endpoints, reorder-only value)
-    /// plus full key orders only when the order actually changed. Unchanged
-    /// element values are never retained.
-    /// </remarks>
+    /// <remarks>Declares locals used to build the keyed diff.</remarks>
     internal static void AppendKeyedBetweenSparse(
         SharedIndentedBuilder code,
         SparseMemberModel member,
@@ -101,8 +94,8 @@ internal static class SparseChangeSetKeyedBetweenEmitter
                 + id
                 + ".Value is not null;"
         );
-        // Whole transitions do not build maps, so they validate the baseline separately.
-        // Granular transitions validate each identity while building its map below.
+        // Whole transitions do not build maps, so they validate the baseline
+        // separately.
         code.AppendLineAt(
             4,
             "if (__before"
@@ -163,7 +156,8 @@ internal static class SparseChangeSetKeyedBetweenEmitter
         SparseChangeSetKeyedAlignedBetweenEmitter.Append(code, member, trans, dialect);
         SparseChangeSetKeyedAlignedBetweenEmitter.AppendGeneralStart(code, member, trans, runtime);
         code.IndentOffset += 2;
-        // Granular Value -> Value: build key maps and orders (single enumeration each).
+        // Granular Value -> Value: build key maps and orders (single
+        // enumeration each).
         SparseKeyedCollectionEmitter.AppendChangeSetBetweenStorage(code, member, "before");
         code.AppendLineAt(5, "foreach (var __item in __before" + id + ".Value!)");
         code.AppendLineAt(5, "{");
@@ -401,7 +395,8 @@ internal static class SparseChangeSetKeyedBetweenEmitter
         {
             SparseChangeSetKeyedTempBetweenEmitter.AppendTempRanks(code, id);
         }
-        // Pending entries share one sentinel slot in the assigned before-index map.
+        // Pending entries share one sentinel slot in the assigned before-index
+        // map.
         code.AppendLineAt(
             6,
             "var __beforeIndex"
@@ -508,7 +503,8 @@ internal static class SparseChangeSetKeyedBetweenEmitter
         code.AppendLineAt(7, "bool __isReordered = __reordered" + id + "?.Contains(__k) == true;");
         code.AppendLineAt(7, "if (!__inBefore || __isEdited || __isReordered)");
         code.AppendLineAt(7, "{");
-        // Surviving elements were already compared; only additions need a root snapshot.
+        // Surviving elements were already compared; only additions need a root
+        // snapshot.
         var optionalElementFragment = runtime + "Optional<" + elementFrag + "?>";
         code.AppendLineAt(
             8,
@@ -617,9 +613,7 @@ internal static class SparseChangeSetKeyedBetweenEmitter
             );
         }
         code.AppendLineAt(6, "__items" + id + " = __list" + id + ";");
-        // Always retain full key orders (keys only, never element payloads) so typed
-        // BeforeOrder/AfterOrder preserve #94 absolute semantics; OrderChanged (via
-        // KeyOrderEquals downstream) distinguishes reorder from membership shifts.
+        // Always retain full key orders (keys only.
         code.AppendLineAt(
             6,
             "__bO" + id + " = __beforeOrder" + id + "; __aO" + id + " = __afterOrder" + id + ";"

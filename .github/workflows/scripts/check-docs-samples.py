@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify annotated Markdown samples match canonical fixtures exactly (#68, #213).
+"""Verify annotated Markdown samples match canonical fixtures exactly.
 
 Usage: check-docs-samples.py <guide> <fixture> <id> [<id> ...]
        check-docs-samples.py --coverage <guide> <id> [<id> ...]
@@ -18,13 +18,13 @@ an id has no registered fixture guard. The verify scripts pass the same id
 list to both modes, so a newly added marker without a `check_block`
 registration fails the build.
 
-Registry mode (#213) replaces both lists above with a single central file
+Registry mode replaces both lists above with a single central file
 (docs-samples-registry.tsv). It discovers README.md plus all docs/**/*.md
 from the filesystem, so a new guide needs no shell edit: any
 `<!-- sample: id -->` absent from the registry fails the build, as do
 missing registry paths, missing fixture markers, unused registry entries,
 duplicate ids within a file, unguarded runnable fences, and fixture regions
-without assertion bodies. JSON output specimens (#212) use the same
+without assertion bodies. JSON output specimens use the same
 discovery through `json-specimen` registry rows (`<!-- json-specimen: id -->`
 in Markdown, `// json-specimen: id` regions in fixtures).
 """
@@ -83,7 +83,7 @@ def extract_fixture(path):
 
 def strip_assertions(text):
     # User-facing docs show result comments instead of test-helper assertions
-    # (#71). Fixtures keep runtime Requires, so ignore assertion statements on
+    #Fixtures keep runtime Requires, so ignore assertion statements on
     # both sides before comparing. Real code statements and result comments
     # must still match exactly.
     text = re.sub(
@@ -193,34 +193,18 @@ def main(argv):
     return 1 if failed else 0
 
 
-# Registry mode (#213). One central file maps Markdown + sample id to the
+# Registry mode. One central file maps Markdown + sample id to the
 # canonical fixture; discovery covers README.md and every docs/**/*.md, so
 # new guides are enforced without editing a shell file.
 #
-# Fenced-snippet rule: every ```csharp (or ```cs) fence must sit inside a
-# registered `<!-- sample: -->` region or directly follow a
-# `<!-- illustrative: reason -->` marker with a non-empty reason. One marker
-# covers the next runnable fence only. Sketches that must not compile (error
-# illustrations, ellipsized shapes, excerpts using names defined elsewhere)
-# carry the illustrative marker; anything the fixture proves carries a sample
-# marker instead.
+# Runnable C# fences need a registered sample marker or a reasoned
+# illustrative marker.
 #
-# Assertion rule: every non-model fixture region (or the lines following it)
-# must contain an assertion body (DocsCheck.Require, Require(, ShouldBe, or
-# Assert), so the documented result runs instead of merely compiling. Ids
-# ending in -model/-models declare shapes and ids ending in -store declare
-# supporting stores; their behavior is exercised through the constructing or
-# consuming samples (e.g. rebase-server-store through rebase-server-save).
-# The shell scripts additionally execute the packed-package consumers and
-# require their success markers, which proves the test ran.
+# Fixture regions must assert behavior; model and store shapes are exercised
+# by their constructing or consuming samples.
 #
-# JSON-specimen rule (#212 via the registry): a `json-specimen` row compares
-# the fenced ```json block against the fixture's `"""..."""` raw-string
-# specimen as deep JSON (object key order insignificant, array order
-# significant), so the Markdown envelope must match the live serializer
-# output the fixture asserts byte for byte. Byte and field ordering against
-# the actual serializer output is asserted separately at runtime by
-# exact-string DocsCheck assertions in the fixture.
+# Compare JSON specimens structurally and assert exact serializer output in
+# the fixture, including field and array order.
 
 RUNNABLE_FENCE_LANGUAGES = ("csharp", "cs")
 
@@ -554,7 +538,7 @@ def registry_check(argv):
                 % (rel, kind, dup_id, first, dup_line)
             )
         errors.extend(scan.fence_errors)
-    # Every marker in every discovered file must be registered (#213: new
+    # Every marker in every discovered file must be registered (: new
     # guides fail without a shell edit).
     registered_pairs = {(kind, markdown, sample_id) for markdown, sample_id, _, kind in entries}
     for rel in discovered:
@@ -634,12 +618,7 @@ def registry_check(argv):
                         "is verified, not just compiled." % (fixture, sample_id, markdown)
                     )
         else:
-            # Deep JSON comparison (#212): the Markdown fence holds raw JSON
-            # while the fixture region wraps the same specimen in a C#
-            # `"""..."""` raw-string literal (plus the `public const string`
-            # declaration). Extract the specimen literals and compare parsed
-            # JSON with array order significant, so a one-field corruption on
-            # either side fails the build.
+            # Compare parsed JSON with array order significant to catch drift.
             flat = []
             for region, _ in regions:
                 flat.extend(region)

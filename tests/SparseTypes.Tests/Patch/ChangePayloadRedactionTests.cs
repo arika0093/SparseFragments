@@ -58,7 +58,7 @@ public partial class RedactedSecretMap
     public Dictionary<string, string> Secrets { get; set; } = new();
 }
 
-/// <summary>Covers the unified ChangePayload transport (issue #118).</summary>
+/// <summary>Covers the unified ChangePayload transport.</summary>
 public sealed class ChangePayloadRedactionTests
 {
     private static Optional<RedactedAccount.Fragment?> AccountState(
@@ -82,7 +82,8 @@ public sealed class ChangePayloadRedactionTests
         var payload = RedactedAccount.ChangeSet.Between(before, after).ToPayload();
         var json = JsonSerializer.Serialize(payload);
 
-        // The regular transition and the baseline-free command share one envelope.
+        // The regular transition and the baseline-free command share one
+        // envelope.
         payload.Changes!.Count.ShouldBe(2);
         json.ShouldContain("\"version\":\"0.1\"");
         json.ShouldContain("\"state\":\"redacted\"");

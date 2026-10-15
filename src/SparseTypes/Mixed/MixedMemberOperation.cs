@@ -3,11 +3,7 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>One member operation inside a mixed request, without any values.</summary>
-/// <remarks>
-/// Descriptors identify member paths only. They never carry before, current, or
-/// after plaintext, so composition and rollback plans built from them cannot leak
-/// secrets into logging or diagnostics (issue #119).
-/// </remarks>
+/// <remarks>Descriptors identify member paths only.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public readonly record struct MixedMemberOperation
 {

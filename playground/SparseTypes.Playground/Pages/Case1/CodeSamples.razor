@@ -40,8 +40,8 @@
         var model = merged.ToModel();
         var pluginSource = merged.GetOrigin(
             SparsePath.Root<PlaygroundSettings>().Member("Plugins").At(1));
-        // Plugin origin is "higher"; the overlapping "shared" tag remains "lower".
-        // Enabled, RetryCount and Nested.Host come from lower; Label and Nested.Port come from higher.
+        // Plugin origin is "higher"; the overlapping "shared" tag remains
+        // "lower".
 
         [SparseModel]
         partial class PlaygroundSettings

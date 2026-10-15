@@ -578,8 +578,7 @@ public sealed class SparseEntityMapperEmitterTests
                 }
             }
             """;
-        // Helper-delegated Configure bodies are outside the analyzable subset:
-        // nothing is provable, so no SPF033 fires and runtime plan validation
+        // Nothing is provable, so no SPF033 fires and runtime plan validation
         // remains the backstop.
         var (diagnostics, _) = RunDriver(source);
         diagnostics
@@ -697,7 +696,7 @@ public sealed class SparseEntityMapperEmitterTests
         match.GetMessage().ShouldContain("TemporaryId");
         var emitted = RenderDirect(source, "Probe.OrderMapper");
         // Correlation still reads the temporary identity; only the
-        // post-construction assignment degrades to null so the companion builds.
+        // post-construction assignment degrades to null so the companion
         emitted.ShouldContain("static __key => __key.TemporaryId");
         emitted.ShouldContain("child.Ignore(static dto => dto.TemporaryId);");
         emitted.ShouldNotContain("__dto.TemporaryId = __value");
@@ -1152,7 +1151,8 @@ public sealed class SparseEntityMapperEmitterTests
         emitted.ShouldContain(
             "builder.Member(static dto => dto.Notes, static entity => entity.Notes);"
         );
-        // The bridge keeps the defaults-only scope inert without calling Configure.
+        // The bridge keeps the defaults-only scope inert without calling
+        // Configure.
         emitted.ShouldContain("_ = builder;");
         emitted.ShouldNotContain("Configure();");
         CompileEmitted(source, emitted);

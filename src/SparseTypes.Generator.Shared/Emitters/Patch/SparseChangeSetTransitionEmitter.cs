@@ -38,12 +38,8 @@ internal static class SparseChangeSetTransitionEmitter
         // Canonical-state readers and snapshot helpers move into the
         // operation container when relocating; the typed shells below stay.
         var helpers = target?.ChangeSetOperations ?? code;
-        // Sparse before/after helpers read canonical sparse storage.
-        // Whole-root transitions project member states from the retained root
-        // fragments; memberwise transitions expose only retained changed paths.
-        // Keyed/dict granular transitions retain no full member snapshots: the
-        // member Before/After project whole endpoints only for whole presence
-        // transitions, and Missing otherwise.
+        // Project before/after from canonical sparse storage; granular keyed
+        // transitions expose whole endpoints only for presence changes.
         foreach (var member in members)
         {
             if (IsNested(member))
@@ -273,7 +269,7 @@ internal static class SparseChangeSetTransitionEmitter
     /// <summary>Whether member values need a defensive container snapshot.</summary>
     /// <remarks>
     /// Collection containers are caller-mutable aliases; plain scalars and
-    /// nested change sets need no snapshot (issue #170).
+    /// nested change sets need no snapshot.
     /// </remarks>
     internal static bool NeedsSnapshot(SparseMemberModel member) =>
         !IsNested(member) && member.Collection.CloneKind != SparseCloneCollectionKind.Unsupported;
@@ -284,12 +280,7 @@ internal static class SparseChangeSetTransitionEmitter
             : expression;
 
     /// <summary>Emits the defensive container snapshot for one member.</summary>
-    /// <remarks>
-    /// Shallow and comparer-preserving: the container is copied so later
-    /// caller-side mutation cannot alter retained history, while element
-    /// values stay shared. Shapes without a known copy fall back to the
-    /// borrowed reference.
-    /// </remarks>
+    /// <remarks>The container is copied so later caller-side mutation cannot alter retained history, while element values stay shared.</remarks>
     internal static void AppendSnapshotHelper(
         SharedIndentedBuilder code,
         SparseMemberModel member,
@@ -303,9 +294,7 @@ internal static class SparseChangeSetTransitionEmitter
 
         var valueType = FragmentValueType(member);
         // A branch is emitted only when its copy is provably assignable to the
-        // declared member type: either the exact shape or a known interface it
-        // implements. The (VTYPE)(object) cast then always compiles and never
-        // fails at runtime; exotic shapes keep the borrowed reference.
+        // declared member type.
         var bareValueType = valueType.TrimEnd('?');
         code.AppendLineAt(
             2,
@@ -738,9 +727,7 @@ internal static class SparseChangeSetTransitionEmitter
         code.AppendLineAt(4, "Added = added.AsReadOnly();");
         code.AppendLineAt(4, "Removed = removed.AsReadOnly();");
         code.AppendLineAt(3, "}");
-        // IReadOnlySet<T> only exists on netstandard2.1 and later. Compilations
-        // without the type (netstandard2.0, net48) cannot declare it, and naming
-        // it would fail compilation, so fall back to comparer-agnostic search.
+        // IReadOnlySet<T> only exists on netstandard2.1 and later.
         var contains = supportsReadOnlySet
             ? "((object?)values.Value is global::System.Collections.Generic.ISet<"
                 + elementType

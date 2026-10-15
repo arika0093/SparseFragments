@@ -3,9 +3,7 @@ using System.Collections.Specialized;
 
 namespace SparseTypes.Tests;
 
-// Regression coverage for issue #114: targeted pruning must preserve proxy
-// identity, nested lifetime, single event delivery, disposal teardown, and
-// snapshot detection of direct non-notifying edits.
+// Regression coverage for targeted pruning must preserve proxy identity.
 public sealed class ObservableProxyRegressionTests
 {
     private sealed class ProbeChild

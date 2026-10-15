@@ -1,10 +1,7 @@
 namespace SparseTypes.Tests;
 
-// Issue #91: the generic `T.Sparse.Properties` / `Patch.Changes` /
-// `ChangeSet.Changes` inspection surface is removed, so ordinary model members
-// and nested types named `Sparse` or `Changes` follow the normal
-// generated-name rules. A member named `Changes` generates the natural typed
-// transition (`changes.Changes.IsChanged/Before/After`).
+// Verify that `Sparse` and `Changes` are available model names after removing
+// the generic inspection surface.
 
 [SparseModel]
 public partial class FreedChangesModel
@@ -127,8 +124,8 @@ public sealed class FreedReservedNameTests
     [Test]
     public void EnumerationApiNamesGeneratePrefixedTransitions()
     {
-        // Members colliding with ChangeSet enumeration helpers share one name map,
-        // so helper emitters and typed surfaces address the same property.
+        // Members colliding with ChangeSet enumeration helpers share one name
+        // map.
         var before = Optional<FreedEnumerateModel.Fragment?>.Present(
             FreedEnumerateModel.Fragment.From(
                 new FreedEnumerateModel

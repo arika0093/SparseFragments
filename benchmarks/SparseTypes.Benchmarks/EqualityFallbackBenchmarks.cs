@@ -3,20 +3,7 @@ using System.Reflection;
 using BenchmarkDotNet.Attributes;
 using SparseTypes.CompilerServices;
 
-/// <summary>
-/// Fallback-path equality benchmarks (issue #60): custom collection shapes that
-/// miss the fast typed/common paths and exercise <c>ComparerAwareSetEquals</c>,
-/// <c>SlowSetEquals</c>, <c>DictionariesEqualUnordered</c>, enumerable-only
-/// ordered sequences, and reflection-backed comparer/count discovery (cold vs
-/// warm). Existing <see cref="RuntimeCollectionBenchmarks"/> covers
-/// <c>List{T}</c>/<c>HashSet{T}</c>/<c>Dictionary{TKey,TValue}</c>; these
-/// fixtures use <c>IReadOnlySet{T}</c>-only / <c>IReadOnlyDictionary{TKey,TValue}</c>-only
-/// wrappers (no non-generic <c>ICollection</c>/<c>IDictionary</c>, so count and
-/// comparer metadata are discovered via cached reflection), structural set
-/// elements (deep comparison, inherently quadratic), and
-/// <c>IEnumerable{T}</c>-only sequences. Cold benchmarks clear the internal
-/// caches on every invocation; warm benchmarks reuse them.
-/// </summary>
+/// <summary>Fallback-path equality benchmarks.</summary>
 [MemoryDiagnoser]
 public class EqualityFallbackBenchmarks
 {
@@ -227,11 +214,7 @@ public class EqualityFallbackBenchmarks
     }
 }
 
-/// <summary>
-/// Set-shaped fixture exposing only <c>IReadOnlySet{T}</c>: no
-/// <c>ISet{T}</c>, <c>HashSet{T}</c>, or non-generic <c>ICollection</c>, so
-/// count/comparer metadata is discovered through the cached reflection path.
-/// </summary>
+/// <summary>Set-shaped fixture exposing only <c>IReadOnlySet{T}</c>.</summary>
 public sealed class FallbackReadOnlySet<T> : IReadOnlySet<T>
 {
     private readonly HashSet<T> _inner;
@@ -262,13 +245,7 @@ public sealed class FallbackReadOnlySet<T> : IReadOnlySet<T>
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
-/// <summary>
-/// Dictionary-shaped fixture exposing only
-/// <c>IReadOnlyDictionary{TKey,TValue}</c>: no generic/non-generic
-/// <c>IDictionary</c> and no non-generic <c>ICollection</c>, so the runtime
-/// compares entries order-independently via the unordered fallback with cached
-/// reflection for count, comparer, and entry key/value.
-/// </summary>
+/// <summary>Dictionary-shaped fixture exposing only <c>IReadOnlyDictionary{TKey,TValue}</c>.</summary>
 public sealed class FallbackReadOnlyDictionary<TKey, TValue>(
     IDictionary<TKey, TValue> inner
 ) : IReadOnlyDictionary<TKey, TValue>
@@ -296,11 +273,7 @@ public sealed class FallbackReadOnlyDictionary<TKey, TValue>(
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
-/// <summary>
-/// Sequence fixture exposing only <c>IEnumerable{T}</c>: no <c>IList</c> or
-/// <c>ICollection</c>, so ordered comparison streams both enumerators without
-/// indexed or count fast paths.
-/// </summary>
+/// <summary>No <c>IList</c> or <c>ICollection</c>, so ordered comparison streams both enumerators without indexed or count fast paths.</summary>
 public sealed class EnumerableOnly<T>(IEnumerable<T> inner) : IEnumerable<T>
 {
     public IEnumerator<T> GetEnumerator()
@@ -314,12 +287,7 @@ public sealed class EnumerableOnly<T>(IEnumerable<T> inner) : IEnumerable<T>
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
-/// <summary>
-/// Benchmark-only helper that clears the cached shape/comparer/count/entry
-/// metadata inside <c>FragmentComparisonPrimitives</c> so cold-discovery cost
-/// is measured on every invocation. Reflection is confined to benchmarks;
-/// the runtime itself uses no runtime code generation.
-/// </summary>
+/// <summary>Benchmark-only helper that clears the cached shape and comparer metadata.</summary>
 internal static class EqualityFallbackCaches
 {
     private static readonly FieldInfo[] CacheFields;

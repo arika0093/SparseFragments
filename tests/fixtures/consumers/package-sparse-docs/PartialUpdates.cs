@@ -1,11 +1,8 @@
 using System.Text.Json;
 using SparseTypes;
 
-// Canonical compile-checked mirror of docs/how-to/partial-updates.md.
-// One endpoint with two legitimate inputs: a baseline-free Patch command and
-// a baseline-aware ChangeSet from an editor. Regions execute as part of Run()
-// so the documented baseline guarantees and the reversible versus
-// irreversible distinction are verified, not just compiled.
+// Compile-checked samples for baseline-free patches and editor ChangeSets.
+// Run() verifies their different baseline and reversibility guarantees.
 public static class PartialUpdateSamples
 {
     public static void Run()

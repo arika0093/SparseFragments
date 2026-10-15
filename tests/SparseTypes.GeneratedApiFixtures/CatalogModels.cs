@@ -2,9 +2,7 @@ using SparseTypes;
 
 namespace SparseTypes.GeneratedApiFixtures;
 
-// Stable approval fixtures for issue #117. Type and namespace names feed the
-// deterministic extension-container hash, so renames intentionally move the baseline.
-// Keep this set small: each model covers one representative generated surface.
+// Stable approval fixtures.
 
 // Scalar, nullable, and presence-aware surface.
 /// <summary>Scalar, nullable, and presence-aware catalog fixture.</summary>

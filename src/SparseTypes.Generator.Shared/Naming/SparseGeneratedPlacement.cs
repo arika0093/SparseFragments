@@ -4,29 +4,11 @@ using System.Threading;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Central generated type-location and name resolver.</summary>
-/// <remarks>
-/// <para>
-/// Per-model generated implementations (operations, state holders, payload
-/// DTOs, converters, UI and editing types) must live under deterministic,
-/// collision-safe names instead of being constructed independently in each
-/// emitter as nested <c>ChildModel.Observable</c> style references. All
-/// placement decisions flow through this resolver.
-/// </para>
-/// <para>
-/// Placement is product-neutral: the implementation namespace comes from
-/// <see cref="SparseGeneratorConfig"/> and there is no implicit fallback.
-/// A null namespace keeps the current single-file emission; stages that
-/// relocate types require an explicit namespace from the owning generator.
-/// </para>
-/// </remarks>
+/// <remarks>Assigns generated types to shared and per-model files.</remarks>
 internal static class SparseGeneratedPlacement
 {
     /// <summary>Shared default implementation hint-name suffix.</summary>
-    /// <remarks>
-    /// Products override through
-    /// <see cref="SparseGeneratorConfig.GeneratedImplementationSuffix"/>; the
-    /// default keeps downstream fixtures stable without product literals.
-    /// </remarks>
+    /// <remarks>Products can override the suffix in generator config.</remarks>
     public const string DefaultImplementationSuffix = ".Implementation.g.cs";
 
     /// <summary>Simple name of the per-model patch operation container.</summary>
@@ -44,13 +26,7 @@ internal static class SparseGeneratedPlacement
             : config.GeneratedImplementationNamespace;
 
     /// <summary>Gets the deterministic per-model implementation container name.</summary>
-    /// <remarks>
-    /// The container derives from the stable fully qualified model identity,
-    /// not from filesystem paths or emission ordering, so unrelated model
-    /// edits never churn other roots. Sanitized-name collisions resolve
-    /// through the stable hash suffix. Global-namespace and internal models
-    /// share the same scheme: naming never depends on accessibility.
-    /// </remarks>
+    /// <remarks>The container derives from the stable fully qualified model identity.</remarks>
     /// <param name="model">Model identity.</param>
     /// <param name="cancellationToken">Cooperative cancellation.</param>
     /// <returns>A valid C# type name unique per model identity.</returns>
@@ -109,11 +85,7 @@ internal static class SparseGeneratedPlacement
     ) => GetImplementationTypeName(model, config, ChangeSetOperationsSimpleName, cancellationToken);
 
     /// <summary>Resolves a collision-aware generated UI type name.</summary>
-    /// <remarks>
-    /// Unifies the previously duplicated <c>Observable</c> and
-    /// <c>ReadOnlyView</c> loops: a source member with the same name pushes
-    /// the generated type behind a <c>Sparse</c> prefix.
-    /// </remarks>
+    /// <remarks>A source member with the same name pushes the generated type behind a <c>Sparse</c> prefix.</remarks>
     /// <param name="baseName">Preferred type name.</param>
     /// <param name="memberNames">Source member names competing for the name.</param>
     /// <returns>The usable type name.</returns>
@@ -153,8 +125,7 @@ internal static class SparseGeneratedPlacement
     }
 
     /// <summary>Gets the simple per-model fragment operations type name.</summary>
-    /// <remarks>Derived from the implementation container so payload, JSON, and
-    /// fragment operations for one model share one stable identity root.</remarks>
+    /// <remarks>Derived from the implementation container so payload.</remarks>
     /// <param name="model">Model identity.</param>
     /// <param name="cancellationToken">Cooperative cancellation.</param>
     /// <returns>A valid C# type name unique per model identity.</returns>
@@ -181,8 +152,7 @@ internal static class SparseGeneratedPlacement
     }
 
     /// <summary>Gets the simple per-model fragment JSON converter type name.</summary>
-    /// <remarks>Shares the implementation-container identity root so the converter,
-    /// payload DTOs, and fragment operations for one model stay correlated.</remarks>
+    /// <remarks>Shares the implementation-container identity root so the converter.</remarks>
     /// <param name="model">Model identity.</param>
     /// <param name="cancellationToken">Cooperative cancellation.</param>
     /// <returns>A valid C# type name unique per model identity.</returns>
@@ -192,9 +162,7 @@ internal static class SparseGeneratedPlacement
     ) => GetImplementationContainer(model, cancellationToken) + "FragmentJsonConverter";
 
     /// <summary>Gets the qualified payload container name for split emission.</summary>
-    /// <remarks>Single-file emission keeps the legacy nested simple name; split
-    /// emission qualifies the same simple container under the implementation
-    /// namespace so wire discriminators stay unchanged.</remarks>
+    /// <remarks>Single-file emission keeps the legacy nested simple name.</remarks>
     /// <param name="simpleContainerName">Legacy nested container simple name.</param>
     /// <param name="implementationNamespace">Explicit namespace, or null for single-file.</param>
     /// <returns>The reference to use from generated code.</returns>
@@ -208,11 +176,8 @@ internal static class SparseGeneratedPlacement
 
     private static string FullyQualifiedIdentity(SparseModelInfo model)
     {
-        // Display names arrive global::-qualified in production
-        // ("global::Ns.Model"). Strip the alias before hashing so the
-        // identity can never double to "Ns.global::Ns.Model". Test doubles
-        // may carry a simple name instead; those keep the legacy namespace
-        // qualification so distinct namespaces stay distinct.
+        // Strip the global alias before hashing production names; retain
+        // namespace qualification for simple test-double names.
         if (model.ModelTypeName.StartsWith("global::", System.StringComparison.Ordinal))
         {
             return model.ModelTypeName.Substring("global::".Length);
@@ -224,10 +189,7 @@ internal static class SparseGeneratedPlacement
     }
 
     /// <summary>Gets the container name for a qualified child type name.</summary>
-    /// <remarks>
-    /// Mirrors <see cref="FullyQualifiedIdentity"/> so parent references to a
-    /// child resolve to the same container the child's own file declares.
-    /// </remarks>
+    /// <remarks>Uses the placement rules applied to the model itself.</remarks>
     /// <param name="qualifiedTypeName">Child <c>NonNullableName</c>.</param>
     /// <param name="cancellationToken">Cooperative cancellation.</param>
     /// <returns>A container name matching the model's own scheme.</returns>
@@ -245,10 +207,7 @@ internal static class SparseGeneratedPlacement
     }
 
     /// <summary>Gets the model-nested observable reference.</summary>
-    /// <remarks>
-    /// UI/editing types nest in the annotated model; only operation, payload,
-    /// and descriptor-factory machinery lives in the implementation namespace.
-    /// </remarks>
+    /// <remarks>UI/editing types nest in the annotated model.</remarks>
     /// <param name="model">Owning model.</param>
     /// <param name="simpleName">Collision-resolved simple name.</param>
     /// <param name="config">Owning generator configuration (reserved).</param>
@@ -400,9 +359,7 @@ internal static class SparseGeneratedPlacement
     private static string QualifiedIdentity(string qualifiedTypeName)
     {
         // Child NonNullableName display names normalize exactly like the
-        // child's own identity above: strip one global:: alias and never
-        // re-prefix the namespace, so nested "global::Ns.Outer.Inner" hashes
-        // whole on both sides instead of diverging per side.
+        // child's own identity above.
         if (qualifiedTypeName.StartsWith("global::", System.StringComparison.Ordinal))
         {
             return qualifiedTypeName.Substring("global::".Length);

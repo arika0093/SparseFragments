@@ -20,12 +20,7 @@ internal enum SparseRootShapeProblem
 }
 
 /// <summary>Product-neutral unsupported member-shape outcome.</summary>
-/// <remarks>
-/// Covers generated member shapes that can never appear in emitted fragment code
-/// (they have no stable display name, cannot be generic arguments, or are scoped
-/// to the stack). Detected recursively through nullable, array and collection
-/// wrappers.
-/// </remarks>
+/// <remarks>Covers generated member shapes that can never appear in emitted fragment code (they have no stable display name.</remarks>
 internal enum SparseMemberShapeProblem
 {
     Dynamic,
@@ -46,12 +41,7 @@ internal enum SparseMemberShapeProblem
 internal static class SparseShapeValidation
 {
     /// <summary>Validates the root model declaration shape.</summary>
-    /// <remarks>
-    /// Mirrors the historical SparseTypes root checks (partial, top-level,
-    /// non-generic, non-abstract class-or-struct, supported constructor) plus the
-    /// ref-like and file-local rejections shared with downstream generators.
-    /// Returns <c>null</c> when the shape is supported.
-    /// </remarks>
+    /// <remarks>Mirrors the historical SparseTypes root checks (partial.</remarks>
     public static SparseRootShapeProblem? ValidateRootShape(
         INamedTypeSymbol model,
         TypeDeclarationSyntax? declaration,
@@ -109,10 +99,7 @@ internal static class SparseShapeValidation
 
     private static bool IsFileLocal(INamedTypeSymbol model, TypeDeclarationSyntax declaration)
     {
-        // `file` accessibility is declaration-site metadata; any file-local
-        // declaration disqualifies the model because generated partials cannot
-        // name the type across source files. Compared by token text because the
-        // `file` contextual keyword postdates the referenced Roslyn version.
+        // `file` accessibility is declaration-site metadata.
         foreach (var reference in model.DeclaringSyntaxReferences)
         {
             if (
@@ -135,11 +122,7 @@ internal static class SparseShapeValidation
     /// <summary>
     /// Recursively rejects member shapes that generated code cannot represent.
     /// </summary>
-    /// <remarks>
-    /// Unwraps nullable, array and supported-collection wrappers and rejects
-    /// <c>dynamic</c>, pointer, function-pointer, type-parameter, error and
-    /// ref-like leaves. Returns <c>null</c> when the shape is representable.
-    /// </remarks>
+    /// <remarks>Unwraps nullable, array and supported-collection wrappers and rejects <c>dynamic</c>.</remarks>
     public static SparseMemberShapeProblem? GetUnsupportedMemberReason(ITypeSymbol type)
     {
         var pending = new Stack<ITypeSymbol>();
@@ -217,12 +200,7 @@ internal static class SparseShapeValidation
     /// <summary>
     /// Finds JSON wire names claimed by more than one serializable member.
     /// </summary>
-    /// <remarks>
-    /// Ordinal comparison: members ignored by <c>JsonIgnore</c> never participate
-    /// (the generated converter skips them). Case-insensitive runtime policy
-    /// collisions remain runtime errors; only statically provable duplicates are
-    /// reported. Returns the duplicated names in ordinal order.
-    /// </remarks>
+    /// <remarks>Ordinal comparison: members ignored by <c>JsonIgnore</c> never participate (the generated converter skips them).</remarks>
     public static ImmutableArray<string> FindDuplicateWireNames(
         ImmutableArray<SparseMemberModel> members
     )
@@ -274,9 +252,7 @@ internal static class SparseShapeValidation
         return string.Equals(wire, wireName, StringComparison.Ordinal);
     }
 
-    /// <summary>
-    /// Finds member names colliding with generator-reserved names, in member order.
-    /// </summary>
+    /// <summary>Finds member names colliding with generator-reserved names, in member order.</summary>
     public static ImmutableArray<string> FindReservedNameCollisions(
         IEnumerable<string> memberNames,
         ImmutableArray<string> reservedNames
@@ -301,10 +277,7 @@ internal static class SparseShapeValidation
     /// <summary>
     /// First member colliding with this generator's reserved names, if any.
     /// </summary>
-    /// <remarks>
-    /// Preserves the historical single-diagnostic render-time behavior while the
-    /// check itself runs on the shared primitive during analysis.
-    /// </remarks>
+    /// <remarks>Returns the first collision to preserve single-diagnostic behavior.</remarks>
     public static string? FindFirstReservedNameCollision(
         ImmutableArray<SparseMemberModel> members,
         ImmutableArray<string> reservedNames

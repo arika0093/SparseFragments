@@ -7,12 +7,8 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Shared;
 
-// Downstream-dialect and cross-product conformance for the Generated-Once
-// plane (issue #180): an independent renamed dialect compiles and executes
-// with no standalone runtime dependency, target-framework variants stay
-// valid, feature selections gate families, and every family documents the
-// contracts it consumes. Fixtures here are independent of the #176 public
-// facade snapshots: they cover generation topology, not model surfaces.
+// Verify downstream dialects, target frameworks, and feature gates without
+// a standalone runtime dependency.
 public sealed class GeneratedOnceConformanceTests
 {
     private const string ProbeDriver = """
@@ -167,8 +163,7 @@ public sealed class GeneratedOnceConformanceTests
         rendered[0].ShouldNotContain("__SparseReadOnlySet<T>");
         rendered[2].ShouldContain("__SparseReadOnlySet<T>");
         // d7011db conformance: the old-TFM fallback (no BCL IReadOnlySet)
-        // without read-only-set members must not name IReadOnlySet at all;
-        // the portable variant names it only inside the gated bridge.
+        // without read-only-set members must not name IReadOnlySet at all.
         rendered[0].ShouldNotContain("IReadOnlySet<");
         rendered[2].ShouldContain("IReadOnlySet<");
         rendered.Distinct().Count().ShouldBeGreaterThan(1);
@@ -242,8 +237,7 @@ public sealed class GeneratedOnceConformanceTests
     public void ContractMatrix_NamesOnlyCallerOwnedContracts()
     {
         // EditSession core consumes all three dialects; the generic helper
-        // families need none (BCL only). The render signatures encode that:
-        // helper renderers take no runtime or patch dialect.
+        // families need none (BCL only).
         var session = SparseEditSessionEmitter.RenderCoreSources(
             new SparseEditSessionDialect("Downstream.Generated"),
             new SparseRuntimeDialect(

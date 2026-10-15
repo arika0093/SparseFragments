@@ -6,14 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Emits the mixed-operation algebra for redacted/write-only payload members.</summary>
-/// <remarks>
-/// Transport adapter for issue #119, isolated from the complete ChangeSet algebra.
-/// A member whose before-endpoint is redacted cannot form a baseline-aware
-/// transition, so the partition below routes it to a baseline-free blind patch
-/// while ordinary members keep the existing validation and rebase behavior.
-/// Complete ChangeSet semantics stay untouched; every projection reports the
-/// blind paths it handled without carrying secret values.
-/// </remarks>
+/// <remarks>Transport adapter, isolated from the complete ChangeSet algebra.</remarks>
 internal static class SparseChangeSetMixedEmitter
 {
     internal static void AppendMixedPartition(
@@ -330,8 +323,7 @@ internal static class SparseChangeSetMixedEmitter
         )
         {
             // Member transport policy: an undisclosed before-state can never
-            // rebuild a complete ChangeSet. Route through the policy restore
-            // case so the explicit baseline-free projection stays the only path.
+            // rebuild a complete ChangeSet.
             SparseChangeSetPayloadRestoreEmitter.AppendFromPayloadCase(
                 code,
                 member,
@@ -409,7 +401,7 @@ internal static class SparseChangeSetMixedEmitter
             "if (item.Before is null || item.After is null) throw new global::System.ArgumentException(\"Both transition endpoints are required.\", nameof(payload));"
         );
         // A redacted endpoint is value-free by contract; validate before the
-        // redacted branch bypasses ToOptional (issue #164).
+        // redacted branch bypasses ToOptional.
         code.AppendLineAt(6, "item.Before.Validate(); item.After.Validate();");
         code.AppendLineAt(
             6,
@@ -512,13 +504,7 @@ internal static class SparseChangeSetMixedEmitter
     }
 
     /// <summary>Emits the envelope version guard for public payload entry points.</summary>
-    /// <remarks>
-    /// The wire version lives on the root envelope only (issue #163):
-    /// envelope overrides validate it before delegating to the versionless
-    /// core seam, and recursive nested cores stay versionless. The guard runs
-    /// before any partition or model work, so rejection never mutates a
-    /// supplied model.
-    /// </remarks>
+    /// <remarks>The root envelope validates wire versions before delegation; nested cores remain versionless.</remarks>
     internal static void AppendVersionGuard(
         SharedIndentedBuilder code,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect
@@ -537,11 +523,7 @@ internal static class SparseChangeSetMixedEmitter
     }
 
     /// <summary>Emits version-validated envelope overrides for mixed entry points.</summary>
-    /// <remarks>
-    /// The envelope re-declares the core seam so <c>ToPatch</c>,
-    /// <c>InvertReversibleChanges</c> and <c>TryApplyMixedTo</c> validate the
-    /// wire version before interpreting anything (issue #163).
-    /// </remarks>
+    /// <remarks>The envelope re-declares the core seam so <c>ToPatch</c>.</remarks>
     internal static void AppendEnvelopeVersionOverrides(
         SharedIndentedBuilder code,
         SparseFragmentPatchEmitter.SparsePatchDialect dialect,
@@ -680,7 +662,8 @@ internal static class SparseChangeSetMixedEmitter
         );
         code.AppendLineAt(2, "public sealed class MixedApplyResult");
         code.AppendLineAt(2, "{");
-        // Public-first order: public properties precede internal construction helpers.
+        // Public-first order: public properties precede internal construction
+        // helpers.
         code.AppendLineAt(
             3,
             "/// <summary>Whether rebasing the baseline-aware members produced conflicts.</summary>"

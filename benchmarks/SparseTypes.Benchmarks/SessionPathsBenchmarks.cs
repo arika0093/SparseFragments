@@ -24,10 +24,7 @@ public partial class BenchSessionPathsOrder
     public List<BenchSessionPathsItem> Items { get; set; } = new();
 }
 
-// Session-owned path-navigation budgets (issue #270). The root builder is
-// cached per session, so repeated Paths access copies a small struct without
-// heap churn; element navigation allocates only the segments it appends,
-// exactly like the model root builder.
+// Session-owned path-navigation budgets.
 [MemoryDiagnoser]
 public class SessionPathsBenchmarks
 {

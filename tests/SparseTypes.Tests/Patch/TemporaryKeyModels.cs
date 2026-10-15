@@ -2,7 +2,7 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-/// <summary>Keyed element models with opt-in temporary identity for issue #207.</summary>
+/// <summary>Keyed element models with opt-in temporary identity.</summary>
 [SparseModel]
 public partial class TempOrderLine
 {
@@ -69,23 +69,16 @@ public partial class TempOrderBook
     public List<TempOrderLine> Lines { get; set; } = new();
 }
 
-/// <summary>Init-only keyed list holder for issue #221.</summary>
-/// <remarks>
-/// The list instance itself is mutable, but the property cannot be
-/// replaced after construction, so reconcile must reject a dirty
-/// retarget before mutating the backing list.
-/// </remarks>
+/// <summary>Init-only keyed list holder.</summary>
+/// <remarks>The list instance itself is mutable.</remarks>
 [SparseModel]
 public partial class TempInitHolder
 {
     public List<TempOrderLine> Lines { get; init; } = new();
 }
 
-/// <summary>Keyed customers with nested orders for issue #216.</summary>
-/// <remarks>
-/// Sibling <c>Orders</c> collections under distinct assigned parents must
-/// correlate independently even when they reuse a temporary Guid.
-/// </remarks>
+/// <summary>Keyed customers with nested orders.</summary>
+/// <remarks>Models used by temporary-key collection tests.</remarks>
 [SparseModel]
 public partial class TempCustomerHolder
 {

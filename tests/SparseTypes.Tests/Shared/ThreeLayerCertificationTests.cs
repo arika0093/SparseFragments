@@ -10,16 +10,8 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Shared;
 
-// Certification suite for the three-layer Runtime/Generated-Once/Per-Model
-// design (issue #189). The ownership table in
-// docs/architecture/three-layer-ownership.md becomes executable assertions
-// here: every runtime facade member is classified, the Generated-Once
-// families are pinned to internal BCL-only helpers emitted once per
-// compilation, and the per-model call-site wiring is verified live against
-// the actual merge state (track-2 README-honesty option (b): the explicit
-// product namespace calls shared helpers; the null-namespace single-file
-// path keeps legacy per-model copies). All gates are deterministic; no
-// wall-clock measurement is asserted.
+// Turn the three-layer ownership table into assertions for facade ownership,
+// Generated-Once helpers, and per-model wiring.
 public sealed class ThreeLayerCertificationTests
 {
     private const string SharedNamespace = "SparseTypes.Generated";
@@ -134,11 +126,8 @@ public sealed class ThreeLayerCertificationTests
                 .Select(static pair => pair.Value)
         );
 
-    // Ownership table, Runtime row: every facade member classifies into one
-    // documented family (equality, merge, rebase, clone/cycle, keyed,
-    // provenance). 42 methods share 26 distinct names; the count pins the
-    // #186 audit plus the 12 #187 comparison specializations plus the 3 #204
-    // live origin-attribution helpers and the clone/key-validation scope factories.
+    // Pin the facade member inventory and its comparison, origin, clone,
+    // and key-validation helpers.
     [Test]
     public void OwnershipTable_EveryFacadeMemberHasARuntimeLayerOwner()
     {
@@ -178,9 +167,7 @@ public sealed class ThreeLayerCertificationTests
             .ShouldBeTrue();
     }
 
-    // Ownership table, Generated-Once rows: the three helper families plus
-    // the edit-session cores are emitted exactly once per compilation,
-    // normally internal, and BCL-only (no runtime/dialect tokens).
+    // Ownership table, Generated-Once rows.
     [Test]
     public void OwnershipTable_GeneratedOnceFamiliesAreInternalBclOnlyAndEmittedOnce()
     {
@@ -221,8 +208,7 @@ public sealed class ThreeLayerCertificationTests
         SharedSource(sources, "RemovalIndex").ShouldContain("class SparseRemovalIndex<");
     }
 
-    // Per-model wiring is live on the explicit-namespace path: per-model
-    // output names the qualified shared helpers and defines no legacy
+    // Per-model output names the qualified shared helpers and defines no legacy
     // per-model copies of them.
     [Test]
     public void OwnershipTable_PerModelCallSitesInvokeSharedHelpersLive()
@@ -379,9 +365,7 @@ public sealed class ThreeLayerCertificationTests
         text.ShouldNotContain("global::Downstream.Generated.SparseReadOnlyListAdapter");
     }
 
-    // Visibility rule: shared implementations never escape through public
-    // API. The payload DTO exception (E1) lives in per-model nested
-    // containers, not in these families.
+    // Visibility rule: shared implementations never escape through public API.
     [Test]
     public void VisibilityRule_SharedImplementationsStayOutOfPublicSurface()
     {
@@ -425,9 +409,8 @@ public sealed class ThreeLayerCertificationTests
             .ShouldBeEmpty();
     }
 
-    // d7011db gating: without the BCL IReadOnlySet type the clone kernels
-    // name no IReadOnlySet at all; the portable variant gates it in a bridge.
-    // Both stay C# 9 clean for the minimum language floor.
+    // d7011db gating: without the BCL IReadOnlySet type the clone kernels name
+    // no IReadOnlySet at all; the portable variant gates it in a bridge.
     [Test]
     public void PortableSetView_MatchesTheD7011dbGating()
     {
@@ -472,9 +455,7 @@ public sealed class ThreeLayerCertificationTests
         }
     }
 
-    // Downstream BCL-only conformance: the same clone/adapter/removal
-    // behavior executes identically under a standard-shaped and a renamed
-    // downstream namespace with no SparseTypes reference.
+    // Downstream BCL-only conformance.
     [Test]
     public void StandardAndDownstream_DialectsAgreeOnSemantics()
     {
@@ -482,9 +463,7 @@ public sealed class ThreeLayerCertificationTests
         ExecuteHelperProbe("Cert.Downstream.Generated").ShouldBe("probe-ok");
     }
 
-    // Cross-assembly contracts: an external assembly uses the runtime
-    // Descriptor and EditSession contracts plus the public model families
-    // without naming any generated implementation type, then executes.
+    // Cross-assembly contracts.
     [Test]
     public void CrossAssembly_ExternalConsumerUsesContractsWithoutImplTypes()
     {
@@ -542,9 +521,8 @@ public sealed class ThreeLayerCertificationTests
                 }
             }
             """;
-        // Only public contracts are named: the runtime descriptor namespace
-        // (SparseTypes.Generated ships in the compiled runtime assembly)
-        // and the per-model families. No generated implementation helper.
+        // The runtime descriptor namespace (SparseTypes.Generated ships in the
+        // compiled runtime assembly) and the per-model families.
         checkSource.ShouldNotContain("SparseClone");
         checkSource.ShouldNotContain("Adapter");
         checkSource.ShouldNotContain("RemovalIndex");
@@ -600,11 +578,8 @@ public sealed class ThreeLayerCertificationTests
         }
     }
 
-    // C4/C5 size matrix: shared helper bytes stay constant as model count
-    // grows, so four models cost less than four times one model. Two
-    // independent compilations each emit their own copy under the same hint
-    // name: cross-assembly replication is by design, per-model duplication
-    // is removed.
+    // Shared helper size should stay constant as model count grows; each
+    // independent compilation emits its own copy.
     [Test]
     public void SizeMatrix_SharedBytesStayConstantAsModelsGrow()
     {

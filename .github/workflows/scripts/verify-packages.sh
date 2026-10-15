@@ -1,14 +1,6 @@
 #!/usr/bin/env bash
-# Verifies packed SparseTypes NuGet package integrity: expected package
-# IDs, target assets, and analyzer/build assets that packing can silently omit.
-#
-# Three packages ship (#46, #70): SparseTypes (core runtime + generator
-# analyzer), SparseTypes.Blazor (Blazor edit sessions), and
-# SparseTypes.Generator.Shared (source-only downstream-generator sources).
-# The Blazor package ships a dedicated README.Blazor.md via its own
-# PackageReadmeFile (#37, #46, #52).
-#
-# Usage: verify-packages.sh <package-directory>
+# Verifies packed SparseTypes NuGet package integrity: expected package IDs,
+# target assets, and analyzer/build assets that packing can silently omit.
 set -euo pipefail
 
 package_directory="${1:-}"
@@ -119,7 +111,7 @@ for package_file in "${package_files[@]}"; do
             require_entry 'analyzers/dotnet/cs/SparseTypes.Generator.dll'
             require_entry 'lib/netstandard2.0/SparseTypes.dll'
             require_readme 'README.md'
-            # Serializer-agnostic runtime (issue #242): the base package must
+            # Serializer-agnostic runtime: the base package must
             # not bring System.Text.Json transitively.
             require_no_dependency 'System.Text.Json'
             ;;
@@ -130,9 +122,8 @@ for package_file in "${package_files[@]}"; do
             require_dependency 'SparseTypes'
             ;;
         SparseTypes.Generator.Shared)
-            # Source-only (#70): no lib/ assembly, no legacy content/ copy, no
-            # buildTransitive/ propagation. Direct-consumer build logic ships in
-            # build/ only and sources arrive via contentFiles with structure.
+            # Source-only: no lib/ assembly, no legacy content/ copy, no
+            # buildTransitive/ propagation.
             require_entry 'build/SparseTypes.Generator.Shared.props'
             require_readme 'README.md'
             if grep -q -i -E '^lib/' <<<"${entries}"; then
@@ -155,9 +146,8 @@ for package_file in "${package_files[@]}"; do
                 echo "Package '${package_id}' must pack shared sources under 'contentFiles/cs/netstandard2.0/' (#70)." >&2
                 exit 1
             fi
-            # Nested structure must be preserved (no flattening hazard): every
-            # Shared source lives in a subdirectory, so every contentFiles .cs
-            # entry must contain a second path segment.
+            # Every Shared source lives in a subdirectory, so every
+            # contentFiles.cs entry must contain a second path segment.
             while IFS= read -r content_entry; do
                 relative="${content_entry#contentFiles/cs/netstandard2.0/}"
                 if [[ "${relative}" != */* ]]; then
@@ -165,8 +155,7 @@ for package_file in "${package_files[@]}"; do
                     exit 1
                 fi
             done < <(grep 'contentFiles/cs/netstandard2.0/.*\.cs$' <<<"${entries}")
-            # Representative Shared sources across categories (analysis, IR/model,
-            # naming, emitter/helper) so an omitted file fails verification.
+            # Representative Shared sources across categories (analysis.
             for expected_source in \
                 'contentFiles/cs/netstandard2.0/Analysis/SparseCollectionAnalyzer.cs' \
                 'contentFiles/cs/netstandard2.0/Models/SparseGeneratorModels.cs' \
@@ -181,7 +170,8 @@ for package_file in "${package_files[@]}"; do
                     exit 1
                 fi
             done
-            # Every Shared .cs in the source tree must be packed (no silent omission).
+            # Every Shared.cs in the source tree must be packed (no silent
+            # omission).
             shared_source_root="src/SparseTypes.Generator.Shared"
             if [[ -d "${shared_source_root}" ]]; then
                 while IFS= read -r source_file; do

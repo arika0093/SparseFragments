@@ -4,12 +4,8 @@ namespace SparseTypes.Generator;
 
 internal static class SparseEntityMapperSymbolHelpers
 {
-    // The generated companion is an unrelated static class in the mapper's
-    // namespace and assembly, so conventional selectors can only name members
-    // (and member types) reachable from that location. Private and protected
-    // members are never reachable; internal members only when they live in the
-    // mapper's own assembly. Anything else must stay explicit-only (or report a
-    // diagnostic) instead of emitting code that fails with downstream CS errors.
+    // The companion can access only visible members in its namespace and
+    // assembly; inaccessible members require explicit mapping or diagnostics.
     internal static bool IsAccessibleFromCompanion(ISymbol symbol, INamedTypeSymbol mapper)
     {
         var accessibility = symbol.DeclaredAccessibility;
@@ -85,11 +81,8 @@ internal static class SparseEntityMapperSymbolHelpers
         return true;
     }
 
-    // Entity-side counterpart of the DTO settable filter: the companion reads
-    // the entity through the same selectors, so the same reachability rules
-    // apply. Fields are included (conventional Member/collection selectors can
-    // read public fields), but nested Object navigation still requires
-    // properties.
+    // Entity selectors use the same access rules as DTO selectors. Public
+    // fields are readable, but nested Object navigation requires properties.
     internal static ISymbol? FindAccessibleEntityMember(
         INamedTypeSymbol entityType,
         string name,
@@ -136,9 +129,7 @@ internal static class SparseEntityMapperSymbolHelpers
     }
 
     // The generated temporary-key assignment runs as an ordinary runtime
-    // delegate outside construction, so init-only setters (assignable only via
-    // initializers) and non-writable/non-reachable setters can never be
-    // emitted: callers pass null and diagnose instead.
+    // delegate outside construction.
     internal static bool IsTemporarySetterUsable(
         IPropertySymbol? temporaryProperty,
         INamedTypeSymbol mapper
@@ -272,7 +263,8 @@ internal static class SparseEntityMapperSymbolHelpers
         );
     }
 
-    // Keep scalar compatibility identical to the runtime plan's symbol comparison.
+    // Keep scalar compatibility identical to the runtime plan's symbol
+    // comparison.
     internal static bool SameType(ITypeSymbol left, ITypeSymbol right) =>
         SymbolEqualityComparer.Default.Equals(left, right);
 }

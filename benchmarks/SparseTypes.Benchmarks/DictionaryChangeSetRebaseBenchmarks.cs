@@ -107,7 +107,8 @@ public class DictionaryChangeSetRebaseBenchmarks
             );
         }
 
-        // This struct's typed equality treats 1 and 11 as equal; object equality does not.
+        // This struct's typed equality treats 1 and 11 as equal; object
+        // equality does not.
         var customBefore = CustomFragment(0, 1);
         var customAfter = CustomFragment(1, 2);
         var customCurrent = CustomFragment(

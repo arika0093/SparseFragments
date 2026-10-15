@@ -13,12 +13,8 @@ using Microsoft.Extensions.Logging;
 
 namespace SparseTypes.Blazor.Tests;
 
-// Rendered-component counterpart of docs/how-to/blazor-edit-form.md (#219, #220).
-// A minimal Blazor <see cref="Renderer"/> drives a view that replicates the
-// OrderEditForm.razor input subtree (keyed EditForm, InputText adapter editing
-// through Observable, explicit conflict actions) against the test-local
-// OrderDto, so post-save rerenders run through the real diff engine instead of
-// only exercising direct EditSession calls.
+// Render the documented form flow with a minimal Renderer to exercise rerenders
+// through the real diff engine, including explicit conflict actions.
 public sealed class BlazorEditFormRenderedTests
 {
     private abstract record SaveResult;
@@ -63,11 +59,8 @@ public sealed class BlazorEditFormRenderedTests
         }
     }
 
-    // Mirrors the OrderEditForm.razor handler logic (keyed adopt with handler
-    // detach, explicit server-value discard, disjoint-merge notice) so the
-    // rendered tests drive the same flow the Razor component runs. The session
-    // field names the model-nested session, just like the Razor file does,
-    // because a field declaration requires it.
+    // Mirror the Razor handlers so rendered tests cover the same adopt,
+    // discard, and disjoint-merge flow.
     private sealed class OrderFormDriver
     {
         public OrderDto Live = Order();
@@ -196,10 +189,7 @@ public sealed class BlazorEditFormRenderedTests
         }
     }
 
-    // Replicates the OrderEditForm.razor input subtree in code: the EditForm is
-    // keyed by its EditContext exactly like the @key="formGeneration" Razor
-    // fix, so adopting a new session recreates the inputs instead of reusing
-    // them against a new context.
+    // Replicates the OrderEditForm.razor input subtree in code.
     private sealed class OrderFormView : ComponentBase
     {
         [Parameter]
@@ -272,10 +262,7 @@ public sealed class BlazorEditFormRenderedTests
         }
     }
 
-    // Bare cascaded input without EditForm's region teardown: swapping the
-    // cascaded EditContext on the same InputText instance must throw, which
-    // proves the harness detects the InputBase guard that the keyed EditForm
-    // subtree avoids by recreating its inputs.
+    // Bare cascaded input without EditForm's region teardown.
     private sealed class BareInputView : ComponentBase
     {
         [Parameter]
@@ -310,9 +297,7 @@ public sealed class BlazorEditFormRenderedTests
         }
     }
 
-    // Dependency-free test renderer: runs the real component diff (including
-    // the InputBase cascaded-context guard) and records rendered text so tests
-    // can assert on visible buttons and notices.
+    // Dependency-free test renderer.
     private sealed class OrderFormRenderer : Renderer
     {
         private readonly Dispatcher dispatcher = Dispatcher.CreateDefault();

@@ -84,8 +84,8 @@ public sealed class SampleDbContext : DbContext
         modelBuilder.Entity<OrderEntity>(entity =>
         {
             entity.HasKey(order => order.Id);
-            // Provider-neutral concurrency token (IsRowVersion is SQL Server-oriented;
-            // SQLite cannot store-generate it). Protection reads IsConcurrencyToken either way.
+            // Provider-neutral concurrency token (IsRowVersion is SQL
+            // Server-oriented; SQLite cannot store-generate it).
             entity.Property(order => order.RowVersion).IsConcurrencyToken();
             entity.OwnsOne(order => order.Address);
             entity

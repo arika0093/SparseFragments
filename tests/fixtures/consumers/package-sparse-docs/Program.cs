@@ -1,10 +1,5 @@
-// Canonical compile-checked mirror of the docs/*.md guides (#45).
-// Each topic file below corresponds to one guide page. Keep the representative
-// API tokens in sync with the guides: verify-docs-samples.sh fails when a
-// documented sample drifts from its fixture. This project consumes the packed
-// release-candidate packages (no ProjectReference fallback when
-// SparseTypesPackageVersion is set), so CI fails when the public
-// generated API breaks a documented sample.
+// Compile-checked consumers for docs guides; sample drift fails verification.
+// The project uses packed packages to catch public API regressions.
 
 KeyedCollectionsSamples.Run();
 RebaseSamples.Run();

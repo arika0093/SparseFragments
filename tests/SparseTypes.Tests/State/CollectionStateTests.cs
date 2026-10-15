@@ -2,7 +2,7 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-/// <summary>Nullable whole-presence collection fixtures for state tests (issue #250).</summary>
+/// <summary>Nullable whole-presence collection fixtures for state tests.</summary>
 [SparseModel]
 public partial class StateNullableHolder
 {
@@ -11,7 +11,7 @@ public partial class StateNullableHolder
     public Dictionary<string, int>? MaybeScores { get; set; }
 }
 
-/// <summary>Path-first keyed and dictionary collection state (issue #250).</summary>
+/// <summary>Path-first keyed and dictionary collection state.</summary>
 public sealed class CollectionStateTests
 {
     private static KeyedServerHolder Holder(params (string Id, string Name)[] rows) =>
@@ -164,11 +164,12 @@ public sealed class CollectionStateTests
 
         var view = session.CollectionState(TempOrderHolder.SparsePath.Lines);
 
-        // Assigned entries resolve by permanent key even while retaining a temp value.
+        // Assigned entries resolve by permanent key even while retaining a temp
+        // value.
         var byKey = view.GetItemState(7);
         byKey.IsEdited.ShouldBeTrue();
 
-        // ...and never through temporary lookup.
+        //and never through temporary lookup.
         view.GetTemporaryState(temp).IsEmpty.ShouldBeTrue();
     }
 

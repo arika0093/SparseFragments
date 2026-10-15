@@ -60,12 +60,7 @@ public partial class BenchCloneParent
     public BenchCloneChild? Alias { get; set; }
 }
 
-/// <summary>
-/// Large-collection fragment and patch benchmarks: <c>Fragment.From</c>,
-/// <c>Diff</c>, <c>DeepClone</c>, <c>Merge</c>, and patch apply over models
-/// that grow from small to large, plus no-op, one-change, and many-change
-/// diff shapes.
-/// </summary>
+/// <summary>Large-collection fragment and patch benchmarks.</summary>
 [MemoryDiagnoser]
 public class LargeFragmentBenchmarks
 {
@@ -197,11 +192,7 @@ public class LargeFragmentBenchmarks
         );
 }
 
-/// <summary>
-/// Object-graph depth benchmarks: <c>Fragment.From</c>, <c>Diff</c>, and
-/// <c>DeepClone</c> over a singly linked chain whose depth grows, pinning the
-/// per-level cost of recursive fragment operations.
-/// </summary>
+/// <summary>Object-graph depth benchmarks.</summary>
 [MemoryDiagnoser]
 public class ChainDepthBenchmarks
 {
@@ -270,11 +261,7 @@ public class ChainDepthBenchmarks
     public BenchChainNode.Fragment ChainFragmentDeepClone() => _rootFragment.DeepClone();
 }
 
-/// <summary>
-/// Shared-reference density benchmarks: model and fragment deep clones with
-/// either one shared child referenced many times or many distinct children,
-/// plus <c>Fragment.From</c> over both shapes.
-/// </summary>
+/// <summary>Shared-reference density benchmarks.</summary>
 [MemoryDiagnoser]
 public class SharedReferenceBenchmarks
 {

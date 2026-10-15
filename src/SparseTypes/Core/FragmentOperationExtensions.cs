@@ -8,7 +8,7 @@ namespace SparseTypes;
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public static class FragmentOperationExtensions
 {
-    /// <summary>Sets the referenced operation to <see cref="FragmentOperationKind.Set"/> with the supplied value.</summary>
+    /// <summary>Sets the operation to <see cref="FragmentOperationKind.Set"/>.</summary>
     /// <param name="target">The operation storage to mutate.</param>
     /// <param name="value">The value to set, including an explicit null or default.</param>
     public static void Set<T>(this ref FragmentOperation<T> target, T? value) =>
@@ -33,7 +33,8 @@ public static class FragmentOperationExtensions
     ) => target = source;
 
     /// <summary>Copies another operation while converting its value, preserving the operation kind.</summary>
-    /// <remarks>Only <see cref="FragmentOperationKind.Set"/> sources invoke <paramref name="map"/>.</remarks>
+    /// <remarks>Only <see cref="FragmentOperationKind.Set"/> sources invoke
+    /// <paramref name="map"/>.</remarks>
     /// <param name="target">The operation storage to mutate.</param>
     /// <param name="source">The operation to copy.</param>
     /// <param name="map">Converts a set source value to the destination value.</param>

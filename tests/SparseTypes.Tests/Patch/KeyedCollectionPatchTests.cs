@@ -663,7 +663,8 @@ public sealed class KeyedCollectionPatchTests
         var before = SOf(new ScalarSequenceHolder { Tags = ["a", "a", "b"], Numbers = [1, 2] });
         var after = SOf(new ScalarSequenceHolder { Tags = ["b", "a", "a"], Numbers = [2, 1] });
 
-        // Reorder/replacement is a whole-value operation (duplicates preserved, no keys).
+        // Reorder/replacement is a whole-value operation (duplicates preserved,
+        // no keys).
         var patch = ScalarSequenceHolder.Patch.Between(before, after);
         patch.IsEmpty.ShouldBeFalse();
         var applied = patch.Apply(before);
@@ -776,7 +777,8 @@ public sealed class KeyedCollectionPatchTests
         var after = KeyedServerHolder.Fragment.From(Holder(Server("a", "A2"), Server("b", "B")));
         var afterOpt = Optional<KeyedServerHolder.Fragment?>.Present(after);
 
-        // A nested keyed-element edit materializes as a keyed edit, not a positional one.
+        // A nested keyed-element edit materializes as a keyed edit, not a
+        // positional one.
         var patch = KeyedServerHolder.Patch.Between(present, afterOpt);
         patch.IsEmpty.ShouldBeFalse();
         var applied = patch.Apply(present);

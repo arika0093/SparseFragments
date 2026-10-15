@@ -3,13 +3,8 @@ using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using SparseTypes;
 
-// Compile-checked mirrors of docs/change-payload.md (#198).
-// Each `// sample: <id>` region matches the same-id fenced block in the guide
-// exactly after normalization (using-lines, blank lines, and DocsCheck
-// assertions are ignored); verify-docs-samples.sh fails on drift. Regions
-// execute as part of Run() so documented JSON shapes and conversion rules are
-// verified, not just compiled. Placeholder values only: no secret plaintext
-// appears in these samples (#118).
+// Compile-checked samples for docs/change-payload.md.
+// Run() verifies documented JSON shapes and conversions.
 public static class ChangePayloadDocsSamples
 {
     public static void Run()
@@ -546,9 +541,7 @@ public static class ChangePayloadDocsSamples
 }
 
 // Source-generated metadata for the context sample: the endpoint value types
-// the payload carries. Generated payload DTOs cannot be registered here (a
-// context only sees types that exist before generation runs); fully trimmed
-// builds declare the context downstream of the models instead.
+// the payload carries.
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(int))]
 internal sealed partial class WirePayloadContext : JsonSerializerContext { }
@@ -605,12 +598,8 @@ public partial class WireScores
     public Dictionary<string, int> Scores { get; set; } = new();
 }
 
-// Fixture-generated JSON specimens for the wire reference (#212).
-// Each json-specimen region below holds the exact serializer output that the
-// same-id fenced block in docs/change-payload.md must match deeply (array
-// order significant); the DocsCheck assertions above compare the live
-// serializer output against these constants byte for byte, so a one-field
-// corruption on either side fails.
+// JSON specimens are compared deeply with the matching guide blocks.
+// Assertions also compare live serializer output against these constants.
 public static class ChangePayloadJsonSpecimens
 {
     // json-specimen: payload-envelope

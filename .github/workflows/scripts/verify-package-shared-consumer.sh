@@ -1,19 +1,5 @@
 #!/usr/bin/env bash
-# Verifies the packed SparseTypes.Generator.Shared source-only package (#70).
-#
-# Builds tests/fixtures/consumers/package-shared-generator (a small Roslyn
-# generator using representative Shared APIs) against the packed Shared nupkg
-# from a local feed. The fixture has no sibling-source fallback: it restores
-# SparseTypes.Generator.Shared only via SparseSharedPackageVersion, and the
-# isolated rebuild runs in a temp directory with no access to the sibling
-# src/SparseTypes.Generator.Shared source tree. Build success therefore
-# proves the Shared sources are compiled from the package (contentFiles +
-# build/SparseTypes.Generator.Shared.props) rather than from a
-# repository-relative fallback. The probe touches representative categories
-# (model/collection analysis, IR/model types, naming, emitter/helpers) so a
-# missing Shared source fails compilation.
-#
-# Usage: verify-package-shared-consumer.sh <package-directory>
+# Verifies the packed SparseTypes.Generator.Shared source-only package.
 set -euo pipefail
 
 package_directory="${1:-}"
@@ -44,9 +30,8 @@ if [[ -z "${version}" ]]; then
 fi
 feed="$(realpath "${package_directory}")"
 
-# 1. The fixture must be package-only: no sibling csproj fallback and no
-# repository-relative Compile glob. This keeps the in-repo direct-Compile path
-# canonical for SparseTypes.Generator while the package serves downstream.
+# The fixture must be package-only: no sibling csproj fallback and no
+# repository-relative Compile glob.
 if grep -F -q 'SparseTypes.Generator.Shared.csproj' "${fixture_csproj}"; then
     echo "Shared consumer fixture must not reference the sibling Shared csproj; it is package-only." >&2
     exit 1
@@ -64,7 +49,7 @@ if ! grep -F -q 'PrivateAssets="all"' "${fixture_csproj}"; then
     exit 1
 fi
 
-# 2. The probe must cover representative Shared categories, not a trivial
+# The probe must cover representative Shared categories, not a trivial
 # single helper, so omitted Shared sources fail compilation.
 required_probe_tokens=(
     'SparseCollectionAnalyzer'
@@ -107,11 +92,8 @@ for template in SparseEditSessionCore.template SparseEditSessionWithCurrentCore.
     fi
 done
 
-# 3. Isolated rebuild: copy the fixture to a temp directory with no access to
-# the sibling Shared source tree, restore the Shared package from the local
-# feed into a fresh global-packages directory (#79) so a stale same-version
-# cache entry cannot satisfy restore, and compile the generator. External
-# feeds stay available.
+# Rebuild a copied fixture with an isolated cache to prove restore uses this
+# package, not a stale cache entry. External feeds remain enabled.
 work="$(mktemp -d)"
 isolated_packages="$(mktemp -d)"
 trap 'rm -rf "${work}" "${isolated_packages}"' EXIT
@@ -131,9 +113,7 @@ dotnet build "${work}/PackageShared.Generator.csproj" \
     -p:SparseSharedPackageVersion="${version}" \
     -p:RestoreAdditionalProjectSources="${feed}"
 
-# Run the packaged generator in a consumer compilation. The probe requests the
-# embedded session templates and asserts its custom runtime dialect without a
-# SparseTypes runtime reference.
+# Run the packaged generator in a consumer compilation.
 dotnet build "${work}/consumer/PackageShared.Consumer.csproj" \
     --configuration Release \
     -p:SparseSharedPackageVersion="${version}" \
@@ -145,10 +125,8 @@ if [[ ! -f "${dll}" ]]; then
     exit 1
 fi
 
-# 4. The isolated restore must have resolved the Shared package (not a
-# sibling fallback): the generated assets file records the exact version, and
-# the fresh global-packages dir must contain the extracted candidate (proves
-# the nupkg was consumed, not a stale cache entry).
+# The isolated restore must have resolved the Shared package (not a sibling
+# fallback).
 if ! grep -F -q "SparseTypes.Generator.Shared/${version}" "${work}/obj/project.assets.json"; then
     echo "Isolated restore did not resolve 'SparseTypes.Generator.Shared/${version}' from the local feed." >&2
     exit 1

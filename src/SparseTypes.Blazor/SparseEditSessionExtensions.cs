@@ -11,10 +11,7 @@ namespace SparseTypes.Blazor;
 public static class SparseEditSessionExtensions
 {
     /// <summary>Creates an <see cref="EditContext"/> bound to the session's original model.</summary>
-    /// <remarks>
-    /// The model is obtained through trusted framework access, so creating the
-    /// context does not by itself disable the session's observable-change cache.
-    /// </remarks>
+    /// <remarks>The model is obtained through trusted framework access.</remarks>
     public static EditContext CreateEditContext<TModel>(this ISparseEditSession<TModel> session)
         where TModel : class
     {
@@ -35,10 +32,7 @@ public static class SparseEditSessionExtensions
     }
 
     /// <summary>Accepts a previously generated change set and synchronizes Blazor modified state.</summary>
-    /// <remarks>
-    /// The session model instance is preserved; only the baseline advances. Later live
-    /// edits remain pending, so the context is cleared only when the session is clean.
-    /// </remarks>
+    /// <remarks>The session model instance is preserved; only the baseline advances.</remarks>
     public static void AcceptChanges<TModel, TChangeSet>(
         this ISparseEditSession<TModel, TChangeSet> session,
         EditContext editContext,
@@ -67,13 +61,7 @@ public static class SparseEditSessionExtensions
     }
 
     /// <summary>Resolves a Blazor field identifier for a member of the session model.</summary>
-    /// <remarks>
-    /// Path resolution reads through trusted framework access and does not by
-    /// itself disable the session's observable-change cache. List brackets take
-    /// positional indexes (<c>Lines[1]</c>) or, for keyed element types, quoted
-    /// stable keys (<c>Lines["b"]</c>) matching the change-enumeration spelling.
-    /// Quoted keys never act as positions, and removed keys fail as invalid paths.
-    /// </remarks>
+    /// <remarks>Path resolution reads through trusted framework access and does not by itself disable the session's observable-change cache.</remarks>
     public static FieldIdentifier Field<TModel>(
         this ISparseEditSession<TModel> session,
         string fieldName
@@ -86,10 +74,7 @@ public static class SparseEditSessionExtensions
     }
 
     /// <summary>Resolves a Blazor field identifier from a canonical typed path.</summary>
-    /// <remarks>
-    /// The typed walk carries actual key values, so distinct keys with identical
-    /// display text never merge. Missing or removed entries fail as invalid paths.
-    /// </remarks>
+    /// <remarks>The typed walk carries actual key values, so distinct keys with identical display text never merge.</remarks>
     public static FieldIdentifier Field<TModel>(
         this ISparseEditSession<TModel> session,
         SparsePath path
@@ -116,11 +101,7 @@ public static class SparseEditSessionExtensions
     }
 
     /// <summary>Surfaces a validation message for a field belonging to this session's model.</summary>
-    /// <remarks>
-    /// Fields resolved from this session (root, nested, list-element, and
-    /// dictionary-value paths) are accepted when their model instance is still
-    /// reachable from the session model. Fields from unrelated graphs stay rejected.
-    /// </remarks>
+    /// <remarks>Resolves fields against the active session model.</remarks>
     public static void AddValidationError<TModel>(
         this ISparseEditSession<TModel> session,
         ValidationMessageStore store,
@@ -144,11 +125,7 @@ public static class SparseEditSessionExtensions
     }
 
     /// <summary>Surfaces a validation message for a session model member path.</summary>
-    /// <remarks>
-    /// The path uses the same spelling as the string-based field lookup, so nested,
-    /// indexed, and keyed members resolve without handing a <c>FieldIdentifier</c>
-    /// across model graphs.
-    /// </remarks>
+    /// <remarks>The path uses the same spelling as the string-based field lookup.</remarks>
     public static void AddValidationError<TModel>(
         this ISparseEditSession<TModel> session,
         ValidationMessageStore store,
@@ -209,11 +186,7 @@ public static class SparseEditSessionExtensions
     }
 
     /// <summary>Creates a typed-path-first binding over the session observable and original-model context.</summary>
-    /// <remarks>
-    /// Reads resolve live so nested replacement is followed; removed keyed entries
-    /// report stale. Writes go through the generated descriptor when available,
-    /// then notify the captured original-model <see cref="EditContext"/>.
-    /// </remarks>
+    /// <remarks>Reads resolve live so nested replacement is followed; removed keyed entries report stale.</remarks>
     /// <param name="session">The edit session.</param>
     /// <param name="path">The typed path, for example <c>Order.SparsePath.Name</c>.</param>
     /// <param name="editContext">The original-model edit context.</param>
@@ -320,8 +293,8 @@ public static class SparseEditSessionExtensions
 
     private static void ValidateBindPath(Type root, SparsePath path, string paramName)
     {
-        // Static shape check: unknown members fail at bind time, while missing
-        // keys and null ancestors stay stale-but-bindable (live resolution decides).
+        // Unknown members fail at bind time, while missing keys and null
+        // ancestors stay stale-but-bindable (live resolution decides).
         var current = root;
         foreach (var segment in path.Segments)
         {
@@ -458,8 +431,7 @@ public static class SparseEditSessionExtensions
 
     private static TModel GetSessionModel<TModel>(ISparseEditSession<TModel> session)
         where TModel : class =>
-        // Trusted framework access keeps the observable-change cache intact;
-        // sessions without it fall back to the raw model, which disables caching.
+        // Trusted framework access keeps the observable-change cache intact.
         session is ISparseEditSessionModelAccessor<TModel> accessor
             ? accessor.GetModelForFrameworkAccess()
             : session.Model;
@@ -488,9 +460,7 @@ public static class SparseEditSessionExtensions
             return true;
         }
 
-        // Reference walk over the live graph: everything reachable through public
-        // members and collections belongs to this session, while sibling graphs
-        // and detached instances are never visited.
+        // Reference walk over the live graph.
         var visited = new HashSet<object>(ReferenceEqualityComparer.Instance);
         var pending = new Stack<object>();
         pending.Push(sessionModel);

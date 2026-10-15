@@ -406,9 +406,6 @@ public sealed class ListClassPatchTests
         var local = new ClassListHolder.Patch { Items = new List<ListChildItem> { Item("b") } };
 
         // Current untouched (same sparse state): local edit survives.
-        // NOTE: List<plain class> uses reference equality for elements, so a
-        // newly built "equal by value" state would look like a concurrent edit.
-        // Reuse the same state to mean "untouched".
         var kept = ClassListHolder.Patch.Rebase(baseState, local, baseState);
         kept.HasConflicts.ShouldBeFalse();
         kept.Rebased.Apply(baseState).Value!.Items.Value!.Single().Name.ShouldBe("b");

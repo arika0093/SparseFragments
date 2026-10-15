@@ -7,15 +7,7 @@ namespace SparseTypes.EntityFrameworkCore.Mapping;
 /// <summary>
 /// A keyed child collection synchronized by stable DTO keys.
 /// </summary>
-/// <remarks>
-/// Dispatch runs through the typed keyed transition emitted by the ordinary
-/// <c>SparseTypes.Generator</c> (closed once at plan build, never
-/// re-discovered per apply). Added children recurse through the path-scoped
-/// child plan built from this collection's <c>Element</c> configuration;
-/// edited children recurse through their typed element transitions. The child
-/// plan is scoped to this parent path: the same element CLR types under
-/// another collection build an independent plan.
-/// </remarks>
+/// <remarks>Dispatch runs through the typed keyed transition emitted by the ordinary <c>SparseTypes.Generator</c> (closed once at plan build).</remarks>
 internal sealed class CollectionNode<TDto, TEntity, TDtoChild, TEntityChild> : MemberNode
     where TDto : class
     where TEntity : class

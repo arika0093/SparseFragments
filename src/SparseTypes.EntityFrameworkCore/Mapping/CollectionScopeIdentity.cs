@@ -4,11 +4,7 @@ using System.Linq;
 namespace SparseTypes.EntityFrameworkCore.Mapping;
 
 /// <summary>Kinds of parent scope that disambiguate nested collection correlations.</summary>
-/// <remarks>
-/// Index-addressed parents stay <see cref="Unscoped" />: their nested paths
-/// already differ per index, and indices are unstable across server
-/// round-trips, so typed correlation cannot rely on them.
-/// </remarks>
+/// <remarks>Index-addressed parents stay <see cref="Unscoped" />.</remarks>
 internal enum CollectionScopeKind
 {
     /// <summary>No typed parent scope; legacy path-string correlation applies.</summary>
@@ -22,13 +18,7 @@ internal enum CollectionScopeKind
 }
 
 /// <summary>Identifies one parent collection element for nested correlation.</summary>
-/// <remarks>
-/// A value of this type is a lookup token, never a dictionary key: assigned
-/// keys are compared with the parent collection's key comparer inside
-/// <see cref="NestedScopeTable" />, because key equality follows the
-/// configured comparer rather than display formatting. Index-addressed
-/// parents stay <see cref="CollectionScopeKind.Unscoped" />.
-/// </remarks>
+/// <remarks>A value of this type is a lookup token, never a dictionary key.</remarks>
 internal readonly record struct CollectionScopeIdentity(
     CollectionScopeKind Kind,
     object? Key,
@@ -79,14 +69,7 @@ internal readonly record struct CollectionScopeIdentity(
 }
 
 /// <summary>Per-collection-path nested temporary-identity records.</summary>
-/// <remarks>
-/// Temporary identities are recorded per parent scope in addition to the
-/// legacy path-string buckets, so two parents whose display keys collide
-/// (identical <c>ToString()</c>, delimiters, or cross-type equality) keep
-/// independent correlations. Assigned slots use the parent collection's key
-/// comparer; temporary slots use Guid equality. The legacy string buckets
-/// keep their exact contents for compatible reads.
-/// </remarks>
+/// <remarks>Temporary identities are recorded per parent scope in addition to the legacy path-string buckets.</remarks>
 internal sealed class NestedScopeTable
 {
     /// <summary>Records of one parent scope: temperatures plus member entities.</summary>
@@ -167,10 +150,7 @@ internal sealed class NestedScopeTable
     /// <summary>Collects members recorded under scopes outside the given set.</summary>
     /// <param name="mine">The parent scopes of the current item.</param>
     /// <returns>Members known to belong to sibling scopes.</returns>
-    /// <remarks>
-    /// Members with no scoped record anywhere stay unattributed and are never
-    /// reported here, preserving legacy behavior for unscoped correlations.
-    /// </remarks>
+    /// <remarks>Members with no scoped record anywhere stay unattributed and are never reported here.</remarks>
     public HashSet<object> ForeignMembers(IReadOnlyList<CollectionScopeIdentity> mine)
     {
         var known = new HashSet<object>(ReferenceEqualityComparer.Instance);

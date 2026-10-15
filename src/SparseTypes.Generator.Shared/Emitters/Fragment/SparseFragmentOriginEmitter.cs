@@ -3,14 +3,7 @@ using System.Collections.Immutable;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Emits optional fragment origin attribution: construction state, merge propagation and effective-value queries.</summary>
-/// <remarks>
-/// Origins are explanatory metadata, not semantic state. The emitter stays
-/// dormant unless the owning generator opts into <c>EmitFragmentOrigins</c>;
-/// downstream runtimes without provenance support therefore never see these
-/// references. All runtime type names resolve through the configured runtime
-/// namespace, the configured collection-merger facade and the configured
-/// path type, never a fixed product reference.
-/// </remarks>
+/// <remarks>Origins are explanatory metadata, not semantic state.</remarks>
 internal sealed class SparseFragmentOriginEmitter(
     string optional,
     string runtimeNamespace,
@@ -30,12 +23,7 @@ internal sealed class SparseFragmentOriginEmitter(
     private string OriginGroupType => RuntimeNamespace + "FragmentOriginGroup<Fragment>";
 
     /// <summary>Creates the origin emitter when fragment origins are enabled.</summary>
-    /// <remarks>
-    /// Origins are product-opt-in: only generators whose runtime carries the
-    /// provenance contracts enable them, so the references never leak into
-    /// downstream dialects. The path type resolves through the patch dialect
-    /// so typed paths bind without per-model holders.
-    /// </remarks>
+    /// <remarks>Only generators whose runtime carries the provenance contracts enable them.</remarks>
     /// <param name="features">The selected emission families.</param>
     /// <param name="runtime">The configured runtime names.</param>
     /// <param name="patchDialect">The configured patch names.</param>
@@ -81,8 +69,7 @@ internal sealed class SparseFragmentOriginEmitter(
         && !member.Collection.IsKeyedSequence;
 
     /// <summary>Emits the fragment-wide origin property and the origin constructor.</summary>
-    /// <remarks>Storage follows separately via <c>AppendOriginStorage</c> so the
-    /// public surface stays ahead of internal members.</remarks>
+    /// <remarks>Storage follows separately via <c>AppendOriginStorage</c> so the public surface stays ahead of internal members.</remarks>
     public static void AppendOriginState(SharedIndentedBuilder code)
     {
         code.CancellationToken.ThrowIfCancellationRequested();
@@ -138,9 +125,7 @@ internal sealed class SparseFragmentOriginEmitter(
     ) => AppendQueryBodies(code, members, modelType, isStatic: true, receiver: "self.");
 
     /// <summary>Builds the merged member-origin expression for <c>Merge</c>.</summary>
-    /// <remarks>Higher-priority presence wins; a value merged from both sides stays member-level Unknown.
-    /// Fallbacks carry the enclosing fragment default into nested merges; explicit
-    /// attributions always win over them.</remarks>
+    /// <remarks>Higher-priority presence wins; a value merged from both sides stays member-level Unknown.</remarks>
     public static string BuildMemberOrigin(
         SparseMemberModel member,
         string lowerSide,
@@ -386,8 +371,7 @@ internal sealed class SparseFragmentOriginEmitter(
 
     internal static string MemberAttribution(string side, int position, string? fallback)
     {
-        // Explicit attributions (present slots, including explicit Unknown) win;
-        // the fallback only covers members with no attribution state at all.
+        // Explicit attributions (present slots.
         var sideDefault = fallback is null
             ? side + "Origin"
             : "(" + side + "Origin ?? " + fallback + ")";
@@ -534,8 +518,7 @@ internal sealed class SparseFragmentOriginEmitter(
         }
 
         // One source of truth: a path resolves exactly when enumeration yields
-        // it. Member-level paths over mixed collections or deep-merged children
-        // report Unknown; read their elements or leaves for precise attribution.
+        // it.
         code.AppendLineAt(3, "origin = null;");
         code.AppendLineAt(
             3,

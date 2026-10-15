@@ -1,10 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Temporary-identity correlation builders for fragment models.</summary>
-/// <remarks>
-/// Owns the path-scoped submitted-to-persisted map surface so sibling
-/// collections may reuse a Guid while within-collection duplicates fail.
-/// </remarks>
+/// <remarks>Builds path-scoped maps from submitted to persisted keys.</remarks>
 internal static class SparseTemporaryKeyCollectEmitter
 {
     internal static void AppendBuildTempMap(
@@ -101,10 +98,7 @@ internal static class SparseTemporaryKeyCollectEmitter
     {
         var elementType = member.Collection.ElementType.NonNullableName;
         var keyType = member.Collection.KeyTypeName ?? "object?";
-        // Element shape drives null handling: references narrow with
-        // `is null`, nullable structs unwrap with HasValue/Value (the
-        // toolchain does not narrow `is null` on Nullable<T>), and plain
-        // structs skip checks entirely.
+        // Element shape drives null handling.
         var elementRef = member.Collection.ElementType.IsReferenceType;
         var elementName = member.Collection.ElementType.Name.TrimEnd();
         var elementNullableStruct =
@@ -137,10 +131,8 @@ internal static class SparseTemporaryKeyCollectEmitter
             "if (submitted." + prop + " is not null && persisted." + prop + " is not null)"
         );
         code.AppendLineAt(2, "{");
-        // Collection scope keeps temporary correlation path-local: sibling
-        // collections may reuse a Guid while duplicates within one
-        // collection still fail. Assigned parent keys extend the scope so
-        // repeated nested instances stay distinct.
+        // Sibling collections may reuse a Guid while duplicates within one
+        // collection still fail.
         code.AppendLineAt(
             3,
             "var __collectionScope"
@@ -248,7 +240,6 @@ internal static class SparseTemporaryKeyCollectEmitter
         {
             // Assigned pairs recurse so nested temporary identities under
             // stable parents still correlate; drops absorb silently.
-            // Keys without an unassigned state never skip here.
             AppendElementLoopHead(
                 code,
                 "submitted." + prop,
@@ -317,11 +308,7 @@ internal static class SparseTemporaryKeyCollectEmitter
     }
 
     /// <summary>Emits a null-safe element loop head with a normalized non-null variable.</summary>
-    /// <remarks>
-    /// References narrow with <c>is null</c>; nullable structs unwrap with
-    /// <c>HasValue</c>/<c>Value</c> into a normalized alias; plain structs
-    /// iterate directly. The normalized variable is always usable as non-null.
-    /// </remarks>
+    /// <remarks>References narrow with <c>is null</c>.</remarks>
     private static void AppendElementLoopHead(
         SharedIndentedBuilder code,
         string list,

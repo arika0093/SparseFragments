@@ -8,13 +8,7 @@ namespace SparseTypes.Generator.Shared;
 internal static class SparseChangeSetKeyedTempPairEmitter
 {
     /// <summary>Emits the temp pair-merge loop over the union of temp keys.</summary>
-    /// <remarks>
-    /// Mirrors the assigned pair matrix with Guid identity: continuity first
-    /// (second-only items validate against the first after-temp order), then
-    /// membership-kind merging with the same nested element algebra.
-    /// Produced items carry the sentinel key with the Guid stamp; absolute
-    /// indexes are fixed during order finalization.
-    /// </remarks>
+    /// <remarks>Mirrors the assigned pair matrix with Guid identity.</remarks>
     internal static void AppendTempPairMerge(
         SharedIndentedBuilder code,
         SparseMemberModel member,

@@ -291,7 +291,8 @@ public sealed class SparseGeneratorDiagnosticTests
         );
         if (kind == "nestedTarget")
         {
-            // The valid sibling root still generates; only the offending model is skipped.
+            // The valid sibling root still generates; only the offending model
+            // is skipped.
             sources
                 .Any(s => s.HintName.Contains("Spf004Child", StringComparison.Ordinal))
                 .ShouldBeTrue();
@@ -727,9 +728,7 @@ public sealed class SparseGeneratorDiagnosticTests
     public void Spf010_DifferentReferenceMergeStillSharesPromotedModel()
     {
         // The promoted model's semantics are derived from the shared type
-        // itself, not from each root's reference-level merge mode, so roots
-        // referencing the same partial type with different merge modes share
-        // one promoted fragment without SPF010.
+        // itself.
         const string source = """
             using SparseTypes;
             public partial class Spf010Shared
@@ -765,10 +764,8 @@ public sealed class SparseGeneratorDiagnosticTests
     [Test]
     public void Spf010_PromotedDescriptorMatchesDocs()
     {
-        // SPF010's incompatible-content path is defensive: promotion is a pure
-        // function of the shared type, so the same fully-qualified name always
-        // yields identical semantics. Cover the diagnostic definition itself
-        // (ID, severity, message, help link) so docs/reference/analyzer.md drift fails loudly.
+        // Promotion is a pure function of the shared type, so the same
+        // fully-qualified name always yields identical semantics.
         var descriptor = GetDescriptorById("SPF010");
         descriptor.DefaultSeverity.ShouldBe(DiagnosticSeverity.Error);
         descriptor.MessageFormat.ToString().ShouldContain("{0}");

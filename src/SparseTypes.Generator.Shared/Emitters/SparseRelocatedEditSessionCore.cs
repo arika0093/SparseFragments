@@ -4,11 +4,7 @@ using System.Collections.Immutable;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Emits the per-model edit-session class nested in the model.</summary>
-/// <remarks>
-/// Mirrors <see cref="SparseEditSessionEmitter"/> but takes the model-nested
-/// observable and read-only-view references explicitly; only the descriptor
-/// factory still resolves to the implementation container.
-/// </remarks>
+/// <remarks>Mirrors <see cref="SparseEditSessionEmitter"/> but takes the model-nested observable and read-only-view references explicitly.</remarks>
 internal static class SparseRelocatedEditSessionCore
 {
     /// <summary>Appends the model-nested edit-session class.</summary>
@@ -139,9 +135,7 @@ internal static class SparseRelocatedEditSessionCore
             patchDialect,
             code.CancellationToken
         );
-        // Sessions already raise PropertyChanged with the standard signature; declaring the
-        // interface lets framework-neutral subscribers (such as the Blazor session scope)
-        // attach without reflection or a ChangeSet-typed event.
+        // Sessions already raise PropertyChanged with the standard signature.
         sessionBases += ", global::System.ComponentModel.INotifyPropertyChanged";
         code.AppendLineAt(1, "public sealed class " + sessionSimple + " : " + sessionBases);
         code.AppendLineAt(1, "{");
@@ -330,7 +324,7 @@ internal static class SparseRelocatedEditSessionCore
                 + SparseFragmentPatchEmitter.GetPathType(patchDialect)
                 + "> EnumerateChangedPaths() => CreateChangeSet().EnumerateChangedPaths();"
         );
-        // Path-first semantic state inspection (issue #250); shared with the
+        // Path-first semantic state inspection; shared with the
         // model-nested session placement so both surfaces stay identical.
         SparseEditSessionStateEmitter.AppendStateMembers(code, modelType, members, patchDialect);
         code.AppendLineAt(
@@ -372,8 +366,7 @@ internal static class SparseRelocatedEditSessionCore
             rebaseResultType,
             historyBinding
         );
-        // Raw model access bypasses the change cache, so it is exposed only
-        // through ISparseEditSession<TModel>; framework code uses GetModelForFrameworkAccess().
+        // Raw model access bypasses the change cache.
         code.AppendLineAt(
             2,
             modelType + " " + sessionInterface + "<" + modelType + ">.Model => _session.Model;"

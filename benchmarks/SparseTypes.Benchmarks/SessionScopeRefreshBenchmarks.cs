@@ -19,10 +19,7 @@ public partial class BenchScopeRoot
     public List<BenchScopeItem> Items { get; set; } = new();
 }
 
-// Session-level refresh budgets for the Blazor session scope (issue #254).
-// The scope re-renders once per PropertyChanged notification, so the counts below are
-// exactly the renders one user action causes. GlobalSetup validates every benchmark
-// expectation so regressions fail fast instead of measuring drift.
+// Session-level refresh budgets for the Blazor session scope.
 [MemoryDiagnoser]
 public class SessionScopeRefreshBenchmarks
 {

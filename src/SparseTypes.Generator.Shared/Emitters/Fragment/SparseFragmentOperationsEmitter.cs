@@ -4,16 +4,7 @@ using System.Linq;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Emits the per-model Fragment operations class for split emission.</summary>
-/// <remarks>
-/// Stage 4 (#193): model-specific <c>Fragment</c> conversion, projection,
-/// merge, diff, and deep-clone logic plus POCO clone helpers live in an
-/// <c>internal static</c> operations class in the implementation source. The
-/// model-facing <c>Fragment</c> keeps one-line facades. The class stays
-/// internal so the public API surface is unchanged; member visibility follows
-/// the model. <c>Fragment</c>/<c>FragmentBuilder</c> resolve through the
-/// implementation file aliases, and nested models recurse through their own
-/// facades.
-/// </remarks>
+/// <remarks>Stage 4: model-specific <c>Fragment</c> conversion.</remarks>
 internal static class SparseFragmentOperationsEmitter
 {
     /// <summary>Appends the operations class with moved Fragment algorithms.</summary>
@@ -70,9 +61,7 @@ internal static class SparseFragmentOperationsEmitter
         );
         operationsCore.AppendMerge(code, members, receiver: "self.");
         operationsCore.AppendApplyChanges(code, members, receiver: "self.");
-        // Origin queries are public surface; they precede Diff so the
-        // public-first order (public ops, internal bridges, private Diff
-        // helpers) holds when origins are enabled.
+        // Origin queries are public surface.
         operationsCore.AppendOriginOperations(code, members, modelType);
         operationsCore.AppendDiffPublicBody(code, modelType, members, modelIsReferenceType);
         operationsCore.AppendDeepCloneOperationsPublic(

@@ -1,10 +1,6 @@
 using SparseTypes;
 
-// Canonical compile-checked mirror of docs/model-shapes.md (#45).
-// Covers the root model requirements ([SparseModel] on a partial
-// class) and nested structural promotion: reachable partial nested types
-// automatically receive generated Fragment/Patch APIs without their own
-// annotation.
+// Compile-checked samples for root model requirements and nested promotion.
 public static class ModelShapesSamples
 {
     public static void Run()

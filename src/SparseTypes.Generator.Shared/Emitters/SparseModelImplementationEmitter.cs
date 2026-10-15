@@ -5,14 +5,7 @@ using System.Threading;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Builds model-nested UI/editing implementation sources.</summary>
-/// <remarks>
-/// UI/editing types (<c>Observable</c>, <c>ReadOnlyView</c>,
-/// <c>EditSession</c>) nest in the annotated model partial; only operations,
-/// payload DTOs, builders, paths, and the descriptor factory live in the
-/// per-model implementation container. Bodies reuse the existing nested
-/// emitters verbatim (child <c>Model.Observable</c> style references already
-/// resolve), plus model-local attribute bridges for relocated descriptors.
-/// </remarks>
+/// <remarks>UI/editing types (<c>Observable</c>.</remarks>
 internal static class SparseModelImplementationEmitter
 {
     /// <summary>Builds the model-nested observable implementation source.</summary>
@@ -54,8 +47,6 @@ internal static class SparseModelImplementationEmitter
         {
             // Thin bridge keeps child "$proxy.__SparseGet_X(path)" call sites
             // working after the graph moves to DescriptorFactory.
-            // Internal-first ordering: the bridge joins the internal group
-            // before the private backing fields.
             var accessor = SparseObservableDescriptorEmitter.AccessorName(model.ModelTypeName);
             var factoryRef = SparseGeneratedPlacement.GetDescriptorFactoryReference(
                 model,
@@ -224,12 +215,7 @@ internal static class SparseModelImplementationEmitter
     }
 
     /// <summary>Rewrites inline attribute arrays to model-local bridges.</summary>
-    /// <remarks>
-    /// UI bodies nest in the model again, so only the attribute-array bridges
-    /// still rewrite; fragment-model references already resolve. Replacement
-    /// skips string literals and comments so user content (for example
-    /// attribute string arguments) is never rewritten.
-    /// </remarks>
+    /// <remarks>UI bodies nest in the model again.</remarks>
     /// <param name="source">Emitted body.</param>
     /// <param name="modelType">Qualified model type name.</param>
     /// <param name="members">Analyzed members.</param>
@@ -331,7 +317,8 @@ internal static class SparseModelImplementationEmitter
             }
         }
 
-        // Longest names first so overlapping prefixes replace deterministically.
+        // Longest names first so overlapping prefixes replace
+        // deterministically.
         foreach (
             var pair in fragments.Values.OrderByDescending(static type =>
                 type.NonNullableName.Length

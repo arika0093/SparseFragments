@@ -7,55 +7,7 @@ namespace SparseTypes;
 /// <summary>
 /// Framework-neutral, opt-in validation error store for one root model type.
 /// </summary>
-/// <remarks>
-/// <para>
-/// The store is separate from generated models and edit sessions: creating it
-/// is the opt-in, and sessions that never create one allocate nothing and
-/// subscribe to nothing. Errors never touch the model or its change sets;
-/// semantic dirty state and error state stay fully independent.
-/// </para>
-/// <para>
-/// Errors are keyed by exact typed path plus origin (local validation, server
-/// validation, rebase conflict, or any custom non-empty string), so replacing
-/// or clearing one origin never erases another. Foreign-root and deleted or
-/// missing-target paths are stored exactly, never dropped; they remain
-/// reachable through typed queries and aggregate queries.
-/// </para>
-/// <para>
-/// Path versus property-name boundary: typed APIs (<c>GetPathErrors</c>,
-/// <c>HasPathErrors</c>) match exact paths and their descendants. The
-/// <see cref="System.ComponentModel.INotifyDataErrorInfo"/> property-name API
-/// parses the name as wire path text for <typeparamref name="TModel"/>
-/// (<c>null</c> or empty aggregates every error; unparseable names yield no
-/// errors). Non-string key spellings that parse back as string keys still
-/// match through their wire text. Dotted and bracket spellings are this
-/// library's wire grammar; universal binding-engine support for nested paths
-/// is not claimed.
-/// </para>
-/// <para>
-/// There is no validation engine here: no attributes run implicitly and
-/// nothing validates on keystroke. Applications feed results explicitly, for
-/// example by reading <c>Descriptor.Attributes</c> (DataAnnotations or other
-/// validators stay application-owned, including execution and cancellation)
-/// and calling <c>SetErrors</c>, or by projecting <see cref="SparseConflict"/>
-/// records with <c>AddConflicts</c>, which never resolves conflicts.
-/// </para>
-/// <para>
-/// Lifetime policies are application-owned: reload the baseline with a fresh
-/// store (or <c>Clear</c>), drop stale conflicts with
-/// <c>ClearOrigin(SparseValidationOrigins.RebaseConflict)</c> after accept or
-/// reconcile, and refresh local or server origins per validation pass or
-/// round-trip. Stores are independent across sessions.
-/// </para>
-/// <para>
-/// Threading: mutations and queries are lock-guarded and may be called from
-/// any thread. <see cref="ErrorsChanged"/> fires synchronously on the
-/// mutating thread with no captured synchronization context; UI handlers must
-/// marshal themselves. Disposal clears errors with a final notification, then
-/// detaches handlers; later use throws <see cref="ObjectDisposedException"/>.
-/// Trimming/AOT safe: no reflection, no dynamic dispatch, no new packages.
-/// </para>
-/// </remarks>
+/// <remarks>Creating it is the opt-in, and sessions that never create one allocate nothing and subscribe to nothing.</remarks>
 /// <typeparam name="TModel">The root model type errors are recorded against.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public sealed class SparseValidationStore<TModel> : INotifyDataErrorInfo, IDisposable
@@ -273,7 +225,8 @@ public sealed class SparseValidationStore<TModel> : INotifyDataErrorInfo, IDispo
         options ??= new SparseValidationConflictOptions();
         ArgumentException.ThrowIfNullOrEmpty(options.Origin);
 
-        // Messages render before mutating so a throwing factory leaves the store untouched.
+        // Messages render before mutating so a throwing factory leaves the
+        // store untouched.
         var materialized = new List<(SparsePath Path, string Message)>();
         foreach (var conflict in conflicts)
         {
@@ -382,12 +335,7 @@ public sealed class SparseValidationStore<TModel> : INotifyDataErrorInfo, IDispo
     }
 
     /// <inheritdoc />
-    /// <remarks>
-    /// A null or empty name aggregates every error. Any other name parses as
-    /// wire path text for <typeparamref name="TModel"/> and returns that path
-    /// plus its descendants; unparseable names yield no errors. The root path
-    /// text (<c>$root</c>) therefore aggregates, matching the null query.
-    /// </remarks>
+    /// <remarks>A null or empty name aggregates every error.</remarks>
     public IEnumerable GetErrors(string? propertyName)
     {
         lock (_sync)
@@ -430,10 +378,7 @@ public sealed class SparseValidationStore<TModel> : INotifyDataErrorInfo, IDispo
     }
 
     /// <inheritdoc />
-    /// <remarks>
-    /// Clears remaining errors with a final notification per affected property,
-    /// detaches handlers, and marks the store disposed. Idempotent.
-    /// </remarks>
+    /// <remarks>Clears remaining errors with a final notification per affected property, detaches handlers, and marks the store disposed.</remarks>
     public void Dispose()
     {
         List<string> notifications = new();
@@ -616,8 +561,7 @@ public sealed class SparseValidationStore<TModel> : INotifyDataErrorInfo, IDispo
     private static bool PathTextMatches(SparsePath path, string propertyName)
     {
         // Key-type-erased spellings (for example an int key parsed back as a
-        // string key) still match through their wire text; separators keep
-        // sibling member names from colliding.
+        // string key) still match through their wire text.
         var text = path.ToString();
         return text.Equals(propertyName, StringComparison.Ordinal)
             || text.StartsWith(propertyName + ".", StringComparison.Ordinal)

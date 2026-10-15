@@ -1,21 +1,7 @@
 namespace SparseTypes;
 
 /// <summary>Declares an opt-in temporary identity for keyed elements with unassigned permanent keys.</summary>
-/// <remarks>
-/// <para>
-/// Mark exactly one property per keyed element type with parameterless
-/// <c>[SparseTemporaryKey]</c>. The property type must be <c>Guid?</c> and the
-/// element type must also declare exactly one property-level <c>[SparseKey]</c>.
-/// </para>
-/// <para>
-/// A valid assigned permanent key always wins: the temporary value never
-/// overrides assigned-key identity, equality, or diffing. When the permanent
-/// key is unassigned, a non-null, non-empty temporary GUID acts as the stable
-/// element identity within its keyed collection. Do not assign an explicit
-/// property initializer; assign temporary values in constructors or object
-/// initializers instead.
-/// </para>
-/// </remarks>
+/// <remarks>Mark exactly one property per keyed element type with parameterless <c>[SparseTemporaryKey]</c>.</remarks>
 /// <example>
 /// <code>
 /// public partial class OrderLineDto

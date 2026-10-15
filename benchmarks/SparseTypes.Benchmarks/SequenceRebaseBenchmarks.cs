@@ -16,13 +16,7 @@ public partial class BenchSequenceSetUnionRecord
     public IReadOnlyList<string> Values { get; set; } = [];
 }
 
-/// <summary>
-/// Sequence rebase scale benchmarks (issue #59): generated Append and sequence
-/// SetUnion rebase plus direct typed-helper calls across sizes 16/256/2048. Covers
-/// no-op, local add, local removal, concurrent addition, conflict, many local
-/// changes, and many concurrent changes, with scalar element types and a custom
-/// comparer scenario for the typed helpers.
-/// </summary>
+/// <summary>Generated Append and sequence SetUnion rebase plus direct typed-helper calls across sizes 16/256/2048.</summary>
 [MemoryDiagnoser]
 public class SequenceRebaseBenchmarks
 {

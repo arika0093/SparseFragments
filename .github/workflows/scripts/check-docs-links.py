@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate internal Markdown links and anchors across README and docs/ (#68).
+"""Validate internal Markdown links and anchors across README and docs/.
 
 Usage: check-docs-links.py <root> <file> [<file> ...]
 

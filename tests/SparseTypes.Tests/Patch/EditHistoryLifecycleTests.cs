@@ -1,6 +1,6 @@
 namespace SparseTypes.Tests;
 
-/// <summary>History lifecycle and failure paths (issue #252).</summary>
+/// <summary>History lifecycle and failure paths.</summary>
 public sealed class EditHistoryLifecycleTests
 {
     [Test]
@@ -282,9 +282,7 @@ public sealed class EditHistoryLifecycleTests
         var session = model.CreateEditSession();
         using var history = session.CreateHistory(new EditHistoryOptions { MaxEntries = 50 });
 
-        // Direct model writes bypass the observable proxy, so no transition
-        // is published until the next observable edit folds both mutations
-        // into one combined entry.
+        // Direct model writes bypass the observable proxy.
         model.Name = "raw";
         history.CanUndo.ShouldBeFalse();
 

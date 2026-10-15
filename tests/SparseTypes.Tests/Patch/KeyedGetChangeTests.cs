@@ -2,7 +2,7 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-/// <summary>Typed keyed <c>GetChange(TKey)</c> lookup and reorder observation (issue #94).</summary>
+/// <summary>Typed keyed <c>GetChange(TKey)</c> lookup and reorder observation.</summary>
 public sealed class KeyedGetChangeTests
 {
     private static Optional<KeyedServerHolder.Fragment?> Keyed(params KeyedServer[] items) =>

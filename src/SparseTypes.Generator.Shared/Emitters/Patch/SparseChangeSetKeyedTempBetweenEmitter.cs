@@ -1,12 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Temporary-identity fragments for keyed-sequence ChangeSet diffing.</summary>
-/// <remarks>
-/// Hosts the Guid-correlation emission used by
-/// <see cref="SparseChangeSetKeyedBetweenEmitter"/> so the assigned-key diff
-/// stays focused. All methods assume a tempkey member; callers branch on
-/// <see cref="SparseKeyedCollectionEmitter.HasTemporaryKey"/>.
-/// </remarks>
+/// <remarks>Emits keyed diffs with temporary-key correlation.</remarks>
 internal static class SparseChangeSetKeyedTempBetweenEmitter
 {
     /// <summary>Emits the temporary-identity side maps for a keyed diff.</summary>
@@ -18,8 +13,7 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
     {
         var elementType = SparseChangeSetBasicsEmitter.ElementTypeOf(member);
         // Temporary-identity side maps: complete per-state correlation for
-        // unassigned elements. Key orders keep sentinel slots positionally;
-        // these parallel Guid sequences give them stable identity.
+        // unassigned elements.
         code.AppendLineAt(
             3,
             "var __bT"
@@ -59,10 +53,8 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
     {
         var keyOf = "__SparseKeyOf_ChangeSet_" + id;
         var tempOf = "__SparseTemporaryKeyOf_ChangeSet_" + id;
-        // Temporary-keyed baselines are valid when every unassigned
-        // element carries a usable, unique temporary identity.
-        // Assigned-key precedence is untouched: valid permanent keys
-        // never consult the temporary value.
+        // Temporary-keyed baselines are valid when every unassigned element
+        // carries a usable, unique temporary identity.
         code.AppendLineAt(
             4,
             "if (__beforeHas"
@@ -144,8 +136,6 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
     {
         var elementCs = SparseChangeSetBasicsEmitter.ElementChangeSetOf(member);
         // Temporary-identity edits: correlated by Guid, never by sentinel.
-        // Assigned-key precedence means these pairs are always unassigned
-        // on both sides; the nested diff ignores the identity itself.
         code.AppendLineAt(
             5,
             "var __editedT"
@@ -339,8 +329,7 @@ internal static class SparseChangeSetKeyedTempBetweenEmitter
         var elementCs = SparseChangeSetBasicsEmitter.ElementChangeSetOf(member);
         var elementFrag = SparseChangeSetBasicsEmitter.ElementFragmentOf(member);
         var elementType = SparseChangeSetBasicsEmitter.ElementTypeOf(member);
-        // Sentinel slots consume the parallel Guid order: the slot
-        // sequence and the temporary order stay one-to-one by
+        // The slot sequence and the temporary order stay one-to-one by
         // construction, so identity never degrades to position.
         code.AppendLineAt(
             7,

@@ -4,11 +4,7 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Shared;
 
-/// <summary>
-/// Shared-emitter compatibility fixture (issue #98): proves the reusable
-/// ChangeSet/STJ emitters can target a non-SparseTypes runtime
-/// namespace/type family without hard-coded product dependencies.
-/// </summary>
+/// <summary>Shared-emitter compatibility fixture.</summary>
 public sealed class ChangeSetDialectFixtureTests
 {
     private static SparseTypeModel ScalarType(string name) =>
@@ -278,7 +274,7 @@ public sealed class ChangeSetDialectFixtureTests
         text.ShouldContain("ToPatchCore");
         text.ShouldContain("PatchFromPayloadCore");
         text.ShouldContain("FromPatch");
-        // Mixed requests partition through the single reader seam (issue #119);
+        // Mixed requests partition through the single reader seam;
         // nested conversion stays on the dialect-owned change-set name.
         text.ShouldContain("__SparseMixedPartition");
         text.ShouldContain("IsRedacted");
@@ -351,7 +347,8 @@ public sealed class ChangeSetDialectFixtureTests
         text.ShouldContain("global::Downstream.Optional<");
         text.ShouldContain("global::Downstream.DownstreamRebase<Patch>");
         text.ShouldContain("global::Downstream.CompilerServices.DownstreamRuntime");
-        // Baseline-free commands build the unified envelope from the patch side.
+        // Baseline-free commands build the unified envelope from the patch
+        // side.
         text.ShouldContain("ToChangePayloadCore");
         text.ShouldContain("Redacted()");
     }

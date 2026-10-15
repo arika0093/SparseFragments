@@ -3,12 +3,7 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>Merges source values from lowest to highest priority.</summary>
-/// <remarks>
-/// Advanced merge SPI: derive custom member algebras from this class.
-/// Presence is significant: <see cref="Optional{T}.Missing"/> never equals a present value.
-/// Generated models keep one strategy instance and may call it concurrently. Implementations must be stateless or
-/// thread-safe.
-/// </remarks>
+/// <remarks>Advanced merge SPI: derive custom member algebras from this class.</remarks>
 /// <typeparam name="T">The model member type.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public abstract class FragmentMergeStrategy<T>

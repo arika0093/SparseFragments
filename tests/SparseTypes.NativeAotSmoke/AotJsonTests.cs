@@ -14,8 +14,7 @@ public sealed class AotJsonTests
     }
 
     // Serializes through the generated converter directly (the same path the
-    // Patch converter uses for fragments), which stays trim/NativeAOT
-    // clean unlike the reflection-dispatched JsonSerializer.Serialize overloads.
+    // Patch converter uses for fragments).
     private static string ToCanonicalJson(
         AotWidget.Fragment fragment,
         JsonSerializerOptions options
@@ -228,9 +227,7 @@ public sealed class AotJsonTests
     [Test]
     public async Task EnumEndpointRoundTripsWithSourceGen()
     {
-        // Enum endpoint values resolve through GetTypeInfo metadata, so the
-        // member type needs a context entry; the round-trip below runs with
-        // reflection disabled and proves the enum path needs no fallback.
+        // Enum endpoint values resolve through GetTypeInfo metadata.
         Optional<PayloadRoot.Fragment?> EnumState(AotOrderStatus status) =>
             Optional<PayloadRoot.Fragment?>.Present(
                 PayloadRoot.Fragment.From(

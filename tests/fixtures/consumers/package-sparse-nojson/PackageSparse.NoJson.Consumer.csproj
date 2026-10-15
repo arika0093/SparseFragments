@@ -9,7 +9,7 @@
     <PackageReference Remove="TUnit;Shouldly" />
     <Using Remove="Shouldly" />
   </ItemGroup>
-  <!-- No System.Text.Json reference by design (issues #242/#243): this
+  <!-- No System.Text.Json reference by design: this
     fixture proves the serializer-independent core compiles and works without
     any JSON API surface. Do not add one here. -->
   <ItemGroup Condition="'$(SparseTypesPackageVersion)' == ''">

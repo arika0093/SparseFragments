@@ -6,16 +6,7 @@ namespace SparseTypes.EntityFrameworkCore;
 /// <summary>
 /// Declares the mapping between one entity and one DTO type.
 /// </summary>
-/// <remarks>
-/// Source-generated defaults (emitted by the ordinary generator for
-/// <c>[SparseFragmentMapper{TEntity, TDto}]</c> types) are applied before
-/// the generated bridge invokes the optional parameterless <c>Configure</c>;
-/// this builder registers overrides (Member overloads),
-/// specialized writers (Write), nested scopes (Object), keyed collections
-/// (Collection), ignores (Ignore), and policies (OnMissing, AllowWrite,
-/// MissingDefault). An explicitly configured DTO path replaces its generated
-/// default exactly once instead of running both.
-/// </remarks>
+/// <remarks>Defaults are generated for mappings marked with <c>SparseFragmentMapperAttribute</c>.</remarks>
 /// <typeparam name="TEntity">The tracked EF Core entity type.</typeparam>
 /// <typeparam name="TDto">The DTO (fragment model) type carrying the change set.</typeparam>
 public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuilderBase
@@ -80,9 +71,7 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
         return this;
     }
 
-    /// <summary>
-    /// Maps a DTO member to an entity member through a conversion callback with a missing-value policy.
-    /// </summary>
+    /// <summary>Maps a DTO member to an entity member through a conversion callback with a missing-value policy.</summary>
     /// <param name="dto">Selects the DTO member (single level).</param>
     /// <param name="entity">Selects the entity member; intermediate segments must be reference navigations.</param>
     /// <param name="convert">Converts the DTO value to the entity value. Expected to be pure: it runs before any write.</param>
@@ -126,14 +115,8 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
         return this;
     }
 
-    /// <summary>
-    /// Handles a DTO member with a specialized writer instead of a property write.
-    /// </summary>
-    /// <remarks>
-    /// The writer runs only for changed members and receives the presence-aware
-    /// after-state, so it distinguishes unchanged, missing, present null, and
-    /// present values itself. Missing policies do not apply to writers.
-    /// </remarks>
+    /// <summary>Handles a DTO member with a specialized writer instead of a property write.</summary>
+    /// <remarks>The writer runs only for changed members and receives the presence-aware after-state.</remarks>
     /// <param name="dto">Selects the DTO member (single level).</param>
     /// <param name="writer">Writes the after-state to the entity.</param>
     /// <typeparam name="TDtoValue">The DTO member type.</typeparam>
@@ -160,13 +143,8 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
         return this;
     }
 
-    /// <summary>
-    /// Maps a nested DTO object onto a reference navigation with a scoped child mapping.
-    /// </summary>
-    /// <remarks>
-    /// The child mapping is scoped to this parent path: the same child type pair
-    /// may map differently under another parent.
-    /// </remarks>
+    /// <summary>Maps a nested DTO object onto a reference navigation with a scoped child mapping.</summary>
+    /// <remarks>The child mapping is scoped to this parent path: the same child type pair may map differently under another parent.</remarks>
     /// <param name="dto">Selects the nested DTO member (single level).</param>
     /// <param name="entity">Selects the reference navigation (single level).</param>
     /// <param name="configure">Configures the child mapping.</param>
@@ -184,9 +162,8 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
         where TEntityChild : class
     {
         ArgumentNullException.ThrowIfNull(configure);
-        // The child default is resolved at plan build, not here: a root
-        // MissingDefault declared after this call still propagates unless the
-        // child sets its own.
+        // A root MissingDefault declared after this call still propagates
+        // unless the child sets its own.
         var child = new SparseEntityMapBuilder<TEntityChild, TDtoChild>
         {
             GeneratedElementConfigurators = GeneratedElementConfigurators,
@@ -194,8 +171,7 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
             GeneratedRegistrationMode = GeneratedRegistrationMode,
             IsNestedScope = true,
             // Companion-emitted Object scopes carry their own conventional
-            // defaults, so the child plan skips runtime reflection scanning
-            // just like element scopes do.
+            // defaults.
             GeneratedDefaultsApplied = GeneratedRegistrationMode,
         };
         var dtoName = MemberPath.Parse(dto).SingleName("DTO");
@@ -232,13 +208,7 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
     /// <summary>
     /// Marks a DTO member as a collection path.
     /// </summary>
-    /// <remarks>
-    /// A marked path carries no synchronization behavior: any change under it
-    /// fails with <see cref="SparseEntityMappingFailure.CollectionNotSupported" />.
-    /// Use the keyed overload below for element mapping with identity, factory,
-    /// removal, and order policies, <see cref="DeclareCollection{TDtoValue, TEntityValue}" />
-    /// for the equivalent conventional marker, or <c>Ignore</c> to suppress it.
-    /// </remarks>
+    /// <remarks>Unsupported collections throw a mapping failure.</remarks>
     /// <param name="dto">Selects the DTO collection member (single level).</param>
     /// <param name="entity">Selects the entity collection (single level).</param>
     /// <typeparam name="TDtoValue">The DTO member type.</typeparam>
@@ -258,16 +228,7 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
     /// <summary>
     /// Maps a keyed child collection with path-scoped element configuration.
     /// </summary>
-    /// <remarks>
-    /// The child mapping, key projection, factory, removal policy, and order
-    /// setter declared in <paramref name="configure" /> apply to this parent
-    /// collection only. Dispatch runs through the typed keyed transition
-    /// emitted by the ordinary <c>SparseTypes.Generator</c>; no separate
-    /// EF generator exists. An explicitly configured DTO path replaces its
-    /// inferred default instead of running both. The scoped <c>Element</c>
-    /// child mapping is optional: omit it when the source-generated
-    /// conventional defaults already cover the child members.
-    /// </remarks>
+    /// <remarks>The child mapping, key projection.</remarks>
     /// <param name="dto">Selects the DTO collection member.</param>
     /// <param name="entity">Selects the entity collection navigation.</param>
     /// <param name="configure">Configures the scoped child mapping and policies.</param>
@@ -320,18 +281,8 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
         return this;
     }
 
-    /// <summary>
-    /// Declares a conventional collection path without synchronization behavior.
-    /// </summary>
-    /// <remarks>
-    /// Emitted by the source-generated conventional defaults for same-name
-    /// collection members and usable explicitly to mark a collection the mapper
-    /// never writes. Any change under a declared-only path fails as
-    /// <see cref="SparseEntityMappingFailure.CollectionNotSupported" />.
-    /// Declare the full keyed <c>Collection(dto, entity, configure)</c> overload
-    /// for the same path to replace this marker exactly once with path-scoped
-    /// element mapping, identity, factory, removal, and order policies.
-    /// </remarks>
+    /// <summary>Declares a conventional collection path without synchronization behavior.</summary>
+    /// <remarks>Declared-only paths reject changes. Use the keyed collection overload to configure element mapping and synchronization.</remarks>
     /// <param name="dto">Selects the DTO collection member (single level).</param>
     /// <param name="entity">Selects the entity collection (single level).</param>
     /// <typeparam name="TDtoValue">The DTO member type.</typeparam>
@@ -351,17 +302,8 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
         return this;
     }
 
-    /// <summary>
-    /// Declares source-generated conventional element defaults for one collection.
-    /// </summary>
-    /// <remarks>
-    /// Emitted by the source-generated companion for same-name collections
-    /// with resolvable element types; explicit <c>Collection(dto, entity,
-    /// configure)</c> entries compose these defaults underneath their own
-    /// path-scoped <c>Element</c> configuration, which replaces each default
-    /// exactly once. Identity, factory, removal, and order policies are never
-    /// inferred and stay explicit.
-    /// </remarks>
+    /// <summary>Declares source-generated conventional element defaults for one collection.</summary>
+    /// <remarks>Emitted by the source-generated companion for same-name collections with resolvable element types.</remarks>
     /// <param name="dto">Selects the DTO collection member (single level).</param>
     /// <param name="configure">Registers the conventional child mapping.</param>
     /// <typeparam name="TDtoChild">The DTO element type.</typeparam>
@@ -440,11 +382,7 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
     /// <summary>
     /// Sets the missing-value policy for one mapped scalar member.
     /// </summary>
-    /// <remarks>
-    /// A per-member OnMissing call refines the policy passed to a Member overload.
-    /// Global defaults from MissingDefault are checked lazily: a default that a
-    /// member cannot honor fails only when that member actually goes missing.
-    /// </remarks>
+    /// <remarks>A per-member OnMissing call refines the policy passed to a Member overload.</remarks>
     /// <param name="dto">Selects the DTO member (single level).</param>
     /// <param name="policy">Handles a changed-to-missing after-state for this member.</param>
     /// <typeparam name="TValue">The DTO member type.</typeparam>
@@ -489,10 +427,7 @@ public sealed class SparseEntityMapBuilder<TEntity, TDto> : SparseEntityMapBuild
 /// <summary>
 /// Non-generic registration store shared by every builder scope.
 /// </summary>
-/// <remarks>
-/// Nested child builders are different closed generics; the plan builder works
-/// against this base so recursion needs no runtime reflection.
-/// </remarks>
+/// <remarks>Nested child builders are different closed generics.</remarks>
 public abstract class SparseEntityMapBuilderBase
 {
     private readonly List<MemberNode> _nodes = [];
@@ -523,10 +458,7 @@ public abstract class SparseEntityMapBuilderBase
 
     internal IReadOnlyDictionary<string, LambdaExpression> Reads => _reads;
 
-    /// <summary>
-    /// Gets or sets whether registrations go through as source-generated
-    /// conventional defaults. Set only while the generated companion runs.
-    /// </summary>
+    /// <summary>Gets or sets whether registrations go through as source-generated conventional defaults.</summary>
     internal bool GeneratedRegistrationMode { get; set; }
 
     /// <summary>Gets whether a generated companion contributed defaults.</summary>
@@ -535,13 +467,7 @@ public abstract class SparseEntityMapBuilderBase
     /// <summary>
     /// Gets the shared source-generated element configurators by parent scope.
     /// </summary>
-    /// <remarks>
-    /// Keyed by parent entity type, parent DTO type, and collection member
-    /// name, so the same child type pair keeps one conventional default per
-    /// parent collection while explicit <c>Element</c> overrides stay scoped.
-    /// The reference is shared down the builder tree (nested objects and
-    /// collection elements) as scopes are created.
-    /// </remarks>
+    /// <remarks>Keyed by parent entity type, parent DTO type.</remarks>
     internal Dictionary<
         (Type EntityType, Type DtoType, string Member),
         GeneratedCollectionElementDefaults

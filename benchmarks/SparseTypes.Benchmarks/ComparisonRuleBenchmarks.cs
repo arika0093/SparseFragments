@@ -260,7 +260,6 @@ public class ComparisonRuleBenchmarks
     }
 
     // Repeated analysis across every root reuses compilation-scoped results.
-    // GeneratorInvalidationBenchmarks measures fresh compilation costs separately.
     [Benchmark]
     public int AnalyzeAllModels()
     {

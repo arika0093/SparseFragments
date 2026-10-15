@@ -5,13 +5,7 @@ using System.Threading;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Literal- and comment-aware text replacement for generated sources.</summary>
-/// <remarks>
-/// Relocation rewrites match fully qualified code fragments. A plain string
-/// replace would also rewrite the same text inside string literals and
-/// comments, corrupting user content such as attribute string arguments. This
-/// helper applies replacements to code spans only, keeping the naive replace
-/// semantics everywhere else.
-/// </remarks>
+/// <remarks>Relocation rewrites match fully qualified code fragments.</remarks>
 internal static class SparseCodeRewrite
 {
     private static readonly char[] CodeBoundaries = { '/', '#', '\'', '"' };
@@ -65,7 +59,8 @@ internal static class SparseCodeRewrite
         InterpolatedVerbatim,
     }
 
-    // Replace at code positions during scanning to avoid retaining a character mask.
+    // Replace at code positions during scanning to avoid retaining a character
+    // mask.
     private static void RewriteCode(
         string source,
         SparseRewriteBuffer code,
@@ -151,7 +146,8 @@ internal static class SparseCodeRewrite
     {
         if (candidate < 0)
             return source.Length;
-        // Only lexical boundaries or replacement candidates can change the scan state.
+        // Only lexical boundaries or replacement candidates can change the scan
+        // state.
         var boundary = source.IndexOfAny(
             kind == ScanKind.HoleCode ? HoleBoundaries : CodeBoundaries,
             index + 1,
@@ -332,8 +328,7 @@ internal static class SparseCodeRewrite
         index + 2 < source.Length && source[index + 1] == '"' && source[index + 2] == '"';
 
     // Raw strings cannot nest, so the closing run is found directly without a
-    // frame. Generated code targets C# 9 and never emits them; user text can
-    // only reach here inside comments or literals, which never do.
+    // frame.
     private static int SkipRawString(string source, int index)
     {
         var quotes = 0;

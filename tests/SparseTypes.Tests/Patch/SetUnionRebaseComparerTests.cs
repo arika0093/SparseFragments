@@ -126,8 +126,8 @@ public sealed class SetUnionRebaseComparerTests
         applied.ShouldContain("a");
         applied.ShouldContain("b");
         applied.ShouldContain("c");
-        // The union result is rooted in the current set so concurrent elements survive
-        // the comparer change; the current comparer is preserved.
+        // The union result is rooted in the current set so concurrent elements
+        // survive the comparer change; the current comparer is preserved.
         ComparerOf(applied).ShouldBe(StringComparer.Ordinal);
     }
 

@@ -47,12 +47,8 @@ internal static class SparseModelDiagnostics
                 )
             );
 
-        // Members whose element declares key metadata but whose key is invalid fail
-        // with the precise key-shape cause. The same holds for invalid
-        // temporary-identity declarations (warnings still generate, so only
-        // error diagnostics suppress). Precompute them so downstream
-        // artifact diagnostics from clone analysis stay silent:
-        // the invalid declaration itself is the actionable failure.
+        // Suppress downstream clone diagnostics when invalid key declarations
+        // already provide the actionable error.
         var elementErrorProperties = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
         foreach (var member in members)
         {
@@ -107,11 +103,8 @@ internal static class SparseModelDiagnostics
             );
         }
 
-        // Recursively unsupported generated member shapes (dynamic, pointers,
-        // type parameters, error and ref-like types) can never appear in emitted
-        // code; fail with the intentional clone diagnostic instead of downstream
-        // generated-code compilation errors. Members already reported above keep
-        // their single diagnostic.
+        // Report unsupported member shapes here instead of surfacing generated
+        // compilation errors; avoid duplicate diagnostics for prior failures.
         var unsupportedShapeProperties = members
             .Select(static member => member.Property)
             .Where(property =>
@@ -195,11 +188,7 @@ internal static class SparseModelDiagnostics
                 );
             }
 
-            // Key validation runs for every member whose element declares key metadata,
-            // even when keyed semantics are not required (scalar fallback or an explicit
-            // whole-collection merge mode): an invalid declaration must fail with its
-            // own key-shape cause rather than being silently ignored. Members with
-            // no declaration keep the unkeyed-sequence check below.
+            // Validate declared keys even when keyed merging is unused.
             var reportedKeyError = false;
             if (
                 member.Collection.ElementType is INamedTypeSymbol keyedElement
@@ -220,9 +209,8 @@ internal static class SparseModelDiagnostics
                 }
             }
 
-            // Temporary-identity validation follows the same rule: any declared
-            // [SparseTemporaryKey] must be well-shaped even when the member
-            // takes whole-collection semantics and never uses it.
+            // Any declared [SparseTemporaryKey] must be well-shaped even when
+            // the member takes whole-collection semantics and never uses it.
             if (
                 member.Collection.ElementType is INamedTypeSymbol tempElement
                 && SparseTemporaryKeyAnalyzer.HasTemporaryKeyDeclaration(
@@ -265,8 +253,8 @@ internal static class SparseModelDiagnostics
             }
         }
 
-        // Declared-but-invalid keys on promoted nested models must fail the root as
-        // well: nested keyed semantics are generated from the same metadata.
+        // Declared-but-invalid keys on promoted nested models must fail the
+        // root as well.
         var nestedSeen = new HashSet<string>(StringComparer.Ordinal);
         foreach (
             var nestedDiagnostic in SparseKeyAnalyzer.CollectNestedKeyDiagnostics(

@@ -69,8 +69,8 @@ public class DictionaryChangeSetComparerBetweenBenchmarks
             );
         }
 
-        // ChangeSet keys use the declared default comparer, even when input maps ignore case.
-        // Renaming 'key' to 'KEY' must remove the old key and add the new key.
+        // ChangeSet keys use the declared default comparer, even when input
+        // maps ignore case.
         var beforeMap = NewMap<int>(1);
         beforeMap.Add("key", 1);
         var afterMap = NewMap<int>(1);

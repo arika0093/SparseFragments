@@ -7,8 +7,7 @@ using System.Reflection;
 namespace SparseTypes;
 
 /// <summary>Allocation-friendly structural comparison shared by fragment equality.</summary>
-/// <remarks>Trim/NativeAOT clean: no runtime generic code generation. Set/dictionary use the discovered
-/// comparer when available, else fall back to quadratic matching.</remarks>
+/// <remarks>Trim/NativeAOT clean: no runtime generic code generation.</remarks>
 internal static class FragmentComparisonPrimitives
 {
     private enum CollectionKind
@@ -161,8 +160,7 @@ internal static class FragmentComparisonPrimitives
         var rightCount = TryDictionaryCount(right);
         if (!leftCount.HasValue || !rightCount.HasValue)
         {
-            // Dictionaries never fall back to enumeration-order equality; exotic
-            // shapes without a readable count still compare order-independently.
+            // Dictionaries never fall back to enumeration-order equality.
             return DictionariesEqualUnordered(
                 (IEnumerable)left,
                 (IEnumerable)right,
@@ -175,9 +173,8 @@ internal static class FragmentComparisonPrimitives
             return false;
         }
 
-        // The key comparer is part of the dictionary value: differing comparers are
-        // unequal regardless of operand order, keeping equality symmetric. When a
-        // comparer cannot be discovered, both lookup directions must agree.
+        // Differing comparers are unequal regardless of operand order, keeping
+        // equality symmetric.
         var leftComparer = TryCollectionComparer(left);
         var rightComparer = TryCollectionComparer(right);
         if (
@@ -192,8 +189,7 @@ internal static class FragmentComparisonPrimitives
         if (left is IDictionary leftDictionary && right is IDictionary rightDictionary)
         {
             // Non-generic IDictionary lookups honor each dictionary's own key
-            // comparer, so no generic closure is needed for the common shapes
-            // (including Dictionary<string, int> and its interface variants).
+            // comparer.
             return DictionaryContainsAll(leftDictionary, rightDictionary)
                 && DictionaryContainsAll(rightDictionary, leftDictionary);
         }
@@ -231,9 +227,8 @@ internal static class FragmentComparisonPrimitives
             return SlowSetEquals(left, right);
         }
 
-        // The element comparer is part of the set value: differing comparers are
-        // unequal regardless of operand order, keeping equality symmetric. When a
-        // comparer cannot be discovered, both directions must agree.
+        // The element comparer is part of the set value: differing comparers
+        // are unequal regardless of operand order, keeping equality symmetric.
         var leftComparer = TryCollectionComparer(left);
         var rightComparer = TryCollectionComparer(right);
         if (
@@ -245,11 +240,8 @@ internal static class FragmentComparisonPrimitives
             return false;
         }
 
-        // No generic closure: match members with the discovered non-generic
-        // comparer when one is available (e.g. HashSet<string> with
-        // OrdinalIgnoreCase), otherwise fall back to structural equality.
-        // This keeps HashSet<int> and its ISet<int>/IReadOnlySet<int> variants
-        // correct under NativeAOT without MakeGenericMethod/CreateDelegate.
+        // Use a discovered non-generic comparer when available; otherwise use
+        // structural equality without reflection-based generic closure.
         return ComparerAwareSetEquals(left, right, leftComparer ?? rightComparer);
     }
 
@@ -265,7 +257,8 @@ internal static class FragmentComparisonPrimitives
         var keyEquality = AsNonGenericEquality(comparer);
         if (keyEquality is not null)
         {
-            // Bounded fast path: hash lookup preserves comparer semantics and avoids quadratic scans.
+            // Bounded fast path: hash lookup preserves comparer semantics and
+            // avoids quadratic scans.
             var hashed = HashSetEquals(
                 (IEnumerable)left,
                 (IEnumerable)right,
@@ -280,8 +273,6 @@ internal static class FragmentComparisonPrimitives
 
         // No usable comparer: elements compare structurally, which admits no
         // compatible hash semantics, so this path stays quadratic by design.
-        // Matches are removed in place (order-preserving) so order-aligned
-        // inputs keep matching at the head instead of degrading the search.
         var remaining = new List<object?>();
         foreach (var item in (IEnumerable)left)
         {
@@ -318,11 +309,7 @@ internal static class FragmentComparisonPrimitives
     /// Adapts a discovered non-generic element/key comparer for generic hash
     /// containers without runtime generic code generation.
     /// </summary>
-    /// <remarks>
-    /// Explicit interface implementation keeps this distinct from
-    /// <see cref="object.Equals(object?, object?)"/> and stays trim/AOT clean.
-    /// Null keys never reach the inner comparer; callers track them separately.
-    /// </remarks>
+    /// <remarks>Explicit interface implementation avoids conflicting with <see cref="object.Equals(object)"/>.</remarks>
     private sealed class NonGenericEqualityAdapter(IEqualityComparer comparer)
         : IEqualityComparer<object>
     {
@@ -331,11 +318,7 @@ internal static class FragmentComparisonPrimitives
         int IEqualityComparer<object>.GetHashCode(object obj) => comparer.GetHashCode(obj);
     }
 
-    /// <summary>
-    /// Hash-joins set members through the discovered element comparer.
-    /// Returns <c>null</c> when null members defeat exact hashing so the caller
-    /// falls back to the comparer scan.
-    /// </summary>
+    /// <summary>Hash-joins set members through the discovered element comparer.</summary>
     private static bool? HashSetEquals(
         IEnumerable left,
         IEnumerable right,
@@ -418,10 +401,7 @@ internal static class FragmentComparisonPrimitives
 
     private static bool SlowSetEquals(object left, object right)
     {
-        // Structural elements admit no compatible hash semantics, so matching
-        // stays quadratic by design; the count pre-check keeps count mismatches
-        // O(1). Matches are removed in place (order-preserving) so
-        // order-aligned inputs keep matching at the head.
+        // Structural elements admit no compatible hash semantics.
         var leftCount = TryDictionaryCount(left);
         var rightCount = TryDictionaryCount(right);
         if (leftCount.HasValue && rightCount.HasValue && leftCount.Value != rightCount.Value)
@@ -485,8 +465,7 @@ internal static class FragmentComparisonPrimitives
         }
 
         // Custom read-only collections may not implement non-generic
-        // ICollection; read Count structurally so they still compare
-        // order-independently instead of falling back to enumeration order.
+        // ICollection.
         return GetIntProperty(GetCachedProperty(CountProperties, value.GetType(), "Count"), value);
     }
 
@@ -568,7 +547,8 @@ internal static class FragmentComparisonPrimitives
         var keyEquality = AsNonGenericEquality(keyComparer);
         if (keyEquality is not null)
         {
-            // Bounded fast path: index right entries by key comparer; duplicates fall back to scan.
+            // Bounded fast path: index right entries by key comparer;
+            // duplicates fall back to scan.
             var rightCapacity = TryDictionaryCount(right);
             bool? hashed;
             if (rightCapacity.HasValue)
@@ -626,12 +606,7 @@ internal static class FragmentComparisonPrimitives
         return true;
     }
 
-    /// <summary>
-    /// Hash-joins right entries (indexed by key) against a streamed left side
-    /// through the discovered key comparer. Returns <c>null</c> when duplicate
-    /// or null keys defeat exact indexing so the caller falls back to the
-    /// multiset scan.
-    /// </summary>
+    /// <summary>Hash-joins right entries (indexed by key) against a streamed left side through the discovered key comparer.</summary>
     private static bool? HashDictionariesStreamed(
         IEnumerable left,
         IEnumerable right,

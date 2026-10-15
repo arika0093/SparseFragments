@@ -29,16 +29,7 @@ public partial class ScopeBenchRoot
     public List<ScopeBenchServer> Siblings { get; set; } = new();
 }
 
-/// <summary>
-/// Child-session open cost matrix for issue #239: opening a child session forks
-/// (snapshots plus deep-clones) the whole root, so the cost scales with the
-/// root graph rather than the edited subtree. The benchmarks vary root size
-/// independently of child size, plus simultaneous-session count and nesting.
-/// Benchmarks return checksums so the measured call cannot be eliminated;
-/// allocations are recorded by <c>MemoryDiagnoser</c>. Machine-dependent
-/// timings are reported in docs/benchmarks/edit-child-session-clone.md, never
-/// asserted.
-/// </summary>
+/// <summary>Child-session open cost matrix for opening a child session forks (snapshots plus deep-clones) the whole root.</summary>
 [MemoryDiagnoser]
 public class EditSessionChildCloneBenchmarks
 {
@@ -78,9 +69,8 @@ public class EditSessionChildCloneBenchmarks
                 })
                 .ToList(),
         };
-        // Validate the harness on a clone: commits update the live model
-        // in place by design, so the shared prototype must stay stationary
-        // while the checked-out copy advances.
+        // Commits update the live model in place by design, so the shared
+        // prototype must stay stationary while the checked-out copy advances.
         var check = _prototype.DeepClone();
         var session = check.CreateEditSession();
         using (var child = session.OpenChildSession(ScopeBenchRoot.SparsePath.Target))

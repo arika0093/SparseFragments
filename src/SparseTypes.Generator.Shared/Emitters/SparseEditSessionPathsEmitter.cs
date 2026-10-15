@@ -2,16 +2,8 @@ using System.Threading;
 
 namespace SparseTypes.Generator.Shared;
 
-/// <summary>Typed path-navigation surface for generated root edit sessions (issue #270).</summary>
-/// <remarks>
-/// Emits one cached <c>Paths</c> property per generated session returning the
-/// existing generated <c>SparsePaths&lt;TModel&gt;</c> builder, plus the
-/// opt-in <c>ISparseEditSessionWithPaths&lt;TModel, TPaths&gt;</c> base.
-/// Path-only access never touches the mutable model, the change cache, or
-/// edit notifications: the builder is cached per session from the root path.
-/// Child sessions use the same emission, with their builder rooted at the
-/// child model type.
-/// </remarks>
+/// <summary>Typed path-navigation surface for generated root edit sessions.</summary>
+/// <remarks>Emits one cached <c>Paths</c> property per generated session returning the existing generated <c>SparsePaths&lt.</remarks>
 internal static class SparseEditSessionPathsEmitter
 {
     /// <summary>Whether the typed Paths surface can be emitted for this configuration.</summary>

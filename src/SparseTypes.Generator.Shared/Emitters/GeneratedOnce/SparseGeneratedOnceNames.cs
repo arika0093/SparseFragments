@@ -3,18 +3,7 @@ using System.Threading;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Stable names for compilation-scoped Generated-Once helpers.</summary>
-/// <remarks>
-/// Centralizes the shared helper identities used by the track-3 migrations
-/// (#181 read-only adapters, #182 clone kernels, #183 removal index) so
-/// per-model emitters and the compilation-scoped emission plane agree without
-/// hard-coding the owning generator's namespace. There is no implicit
-/// fallback: callers pass the explicit namespace from
-/// <see cref="SparseGeneratorConfig.GeneratedImplementationNamespace"/>.
-/// Interim seam: until #178 lands its capability-driven emission plane, the
-/// product generator aggregates requirements manually and emits these helpers
-/// once per compilation; #178 should replace that manual wiring, not the
-/// names defined here.
-/// </remarks>
+/// <remarks>Centralizes the shared helper identities used by the track-3 migrations ( read-only adapters.</remarks>
 internal static class SparseGeneratedOnceNames
 {
     /// <summary>Simple name of the shared read-only list adapter.</summary>

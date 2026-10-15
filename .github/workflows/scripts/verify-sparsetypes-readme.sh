@@ -1,29 +1,5 @@
 #!/usr/bin/env bash
-# Verifies the standalone SparseTypes README samples (#315, #201).
-#
-# The canonical compile-checked source is
-# tests/fixtures/consumers/package-sparse-readme/Program.cs, which mirrors the
-# README Quick Start and core Generated API sections (model shape, Optional
-# states, Fragment merge, typed Patch, ChangeSet transitions with typed
-# observation, and ChangeSet JSON round-trip with rebase). Advanced ChangeSet
-# algebra, rebase conflicts, keyed collections, and UI sessions are covered by
-# the docs samples instead (verify-docs-samples.sh).
-# This script guards against drift
-# between the README and that canonical source, then builds and runs the
-# fixture against the packed packages so CI fails when the public generated
-# API breaks the documented samples.
-#
-# Runnable README blocks carry `<!-- sample: <id> -->` markers and must match
-# their fixture regions exactly (check-docs-samples.py, same normalization as
-# the docs guides). The checked ids come from docs-samples-registry.tsv, the
-# same central file verify-docs-samples.sh uses, so they are never duplicated
-# here. Snippets that must not compile carry
-# `<!-- illustrative: reason -->` instead and stay outside exact verification.
-#
-# Adding a README sample follows the same procedure as a docs sample: add the
-# fixture region, then add one registry row for README.md (see AGENTS.md).
-#
-# Usage: verify-sparsetypes-readme.sh <package-directory> [readme-path]
+# Verifies the standalone SparseTypes README samples.
 set -euo pipefail
 
 package_directory="${1:-}"
@@ -45,11 +21,8 @@ if [[ ! -f "${fixture_csproj}" || ! -f "${fixture_program}" ]]; then
     exit 1
 fi
 
-# 1. The Quick Start constructs DatabaseSettings.Fragment directly, so
-# DatabaseSettings must expose generated APIs. Since #329 reachable partial
-# nested models auto-generate Fragment/Patch without requiring
-# [SparseModel], DatabaseSettings must stay a partial class in both
-# files (not necessarily decorated).
+# The Quick Start constructs DatabaseSettings.Fragment directly, so the
+# nested model must remain partial in both files.
 if ! grep -E -q 'public partial class DatabaseSettings' "${readme_path}"; then
     echo "README must declare 'DatabaseSettings' as 'public partial class DatabaseSettings': the Quick Start constructs 'new DatabaseSettings.Fragment { ... }' directly." >&2
     exit 1
@@ -59,13 +32,8 @@ if ! grep -E -q 'public partial class DatabaseSettings' "${fixture_program}"; th
     exit 1
 fi
 
-# 2. Representative API tokens must appear in both the README and the
-# canonical fixture so the fixture cannot silently drift from the docs.
-# The list tracks the Quick Start and core Generated API sections: model
-# definition, presence, Fragment merge, Patch editing, ChangeSet transitions
-# with typed observation, and the ordinary System.Text.Json round-trip with
-# rebase. Advanced ChangeSet algebra, keyed collections, and UI sessions are
-# covered by the docs samples instead (verify-docs-samples.sh).
+# Required API tokens are checked in both the README and fixture.
+# Advanced APIs are covered by the docs sample consumers.
 required_tokens=(
     '[SparseModel]'
     'Optional<string?>.Missing'
@@ -94,19 +62,13 @@ for token in "${required_tokens[@]}"; do
     fi
 done
 
-# 2b. Exact sample verification (#201, #213). The runnable Quick Start and
-# presence blocks must match their canonical fixture regions exactly (after
-# normalization), so token presence alone cannot hide statement-level drift.
-# Ids resolve through the central registry; README coverage here is the same
-# verdict verify-docs-samples.sh reaches by discovery.
+# Verify README samples against their registered canonical fixtures.
 if ! python3 "$(dirname "$0")/check-docs-samples.py" --registry "$(dirname "$0")/docs-samples-registry.tsv" --only "${readme_path}"; then
     echo "README sample drift: see mismatches above." >&2
     exit 1
 fi
 
-# 3. Compile and run the canonical fixture against the packed packages.
-# The core glob pins the version digit so the Blazor package
-# (SparseTypes.Blazor.*.nupkg, #46) never resolves here.
+# Compile and run the canonical fixture against the packed core package.
 package="$(ls "${package_directory}"/SparseTypes.[0-9]*.nupkg 2>/dev/null | head -n 1 || true)"
 if [[ -z "${package}" ]]; then
     echo "No SparseTypes package found in '${package_directory}'." >&2
@@ -119,10 +81,7 @@ if [[ -z "${version}" ]]; then
 fi
 feed="$(realpath "${package_directory}")"
 
-# Isolated restore (#79): restore into a fresh global-packages directory so a
-# stale same-version entry in ~/.nuget/packages cannot satisfy restore without
-# proving the fresh nupkg is consumable. External feeds stay available; the
-# local feed is appended via RestoreAdditionalProjectSources.
+# Use a fresh cache to avoid stale packages with the same version.
 isolated_packages="$(mktemp -d)"
 trap 'rm -rf "${isolated_packages}"' EXIT
 if command -v cygpath >/dev/null 2>&1; then

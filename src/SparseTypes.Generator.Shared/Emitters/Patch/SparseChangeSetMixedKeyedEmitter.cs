@@ -1,7 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Emits the mixed-partition case for keyed and dictionary payload members.</summary>
-/// <remarks>Collection members route per item: ordinary items keep baseline-aware conversion while undisclosed befores on a redacted-before member pass their requested after-state through without comparison. Hand-crafted redacted items on ordinary members stay malformed.</remarks>
+/// <remarks>Collection members convert per item.</remarks>
 internal static class SparseChangeSetMixedKeyedEmitter
 {
     internal static void AppendKeyedPartitionCase(
@@ -24,8 +24,6 @@ internal static class SparseChangeSetMixedKeyedEmitter
         );
         // Per-item redacted endpoints cannot form item transitions; fail before
         // the shared item helper converts endpoints without naming the path.
-        // A redacted-before collection member legitimately emits granular items
-        // with undisclosed befores, so those route blind per item below instead.
         code.AppendLineAt(6, "foreach (var __raw" + id + " in item.Items)");
         code.AppendLineAt(6, "{");
         code.AppendLineAt(
@@ -35,7 +33,7 @@ internal static class SparseChangeSetMixedKeyedEmitter
                 + " is null) throw new global::System.ArgumentException(\"Payload item is required.\", nameof(payload));"
         );
         // Value-free endpoints must not smuggle values past the redacted
-        // branch below (issue #164).
+        // branch below.
         code.AppendLineAt(
             7,
             "__raw" + id + ".Before?.Validate(); __raw" + id + ".After?.Validate();"
@@ -128,11 +126,8 @@ internal static class SparseChangeSetMixedKeyedEmitter
                     + " = new global::System.Collections.Generic.HashSet<global::System.Guid>();"
             );
         }
-        // Blind per-item sets for undisclosed befores. A redacted-before member
-        // legitimately emits granular items without observable befores; those
-        // pass their requested after-state through without comparison, while
-        // ordinary items keep baseline-aware conversion. Non-flagged members
-        // keep the strict pre-check above, so hand-crafted redacted items fail.
+        // Redacted-before items pass requested after-states without comparison;
+        // ordinary items retain baseline checks and strict validation.
         var isModelValue = isKeyed
             ? member.Collection.ElementType.IsFragmentModel
             : member.Collection.ValueType?.IsFragmentModel == true;
@@ -201,8 +196,6 @@ internal static class SparseChangeSetMixedKeyedEmitter
         if (isModelValue)
         {
             // Edited model items carry a nested core instead of endpoints.
-            // Partition it: blind leaves route to the blind collection patch,
-            // clean edits keep baseline-aware item conversion.
             var valueChangeSet = isKeyed
                 ? SparseChangeSetBasicsEmitter.ElementChangeSetOf(member)
                 : SparseChangeSetBasicsEmitter.ValueChangeSetOf(member);
@@ -256,12 +249,8 @@ internal static class SparseChangeSetMixedKeyedEmitter
             var itemKind = dialect.RuntimeNamespace + "ChangePayloadItemKind";
             if (isModelValue)
             {
-                // Removed model items legitimately carry an undisclosed before
-                // without an edit payload; pass the removal through blind.
-                // Any other endpoint-bearing model item is malformed: edited
-                // model items must omit endpoints and carry an edit payload.
-                // Scalar collection operations are not referenced here so
-                // model keyed patches (which expose no Update) still compile.
+                // Removals may omit undisclosed before-values; edits must omit
+                // endpoints and carry a payload. Avoid scalar-only Update APIs.
                 code.AppendLineAt(
                     8,
                     "if (changeItem.Before is not null && changeItem.Before.IsRedacted)"

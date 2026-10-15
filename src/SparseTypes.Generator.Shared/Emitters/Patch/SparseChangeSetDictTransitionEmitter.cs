@@ -47,7 +47,8 @@ internal static class SparseChangeSetDictTransitionEmitter
                 + SparseChangeSetContractEmitter.DictionaryBases(dialect, member)
         );
         code.AppendLineAt(2, "{");
-        // Public surface first, then the internal constructor, then private storage.
+        // Public surface first, then the internal constructor, then private
+        // storage.
         code.AppendLineAt(
             3,
             "/// <summary>Gets whether this transition contains no changes.</summary>"
@@ -309,7 +310,8 @@ internal static class SparseChangeSetDictTransitionEmitter
             "return __lookup.TryGetValue(key, out var __found) ? __found : Item.Empty;"
         );
         code.AppendLineAt(3, "}");
-        // Keep index construction and the large-diff path out of the hot public lookup.
+        // Keep index construction and the large-diff path out of the hot public
+        // lookup.
         code.AppendLineAt(3, "private " + dictionary + " __SparseBuildLookup()");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(

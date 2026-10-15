@@ -5,15 +5,8 @@ using SparseTypes.Generated;
 
 namespace SparseTypes.Tests;
 
-/// <summary>Minimal external consumer of the read-only transition contracts (issue #223).</summary>
-/// <remarks>
-/// The <see cref="ExternalConsumer"/> helpers below program only against the
-/// runtime contracts (<c>ISparseChangeSet</c>, <c>ISparseValueChange{T}</c>,
-/// <c>ISparseKeyedChange{TKey, TElement, TElementChange}</c>, ...): no
-/// generated nested CLR type name appears in their signatures. The tests cover
-/// scalar presence, nested edits, composite keys, pure reorder, dictionaries,
-/// and collection-scoped temporary identity.
-/// </remarks>
+/// <summary>Minimal external consumer of the read-only transition contracts.</summary>
+/// <remarks>The <see cref="ExternalConsumer"/> helpers below program only against the runtime contracts (<c>ISparseChangeSet</c>.</remarks>
 public sealed class TransitionContractTests
 {
     /// <summary>Stands in for a separately compiled consumer (for example a persistence mapper).</summary>
@@ -353,7 +346,8 @@ public sealed class TransitionContractTests
         gone.BeforeIndex.ShouldBe(0);
         gone.AfterIndex.ShouldBe(-1);
 
-        // An edited survivor keeps absolute indexes alongside a false reorder flag.
+        // An edited survivor keeps absolute indexes alongside a false reorder
+        // flag.
         var shifted = KeyedServerHolder.ChangeSet.Between(
             Keyed(Server("a"), Server("b"), Server("c")),
             Keyed(Server("b", "b2"), Server("c"))

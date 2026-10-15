@@ -5,30 +5,8 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace SparseTypes.Blazor;
 
-/// <summary>
-/// Appearance-free edit root over a path-capable session with Session-only parameters.
-/// </summary>
-/// <remarks>
-/// <para>
-/// Declares only <see cref="Session"/> and <see cref="ChildContent"/>: <c>TModel</c> and the
-/// concrete generated <c>TPaths</c> infer from <see cref="Session"/>, so no <c>Paths</c>
-/// parameter, explicit <c>TValue</c>, or per-model Blazor context is needed for ordinary use.
-/// The template context exposes the concrete <c>Path</c> builder, the original-model
-/// <see cref="EditContext"/>, live <c>HasChanges</c>, and the session-owned history surface.
-/// </para>
-/// <para>
-/// The component creates the <see cref="EditContext"/> from the session and cascades an
-/// <see cref="ISparseEditScope{TModel}"/> for <see cref="SparseField{TModel, TValue}"/>.
-/// It subscribes to session notifications (one <c>BatchEdit</c> raises one notification, so
-/// one user action refreshes once), history availability, and history stack changes, always
-/// marshalling through the Blazor dispatcher. Replacing <see cref="Session"/> unsubscribes
-/// the previous session and history before subscribing the next one and builds a fresh
-/// <see cref="EditContext"/>; key the <c>EditForm</c> on the session so inputs rebuild
-/// against the new context. Disposal unsubscribes only: the session, its model, its edit
-/// context attachments, and the session-owned history are never disposed here. History is
-/// owned and configured by the session and is never enabled by this component.
-/// </para>
-/// </remarks>
+/// <summary>Appearance-free edit root over a path-capable session with Session-only parameters.</summary>
+/// <remarks>Declares only <see cref="Session"/> and <see cref="ChildContent"/>.</remarks>
 /// <typeparam name="TModel">The live editable model type.</typeparam>
 /// <typeparam name="TPaths">The concrete generated root path builder type.</typeparam>
 public sealed class SparseEdit<TModel, TPaths> : ComponentBase, IDisposable
@@ -43,11 +21,7 @@ public sealed class SparseEdit<TModel, TPaths> : ComponentBase, IDisposable
     private bool _disposed;
 
     /// <summary>Gets or sets the active path-capable edit session.</summary>
-    /// <remarks>
-    /// Replacing the reference unsubscribes the previous session and history, builds a fresh
-    /// original-model edit context, and subscribes the next session. A null value clears the
-    /// cascade and renders nothing.
-    /// </remarks>
+    /// <remarks>Replacing the reference unsubscribes the previous session and history.</remarks>
     [Parameter]
     public ISparseEditSessionWithPaths<TModel, TPaths>? Session { get; set; }
 

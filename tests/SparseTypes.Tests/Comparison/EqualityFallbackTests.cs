@@ -6,14 +6,7 @@ using SparseTypes.Generator;
 
 namespace SparseTypes.Tests.Comparison;
 
-/// <summary>
-/// Fallback-path equality tests (issue #60): custom collection shapes that miss
-/// the fast typed/common paths. The object path (<c>AreEqual</c>) is the source
-/// of truth here: it honors any discovered non-generic comparer symmetrically,
-/// while the typed <c>AreSetEqual{T}</c> tail fallback only honors comparers on
-/// <c>ISet{T}</c>/<c>HashSet{T}</c>/<c>SortedSet{T}</c> shapes. That boundary is
-/// intentional (issue #5 semantics stay untouched) and documented, not asserted.
-/// </summary>
+/// <summary>Fallback-path equality tests: custom collection shapes that miss the fast typed/common paths.</summary>
 public sealed class EqualityFallbackTests
 {
     private sealed class FallbackSet<T> : IReadOnlySet<T>
@@ -292,7 +285,8 @@ public sealed class EqualityFallbackTests
     [Test]
     public void FallbackShapes_AgreeWithThemselvesAcrossRepeatedComparisons()
     {
-        // Reflection/shape caches must not change results between cold and warm lookups.
+        // Reflection/shape caches must not change results between cold and warm
+        // lookups.
         var left = Strings("a", "b", "c");
         var same = Strings("C", "B", "A");
         var dictLeft = Numbers(("a", 1), ("b", 2));

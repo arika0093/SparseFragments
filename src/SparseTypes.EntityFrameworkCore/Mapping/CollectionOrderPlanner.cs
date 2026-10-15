@@ -61,11 +61,8 @@ internal static class CollectionOrderPlanner
             }
         }
 
-        // Delta order: AfterOrder carries assigned keys positionally; each
-        // unassigned sentinel slot takes the next unassigned addition in
-        // AfterIndex order (temporaries included: they share the declared
-        // sentinel in AfterOrder, so their relative order comes from the item
-        // AfterIndex metadata).
+        // Assigned keys follow AfterOrder; unassigned additions fill sentinel
+        // slots in AfterIndex order.
         var assignedOrder = new List<TEntityChild>(view.AfterOrder.Count);
         var sentinelSlots = 0;
         foreach (var key in view.AfterOrder)
@@ -98,9 +95,7 @@ internal static class CollectionOrderPlanner
         }
 
         // All unassigned additions (temporary-keyed or plain) share the
-        // declared sentinel in AfterOrder; splice them into sentinel slots in
-        // AfterIndex order. Correlation stays per-addition and independent of
-        // slot position.
+        // declared sentinel in AfterOrder.
         var orderedUnassigned = plan
             .Added.Where(addition => addition.AssignedKey is null)
             .OrderBy(static addition => addition.SequenceHint)
@@ -142,8 +137,6 @@ internal static class CollectionOrderPlanner
 
             // Previously flagged rows leave the DTO projection but stay
             // tracked: retain proven rows in tracked order instead of failing.
-            // Their positions persist through Order() like any other element.
-            // Anything unproven already failed validation above.
             var afterSet = new HashSet<object>(
                 view.AfterOrder.Where(key => !runtime.IsUnassigned(key)),
                 runtime.KeyComparer

@@ -4,12 +4,8 @@ using SparseTypes.Generator;
 
 namespace SparseTypes.Tests.Generation;
 
-// Issue #195, stage 5: locks the intended model-facing surface after the
-// #190-#194 relocations and the UI/session return. Fragment/Patch/ChangeSet/
-// ChangePayload plus the UI/editing types (Observable, ReadOnlyView,
-// EditSession) nest in the annotated model; FragmentBuilder, SparsePaths,
-// DescriptorFactory, and the operation/DTO/converter implementations live in
-// the per-model SparseTypes.Generated container.
+// Pin the model-facing surface: state and UI types nest in the model, while
+// builders, paths, and implementation details live in SparseTypes.Generated.
 public sealed class ModelFacingSurfaceTests
 {
     private const string ShapesSource = """
@@ -169,7 +165,7 @@ public sealed class ModelFacingSurfaceTests
             .ShouldNotBeEmpty();
 
         // The converter shell stays private inside Fragment and derives from
-        // the relocated implementation converter (stage 3, #192).
+        // the relocated implementation converter (stage 3, ).
         var fragment = model.GetTypeMembers("Fragment").ShouldHaveSingleItem();
         var shell = fragment.GetTypeMembers("FragmentJsonConverter").ShouldHaveSingleItem();
         shell.DeclaredAccessibility.ShouldBe(Accessibility.Private);
@@ -200,7 +196,8 @@ public sealed class ModelFacingSurfaceTests
                 var method in extensions.GetMembers("CreateEditSession").OfType<IMethodSymbol>()
             )
             {
-                // Sessions nest in the model; the return type stays model-scoped.
+                // Sessions nest in the model; the return type stays
+                // model-scoped.
                 method.ReturnType.ToDisplayString().ShouldContain(model.Name + ".EditSession");
             }
         }

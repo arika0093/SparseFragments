@@ -50,8 +50,8 @@ internal static class SparseFragmentCollectionCloneEmitter
                 + "(source as global::System.Collections.Generic.HashSet<T>)?.Comparer);"
         );
         code.AppendLineAt(2, "context.Add(source, clone);");
-        // A HashSet copy constructor can retain a source's oversized capacity and
-        // cross the LOH threshold. Union into the count-sized set instead.
+        // A HashSet copy constructor can retain a source's oversized capacity
+        // and cross the LOH threshold. Union into the count-sized set instead.
         code.AppendLineAt(2, "if (cloneElement is null) clone.UnionWith(source);");
         code.AppendLineAt(2, "else");
         code.AppendLineAt(2, "{");

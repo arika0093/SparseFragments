@@ -6,13 +6,7 @@ namespace SparseTypes.Generator.Shared;
 internal static class SparseObservableSetDescriptorEmitter
 {
     /// <summary>Emits a set descriptor for HashSet/ISet/IReadOnlySet shapes.</summary>
-    /// <remarks>
-    /// Reads stay live over the backing set so membership honors its comparer.
-    /// Mutation reuses the live set and raises the parent property notification,
-    /// but only where the backing set is a mutable <c>ISet&lt;T&gt;</c>. The
-    /// <c>IReadOnlySet&lt;T&gt;</c> reference is only named for members declared
-    /// with that type (which proves the compilation provides it).
-    /// </remarks>
+    /// <remarks>Reads stay live over the backing set so membership honors its comparer.</remarks>
     internal static string SetAccessor(SparseMemberModel member, SparseDescriptorDialect dialect)
     {
         if (member.Property.Name == "PropertyChanged")

@@ -6,10 +6,7 @@ using SparseTypes.Generator;
 
 namespace SparseTypes.Tests.Generation;
 
-// Guards the generated-code readability contract: every generated public
-// member carries XML docs (so GenerateDocumentationFile builds stay warning
-// free) and members are ordered public -> internal -> private. The probe
-// covers one model per emission shape so every emitter family runs.
+// Guards the generated-code readability contract.
 public sealed class GeneratedDocsAndOrderingTests
 {
     private const string ProbeSource = """

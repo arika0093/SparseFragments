@@ -2,13 +2,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace SparseTypes.EntityFrameworkCore.Tests;
 
-/// <summary>Validate-and-stage semantics for temporary-key reconciliation (issue #247).</summary>
-/// <remarks>
-/// Every required assignment across all nested collections must be validated
-/// before any authoritative DTO mutation. Duplicate, missing, or ambiguous
-/// correspondence fails with <see cref="SparseEntityMappingException" /> and
-/// leaves the authoritative DTO untouched.
-/// </remarks>
+/// <summary>Validate-and-stage semantics for temporary-key reconciliation.</summary>
+/// <remarks>Every required assignment across all nested collections must be validated before any authoritative DTO mutation.</remarks>
 public sealed class TemporaryKeyStagingTests
 {
     private static DuoDto ReadDuo(DuoEntity owner) =>
@@ -260,8 +255,7 @@ public sealed class TemporaryKeyStagingTests
         counter.Reset();
 
         // The survivor and the first added line stage cleanly, but the second
-        // added line loses its nested tag row: the deep failure must roll back
-        // every earlier staged assignment in the authoritative DTO.
+        // added line loses its nested tag row.
         var authoritative = ReadParcel(entity);
         authoritative.Lines.Single(static line => line.Qty == 2).Tags.Clear();
 

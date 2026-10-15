@@ -2,20 +2,8 @@ using SparseTypes.Playground.Models;
 
 namespace SparseTypes.Tests.Generation;
 
-/// <summary>Case 5 draft/baseline lifecycle through the generated EditSession (issue #266).</summary>
-/// <remarks>
-/// <para>
-/// Replaces the manual <c>PlaygroundLineIdentity.RetargetNewLineIds</c> correlation proof with the
-/// session contract: capture the exact immutable submitted <c>ChangeSet</c> before an awaited save,
-/// keep editing the live model, then acknowledge with <c>AcceptChanges(submitted)</c> when the
-/// server returned no key/value changes or <c>TryReconcile(submitted, persisted)</c> otherwise.
-/// </para>
-/// <para>
-/// The persisted DTOs below stand in for the post-save projection that production builds with
-/// <c>ApplyWithResult</c> plus <c>AssignTemporaryKeys</c> (see the EF Core end-to-end proof in
-/// <c>Case5EfSessionLifecycleTests</c>). All identities are fixed so the tests are deterministic.
-/// </para>
-/// </remarks>
+/// <summary>Case 5 draft/baseline lifecycle through the generated EditSession.</summary>
+/// <remarks>Tests acknowledgement and reconciliation of a submitted change set while later edits remain pending.</remarks>
 public sealed class Case5EditSessionLifecycleTests
 {
     private static readonly Guid TempA = new("11111111-1111-1111-1111-111111111111");
@@ -68,7 +56,8 @@ public sealed class Case5EditSessionLifecycleTests
         var submitted = session.CreateChangeSet();
         submitted.IsChanged.ShouldBeTrue();
 
-        // No authoritative key/value changes: advance the baseline without touching the live model.
+        // No authoritative key/value changes: advance the baseline without
+        // touching the live model.
         var before = live.Lines[0].Qty;
         session.AcceptChanges(submitted);
         session.HasChanges.ShouldBeFalse();
@@ -83,10 +72,8 @@ public sealed class Case5EditSessionLifecycleTests
     [Test]
     public void AcceptChangesAdvancesOverTemporaryAddsButLeavesIdsUnassigned()
     {
-        // Temporary-keyed additions may serve as an edit baseline, so AcceptChanges advances
-        // over them. It must still not be used as the save acknowledgement when the server
-        // assigns keys: the live rows keep Id null and the assigned identities never land.
-        // That boundary is why saves with new rows reconcile instead.
+        // Temporary-keyed additions may serve as an edit baseline, so
+        // AcceptChanges advances over them.
         var live = Draft(Existing(1));
         var session = live.CreateEditSession();
         live.Lines.Add(Added(TempA));
@@ -107,8 +94,8 @@ public sealed class Case5EditSessionLifecycleTests
 
         var submitted = session.CreateChangeSet();
 
-        // Overlapping edit after submit: rename a pending row, drop nothing, add a late row,
-        // and reorder the live list. The submitted snapshot stays immutable.
+        // Overlapping edit after submit: rename a pending row, drop nothing,
+        // add a late row, and reorder the live list.
         live.Lines.Single(line => line.TemporaryId == TempA).Product = "alpha edited after submit";
         var late = Added(TempLate, "late");
         live.Lines.Add(late);
@@ -116,8 +103,8 @@ public sealed class Case5EditSessionLifecycleTests
         live.Lines.RemoveAt(0);
         live.Lines.Add(moved);
 
-        // The server persists the submitted order but returns rows in store order with
-        // database-assigned identities and the temporary identities echoed back.
+        // The server persists the submitted order but returns rows in store
+        // Retarget the draft after the database assigns permanent identities.
         var persisted = Draft(
             Existing(1),
             Existing(2, "Croissant"),
@@ -151,8 +138,7 @@ public sealed class Case5EditSessionLifecycleTests
 
         var submitted = session.CreateChangeSet();
 
-        // The server normalizes values on write (case, trimming); untouched rows adopt the
-        // authoritative value while post-submit edited rows keep their local values.
+        // The server normalizes values on write (case.
         var persisted = Draft(
             new PlaygroundOrderLineDto
             {
@@ -218,13 +204,15 @@ public sealed class Case5EditSessionLifecycleTests
 
         var submitted = session.CreateChangeSet();
 
-        // The server filtered one submitted row: its temporary identity is absent.
+        // The server filtered one submitted row: its temporary identity is
+        // absent.
         var persisted = Draft(Existing(1), Assigned(TempA, 10));
 
         session.TryReconcile(submitted, persisted, out var error).ShouldBeFalse();
         error.ShouldNotBeNullOrEmpty();
 
-        // No partial key writeback: neither row was assigned and the submission stays pending.
+        // No partial key writeback: neither row was assigned and the submission
+        // stays pending.
         live.Lines.Single(line => line.TemporaryId == TempA).Id.ShouldBeNull();
         live.Lines.Single(line => line.TemporaryId == TempGone).Id.ShouldBeNull();
         session.HasChanges.ShouldBeTrue();
@@ -249,11 +237,8 @@ public sealed class Case5EditSessionLifecycleTests
     [Test]
     public void ReconcileKeepsRowPendingWhenPersistedLeavesIdentityUnassigned()
     {
-        // Unlike the retired manual helper (which threw "database identity"), the session
-        // treats an echoed-but-still-unassigned row as still pending: reconciliation succeeds
-        // without mutating values, so a later save can retry. The production EF path always
-        // assigns database identities via AssignTemporaryKeys after SaveChanges, so this only
-        // arises with synthetic responses.
+        // An echoed but unassigned row remains pending, allowing a later retry.
+        // Production EF assigns database identities after SaveChanges.
         var live = Draft();
         var session = live.CreateEditSession();
         live.Lines.Add(Added(TempA));
@@ -275,7 +260,8 @@ public sealed class Case5EditSessionLifecycleTests
         live.Lines.Add(Added(TempA));
         var submitted = session.CreateChangeSet();
 
-        // An overlapping acknowledgement moves the baseline past the submission.
+        // An overlapping acknowledgement moves the baseline past the
+        // submission.
         live.Lines.Single(line => line.Id == 1).Product = "intervening";
         session.AcceptChanges(session.CreateChangeSet());
 
@@ -309,7 +295,8 @@ public sealed class Case5EditSessionLifecycleTests
         var session = live.CreateEditSession();
         var submitted = session.CreateChangeSet();
 
-        // TempLate never appeared in the submission, so reconciliation leaves it alone.
+        // TempLate never appeared in the submission, so reconciliation leaves
+        // it alone.
         live.Lines.Add(Added(TempLate));
         var persisted = Draft(Existing(1), Assigned(TempA, 10));
 

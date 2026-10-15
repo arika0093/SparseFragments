@@ -22,17 +22,8 @@ namespace SparseTypes.Generator.Shared;
 /// <summary>Shared-baseline contiguity probes and typed match projection helpers.</summary>
 internal static class SparseChangeSetMatchEmitter
 {
-    /// <summary>
-    /// Emits the shared-baseline contiguity probes used by whole-root/memberwise composition.
-    /// </summary>
-    /// <remarks>
-    /// Each probe checks semantic continuity only on changed paths: an empty transition
-    /// matches any state, a whole-root transition compares whole endpoints, and a
-    /// memberwise transition compares per-member before (or after) values with the
-    /// supplied state, recursing through nested subtrees. Keyed/dictionary members use
-    /// the canonical key-aware collection Between emptiness check, mirroring memberwise
-    /// compose; all other members use the generated semantic member equality.
-    /// </remarks>
+    /// <summary>Emits the shared-baseline contiguity probes used by whole-root/memberwise composition.</summary>
+    /// <remarks>Each probe checks semantic continuity only on changed paths.</remarks>
     internal static void AppendMatchHelpers(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
@@ -210,7 +201,8 @@ internal static class SparseChangeSetMatchEmitter
         );
         if (isKeyed)
         {
-            // Order interacts only where stored (orderChanged); otherwise membership only.
+            // Order interacts only where stored (orderChanged); otherwise
+            // membership only.
             code.AppendLineAt(4, "if (" + ownOrder + " is not null)");
             code.AppendLineAt(4, "{");
             code.AppendLineAt(
@@ -245,7 +237,8 @@ internal static class SparseChangeSetMatchEmitter
             );
             code.AppendLineAt(4, "}");
         }
-        // Per-key endpoint checks from stored items (no full snapshot retention).
+        // Per-key endpoint checks from stored items (no full snapshot
+        // retention).
         code.AppendLineAt(
             4,
             "if ("
@@ -258,7 +251,8 @@ internal static class SparseChangeSetMatchEmitter
         if (isKeyed)
         {
             var elementFrag = ElementFragmentOf(member);
-            // Nested match helpers validate only the child paths represented by Edit.
+            // Nested match helpers validate only the child paths represented by
+            // Edit.
             var mismatchBefore =
                 "!"
                 + "__it.Edit.__SparseBeforeMatches("
@@ -281,8 +275,8 @@ internal static class SparseChangeSetMatchEmitter
             // string comparisons in generated code.
             if (side == "Before")
             {
-                // Added keys must be absent before; all other changed keys must be
-                // present with Before equal (fragment-aware).
+                // Added keys must be absent before; all other changed keys must
+                // be present with Before equal (fragment-aware).
                 code.AppendLineAt(5, "if (__it.IsAdded) continue;");
                 code.AppendLineAt(
                     5,
@@ -300,8 +294,8 @@ internal static class SparseChangeSetMatchEmitter
             }
             else
             {
-                // Removed keys must be absent after; all other changed keys must be
-                // present with After equal.
+                // Removed keys must be absent after; all other changed keys
+                // must be present with After equal.
                 code.AppendLineAt(5, "if (__it.IsRemoved) continue;");
                 code.AppendLineAt(
                     5,
@@ -320,14 +314,13 @@ internal static class SparseChangeSetMatchEmitter
         }
         else
         {
-            // Scalar and fragment dictionary values share comparer-based endpoint
-            // checks here (nested fragment deltas are validated by value equality
-            // at the match-probe level; structural conflicts surface in rebase).
+            // Scalar and fragment dictionary values share comparer-based
+            // Check endpoints here; nested fragment deltas validate themselves.
             EmitDictMatchProbes(code, member, id, side, runtime, facade);
         }
         code.AppendLineAt(4, "}");
-        // Added keys must be absent on the Before side and present on the After side is
-        // covered above per-item; missing keys otherwise match (disjoint paths).
+        // Added keys must be absent on the Before side and present on the After
+        // side is covered above per-item.
         code.AppendLineAt(4, "}");
         code.AppendLineAt(3, "}");
     }
@@ -343,8 +336,8 @@ internal static class SparseChangeSetMatchEmitter
     {
         var hasPatch = member.Collection.ValueType?.IsFragmentModel == true;
         var valueFrag = hasPatch ? ValueFragmentOf(member) : null;
-        // Dictionary keys in generated models are reference types; the null-forgiving
-        // operator satisfies interface-dictionary nullable analysis.
+        // Dictionary keys in generated models are reference types; the
+        // null-forgiving operator satisfies interface-dictionary nullable
         if (side == "Before")
         {
             code.AppendLineAt(5, "if (__it.IsAdded) continue;");

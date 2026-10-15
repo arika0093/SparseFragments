@@ -25,8 +25,8 @@ internal static class SparseFragmentPatchScalarRebaseEmitter
             + "<"
             + SparseFragmentPatchEmitter.GetMemberValueType(dialect, member)
             + ">";
-        // A member-level rebase policy wins over the merge strategy's TryRebase;
-        // the strategy still owns Merge. Redacted members replay or fail whole.
+        // A member-level rebase policy wins over the merge strategy's
+        // TryRebase; the strategy still owns Merge.
         var reconcilerField =
             "Fragment." + SparseFragmentPatchEmitter.GetMergeStrategyField(dialect, member);
         var reconcilerFallback = "The custom merge strategy could not rebase the member.";
@@ -65,9 +65,7 @@ internal static class SparseFragmentPatchScalarRebaseEmitter
         code.AppendLineAt(indent + 2, "result." + field + " = local." + field + ";");
         code.AppendLineAt(indent + 1, "}");
         code.AppendLineAt(indent, "}");
-        // Custom strategies observe every member edit (Set and Remove): the presence-aware
-        // TryRebase(Optional<T>, ...) SPI can represent a missing rebased state, so unlike the
-        // previous T?-based SPI there is no need to route Remove through the scalar fallback.
+        // Custom strategies observe every member edit (Set and Remove).
         code.AppendLineAt(
             indent,
             "if (local."

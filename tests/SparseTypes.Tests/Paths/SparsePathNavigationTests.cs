@@ -80,7 +80,8 @@ public sealed class SparsePathNavigationTests
         host.ShouldNotBeNull();
         host!.After.Value.ShouldBe("b");
 
-        // Exact paths only: the parent matches nothing when only the child changed.
+        // Exact paths only: the parent matches nothing when only the child
+        // changed.
         changes.Find(Settings.SparsePath.Nested).ShouldBeNull();
         changes.Find(Settings.SparsePath.RetryCount).ShouldBeNull();
 

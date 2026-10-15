@@ -7,24 +7,7 @@ namespace SparseTypes.Blazor;
 /// <summary>
 /// Appearance-free field over one typed path with Path-only generic inference.
 /// </summary>
-/// <remarks>
-/// <para>
-/// Declares only <see cref="Path"/> and <see cref="ChildContent"/>: <c>TModel</c> and
-/// <c>TValue</c> infer from <see cref="Path"/>, so no explicit <c>TValue</c> or per-model
-/// Blazor context is needed. The session and original-model edit context arrive through the
-/// <see cref="SparseEdit{TModel, TPaths}"/> cascade; placing this component outside one
-/// fails with a descriptive error.
-/// </para>
-/// <para>
-/// The template context wraps a live binding (reads resolve on every access, so row
-/// replacement and keyed reorder are followed without stale target writes), a render-scoped
-/// semantic state snapshot, Blazor modified/validation state, and root-preserving typed
-/// navigation. The binding is rebuilt only when the path, session, or edit context changes.
-/// Validation refresh subscribes to the edit context and is rewired on replacement and
-/// released on disposal; session-driven refresh arrives through the owning edit root, so
-/// this component adds no session subscription of its own. It renders no markup of its own.
-/// </para>
-/// </remarks>
+/// <remarks><c>TModel</c> and <c>TValue</c> infer from <see cref="Path"/>, so no explicit <c>TValue</c> or per-model Blazor context is needed.</remarks>
 /// <typeparam name="TModel">The root session model type.</typeparam>
 /// <typeparam name="TValue">The addressed value type.</typeparam>
 public sealed class SparseField<TModel, TValue> : ComponentBase, IDisposable
@@ -79,11 +62,8 @@ public sealed class SparseField<TModel, TValue> : ComponentBase, IDisposable
             Rebind(scope, session, editContext, path, untyped);
         }
 
-        // Render-scoped snapshot: one fresh session diff per field per render. Group
-        // user actions with BatchEdit so one notification refreshes once overall.
-        // Collection member paths carry transitions rather than values, so the typed
-        // state query throws for them; those fields report the default state and
-        // expose collection change info through TryGetCollectionState instead.
+        // Read one session snapshot per field render; BatchEdit coalesces
+        // updates.
         SparseFieldState<TValue> state;
         try
         {
@@ -136,8 +116,7 @@ public sealed class SparseField<TModel, TValue> : ComponentBase, IDisposable
             _subscribedContext = null;
         }
 
-        // The binding holds no subscriptions, so dropping the previous one leaks
-        // nothing; the new binding validates the context against the session.
+        // The binding holds no subscriptions.
         var binding = session.Bind(path.TypedPath, editContext);
         _binding = binding;
         _field = new SparseFieldContext<TModel, TValue>(this, session, binding, path);

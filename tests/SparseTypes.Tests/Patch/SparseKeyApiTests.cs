@@ -225,7 +225,8 @@ public sealed class SparseKeyApiTests
         var applied = patch.Apply(before);
         SkApiCluster.Patch.Between(applied, after).IsEmpty.ShouldBeTrue();
 
-        // Same Id in different tenants are distinct keys with deterministic equality.
+        // Same Id in different tenants are distinct keys with deterministic
+        // equality.
         var remover = new SkApiCluster.Patch();
         remover.Composites.Remove(("t2", 1));
         var removed = remover.Apply(applied);
@@ -235,7 +236,8 @@ public sealed class SparseKeyApiTests
     [Test]
     public void TupleComponentOrderIsSignificant()
     {
-        // SkApiSwappedServer declares Key as (B, A): key ("b", "a") for A="a", B="b".
+        // SkApiSwappedServer declares Key as (B, A): key ("b", "a") for A="a",
+        // B="b".
         var holder = new SkApiSwappedHolder { Items = [new() { A = "a", B = "b" }] };
         var present = Optional<SkApiSwappedHolder.Fragment?>.Present(
             SkApiSwappedHolder.Fragment.From(holder)
@@ -336,8 +338,6 @@ public sealed class SparseKeyApiTests
         Should.Throw<InvalidOperationException>(() => duplicate.Apply(basis));
 
         // Manual edit + remove/add flow works through the normalized key.
-        // Note: manually constructed keys must already be normalized, exactly as
-        // the Key getter produces them; extraction normalizes model values.
         var patch = new SkApiCluster.Patch();
         patch.Ifaces.Edit(new SkApiIfaceKey("ACME", 1)).Name = "A2";
         var applied = patch.Apply(basis);

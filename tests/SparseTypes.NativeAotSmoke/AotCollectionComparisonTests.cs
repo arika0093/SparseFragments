@@ -2,11 +2,7 @@ using SparseTypes.CompilerServices;
 
 namespace SparseTypes.NativeAotSmoke;
 
-/// <summary>
-/// NativeAOT regression coverage for collection comparison (#9). Every case
-/// runs from the Ahead-of-Time published test binary, proving no runtime
-/// generic code generation is attempted for these shapes.
-/// </summary>
+/// <summary>NativeAOT regression coverage for collection comparison.</summary>
 public sealed class AotCollectionComparisonTests
 {
     private static bool IntCollectionsEqual(AotIntCollections.Fragment left, AotIntCollections.Fragment right) =>

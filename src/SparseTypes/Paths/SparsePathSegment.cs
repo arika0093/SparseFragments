@@ -4,12 +4,7 @@ using System.Globalization;
 namespace SparseTypes;
 
 /// <summary>One typed step of a <see cref="SparsePath"/>.</summary>
-/// <remarks>
-/// Segments distinguish declared member identity, typed key identity, and
-/// positional indexes. Keys compare with <see cref="object.Equals(object?, object?)"/>
-/// plus key type, never by mere string rendering, so distinct keys with
-/// identical display text stay distinct.
-/// </remarks>
+/// <remarks>Segments distinguish declared member identity, typed key identity, and positional indexes.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public readonly struct SparsePathSegment : IEquatable<SparsePathSegment>
 {

@@ -3,25 +3,7 @@ using System.Threading;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Compilation-scoped Generated-Once emission plane.</summary>
-/// <remarks>
-/// Helpers here are model-independent, emitted once per consumer
-/// compilation, and normally <c>internal</c>: they implement product
-/// runtime contracts but never escape through public signatures. Per-model
-/// output calls into these helpers through the qualified track-3 prefixes
-/// (or keeps legacy per-model copies on the null-namespace single-file
-/// path); <see cref="SparsePerModelEmitter"/> owns the per-model plane.
-/// Hint names and type identities delegate to
-/// <see cref="SparseGeneratedOnceNames"/> so coexisting products stay
-/// distinct under one identity source.
-/// All families rendered here are BCL-only: unlike the edit-session core
-/// (which consumes the runtime, patch, and session dialects), these
-/// renderers take no dialect parameters.
-/// Follow-up (#178): route helper identities through
-/// <c>SparseFamilyNames</c>/<c>SparseSemanticReference</c> once the family
-/// layer covers Generated-Once families; until then
-/// <see cref="SparseGeneratedOnceNames"/> stays the single identity source
-/// and no parallel naming scheme may be introduced.
-/// </remarks>
+/// <remarks>Helpers here are model-independent, emitted once per consumer compilation, and normally <c>internal</c>.</remarks>
 internal static class SparseGeneratedOnceEmitter
 {
     /// <summary>Simple name of the shared clone kernel container.</summary>
@@ -66,11 +48,7 @@ internal static class SparseGeneratedOnceEmitter
         SparseGeneratedPlacement.TryGetImplementationNamespace(config);
 
     /// <summary>Renders the shared clone kernel source.</summary>
-    /// <remarks>
-    /// Delegates to the track-3 kernel builder so exactly one kernel family
-    /// exists: per-model clone code already calls these kernels through the
-    /// qualified container name.
-    /// </remarks>
+    /// <remarks>Per-model clone code already calls these kernels through the qualified container name.</remarks>
     /// <param name="implementationNamespace">Owning generator implementation namespace.</param>
     /// <param name="includePortableSetView">Target-framework set-view variant.</param>
     /// <param name="hashSetSupportsCapacity">Target-framework capacity support.</param>
@@ -90,11 +68,7 @@ internal static class SparseGeneratedOnceEmitter
         );
 
     /// <summary>Renders the shared read-only adapter source.</summary>
-    /// <remarks>
-    /// The capability plane tracks adapters as one coarse family, so all
-    /// three adapters render together (a superset of the fine-grained manual
-    /// selection): per-model output instantiates only the adapters it needs.
-    /// </remarks>
+    /// <remarks>The capability plane tracks adapters as one coarse family.</remarks>
     /// <param name="implementationNamespace">Owning generator implementation namespace.</param>
     /// <param name="cancellationToken">Cooperative cancellation.</param>
     /// <returns>Model-independent adapter source using only BCL types.</returns>
@@ -111,10 +85,7 @@ internal static class SparseGeneratedOnceEmitter
         );
 
     /// <summary>Renders the shared removal-index helper source.</summary>
-    /// <remarks>
-    /// Delegates to the track-3 removal-index builder so per-model keyed and
-    /// dictionary patches call the same kernels the compilation emits once.
-    /// </remarks>
+    /// <remarks>Shares removal-index kernels across keyed and dictionary patches.</remarks>
     /// <param name="implementationNamespace">Owning generator implementation namespace.</param>
     /// <param name="cancellationToken">Cooperative cancellation.</param>
     /// <returns>Generic index helpers over caller-owned removal lists.</returns>

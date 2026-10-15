@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <!--
-      Source-only package (#70): ships the generator-shared sources, not a binary.
+      Source-only package: ships the generator-shared sources, not a binary.
       External/downstream generators compile these sources directly into their own
       analyzer assembly via build/SparseTypes.Generator.Shared.props.
       SparseTypes.Generator itself keeps compiling the sibling sources

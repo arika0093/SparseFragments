@@ -4,9 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace SparseTypes.EntityFrameworkCore.Mapping;
 
-/// <summary>
-/// Per-level build workspace: the entity type plus resolved and inferred members.
-/// </summary>
+/// <summary>Per-level build workspace: the entity type plus resolved and inferred members.</summary>
 internal sealed class PlanLevel
 {
     private readonly HashSet<string> _consumedAllowed = new(StringComparer.Ordinal);
@@ -176,12 +174,7 @@ internal sealed class EntityPlan<TEntity, TDto> : EntityPlanBase
     private Dictionary<string, LambdaExpression> Reads { get; }
 
     /// <summary>Builds and validates the plan for one EF entity type.</summary>
-    /// <remarks>
-    /// Coverage is fail-fast: every readable DTO member must resolve to a
-    /// generated default, an explicit mapping, an explicit ignore, or an
-    /// explicit collection/object registration. A dormant unmapped member fails
-    /// here even when the first ChangeSet never edits it.
-    /// </remarks>
+    /// <remarks>Coverage is fail-fast: every readable DTO member must resolve to a generated default.</remarks>
     public static EntityPlan<TEntity, TDto> Build(
         PlanBuildSession session,
         SparseEntityMapBuilderBase registrations,
@@ -567,12 +560,8 @@ internal sealed class EntityPlan<TEntity, TDto> : EntityPlanBase
 
     private static void ValidateCoverage(PlanBuildSession session, PlanLevel level)
     {
-        // Fail-fast: every readable DTO member must be covered even when the
-        // first ChangeSet never edits it. Generated defaults already populate
-        // ByDtoName/Collections; anything left is a dormant omission.
-        // Only writable DTO members need scalar coverage: read-only computed
-        // identity projections (for example [SparseKey] Key => Id) carry no
-        // settable state and never take a scalar write.
+        // Require coverage for every readable DTO member before the first edit.
+        // Read-only computed keys need no scalar write.
         var dtoProperties = typeof(TDto)
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(static property => property.CanRead && property.CanWrite)
@@ -595,10 +584,8 @@ internal sealed class EntityPlan<TEntity, TDto> : EntityPlanBase
             return;
         }
 
-        // A generated DeclareCollection marker alone never synchronizes:
-        // only an explicit full Collection mapping (or Ignore) covers a
-        // collection path. Explicit markers still count: the author took
-        // responsibility and changes fail as CollectionNotSupported.
+        // Only an explicit full Collection mapping (or Ignore) covers a
+        // collection path.
         if (level.Collections.ContainsKey(name) && !level.Registrations.IsGeneratedDefault(name))
         {
             return;

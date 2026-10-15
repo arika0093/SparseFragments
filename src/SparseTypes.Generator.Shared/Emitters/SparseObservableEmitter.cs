@@ -45,7 +45,8 @@ internal static class SparseObservableEmitter
                 + " : global::System.ComponentModel.INotifyPropertyChanged"
         );
         code.AppendLineAt(1, "{");
-        // Public surface first: constructor, Model, event, properties, replacements.
+        // Public surface first: constructor, Model, event, properties,
+        // replacements.
         code.AppendLineAt(
             2,
             "/// <summary>Initializes a bindable proxy over the live model instance.</summary>"
@@ -102,8 +103,7 @@ internal static class SparseObservableEmitter
         {
             if (member.Property.Name == "PropertyChanged")
             {
-                // The INotifyPropertyChanged event occupies this name; the member is
-                // intentionally not proxied to keep the generated surface compilable.
+                // The INotifyPropertyChanged event occupies this name.
                 continue;
             }
 
@@ -162,8 +162,7 @@ internal static class SparseObservableEmitter
             }
 
             // Views whose backing instance was replaced are retired so bindings
-            // re-fetch; views wrapping the same bulk-mutated instance get one Reset,
-            // unless the backing collection already notifies on its own.
+            // re-fetch.
             var name = SparseNaming.EscapeIdentifier(member.Property.Name);
             code.AppendLineAt(
                 3,
@@ -291,8 +290,7 @@ internal static class SparseObservableEmitter
         code.AppendLineAt(2, "{");
         if (ExposesRawMutableReference(member))
         {
-            // Raw mutable references escape without a notifying view; invalidate the
-            // session's cached HasChanges so a later in-place mutation is observed.
+            // Raw mutable references escape without a notifying view.
             code.AppendLineAt(
                 3,
                 "get { __onRawModelAccess?.Invoke(); return __model." + name + "; }"
@@ -347,12 +345,7 @@ internal static class SparseObservableEmitter
     }
 
     /// <summary>Determines whether reads expose a raw mutable model reference.</summary>
-    /// <remarks>
-    /// True for arrays and unproxied reference shapes (mutable POCOs, opaque
-    /// objects). Strings are immutable and stay cheap; child references and
-    /// observable collections already surface notifying views, except for the
-    /// PropertyChanged name, which has no proxy or view at all.
-    /// </remarks>
+    /// <remarks>True for arrays and unproxied reference shapes (mutable POCOs, opaque objects).</remarks>
     internal static bool ExposesRawMutableReference(SparseMemberModel member)
     {
         if (!member.Property.Type.IsReferenceType)
@@ -723,8 +716,8 @@ internal static class SparseObservableEmitter
     {
         var childModel = member.ChildModel!.Value.NonNullableName;
         var childObservable = ChildObservableType(member);
-        // The property is observable-typed so nested bindings observe changes; the
-        // setter unwraps back to the model type for replacement.
+        // The property is observable-typed so nested bindings observe changes;
+        // the setter unwraps back to the model type for replacement.
         AppendPropertySummary(code, member);
         code.AppendLineAt(2, "public " + childObservable + "? " + name);
         code.AppendLineAt(2, "{");

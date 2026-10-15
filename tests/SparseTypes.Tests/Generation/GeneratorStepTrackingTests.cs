@@ -5,16 +5,7 @@ using SparseTypes.Generator;
 
 namespace SparseTypes.Tests.Generation;
 
-/// <summary>
-/// Deterministic incremental step-tracking regression tests (issue #61),
-/// adjacent to the BenchmarkDotNet generator benchmarks. Records cached vs
-/// recomputed outputs for the eleven tracked generator stages on unrelated
-/// vs shared edits, and pins model-shape dimensions (width, nesting
-/// depth/fan-out, keyed collections, dictionary members, promoted-model
-/// count) with generated source size observability. Wall-clock timing stays in
-/// benchmarks; these tests pin invalidation behavior so follow-up optimization
-/// can only be justified by measured invalidation.
-/// </summary>
+/// <summary>Deterministic incremental step-tracking regression tests, adjacent to the BenchmarkDotNet generator benchmarks.</summary>
 public sealed class GeneratorStepTrackingTests
 {
     internal static readonly string[] TrackedStageNames =
@@ -196,14 +187,7 @@ public sealed class GeneratorStepTrackingTests
             );
     }
 
-    /// <summary>
-    /// Asserts no output changed value: every output is either served from
-    /// cache or recomputed value-equal (<c>Unchanged</c>). Compilation-derived
-    /// singletons (BclSetSupport, IsExternalInit) rerun on
-    /// every compilation but stay value-equal; shared-type edits likewise
-    /// leave per-root outputs value-equal because roots reference promoted
-    /// fragments by name only.
-    /// </summary>
+    /// <summary>Asserts no output changed value: every output is either served from cache or recomputed value-equal (<c>Unchanged</c>).</summary>
     private static void NoneModified(Probe probe, string stage)
     {
         var reasons = probe.Reasons(stage);
@@ -262,8 +246,7 @@ public sealed class GeneratorStepTrackingTests
         probe.SpfDiagnostics().ShouldBeEmpty();
 
         // PromotedConflicts only appears in tracking when incompatible promoted
-        // models exist (SPF010 is defensive-only: the same fully-qualified name
-        // always yields identical semantics), so it is expected-but-optional.
+        // models exist (SPF010 is defensive-only.
         foreach (var stage in TrackedStageNames)
         {
             if (stage == "SparseTypesGenerator.PromotedConflicts")
@@ -303,9 +286,8 @@ public sealed class GeneratorStepTrackingTests
         );
         after.SpfDiagnostics().ShouldBeEmpty();
 
-        // The edited root flows through analysis and output, but every
-        // promoted aggregation stage keeps value-equal inputs and stays cached.
-        // Compilation-derived singletons rerun value-equal (Unchanged).
+        // The edited root flows through analysis and output, but every promoted
+        // aggregation stage keeps value-equal inputs and stays cached.
         HasModified(after, "SparseTypesGenerator.Analysis");
         IsMixed(after, "SparseTypesGenerator.Output");
         IsMixed(after, "SparseTypesGenerator.PromotedPerRoot");
@@ -352,10 +334,7 @@ public sealed class GeneratorStepTrackingTests
         var after = Rerun(before, "Shared.cs", editedShared);
         after.SpfDiagnostics().ShouldBeEmpty();
 
-        // The promoted aggregation follows the shared type edit: every root
-        // analysis embeds the shared structure (Modified) and the promoted
-        // stages re-emit, while per-root outputs only reference the promoted
-        // fragment by name and change no output (recomputed value-equal).
+        // The promoted aggregation follows the shared type edit.
         HasModified(after, "SparseTypesGenerator.Analysis");
         HasModified(after, "SparseTypesGenerator.PromotedDedup");
         HasModified(after, "SparseTypesGenerator.PromotedDistinct");
@@ -444,7 +423,8 @@ public sealed class GeneratorStepTrackingTests
         probe.SpfDiagnostics().ShouldBeEmpty();
         probe.PromotedSourceCount().ShouldBe(3);
 
-        // Deterministic across cold runs; an unrelated root edit preserves promoted bytes.
+        // Deterministic across cold runs; an unrelated root edit preserves
+        // promoted bytes.
         var sources = probe.Sources();
         Run(Deep(3)).Sources().ShouldBe(sources);
         var edited = Rerun(
@@ -547,7 +527,8 @@ public sealed class GeneratorStepTrackingTests
             .Keys.Any(static key => key.Contains("ShapeKeyedRoot", StringComparison.Ordinal))
             .ShouldBeTrue();
 
-        // Deterministic across cold runs; an unrelated edit preserves the hint set.
+        // Deterministic across cold runs; an unrelated edit preserves the hint
+        // set.
         Run(files).Sources().ShouldBe(sources);
         var edited = Rerun(
             probe,
@@ -632,7 +613,8 @@ public sealed class GeneratorStepTrackingTests
             )
             .ShouldBe(3);
 
-        // An unrelated root edit preserves every promoted file byte-identically.
+        // An unrelated root edit preserves every promoted file
+        // byte-identically.
         var unrelated = Rerun(
             before,
             "ShapeRoot0.cs",

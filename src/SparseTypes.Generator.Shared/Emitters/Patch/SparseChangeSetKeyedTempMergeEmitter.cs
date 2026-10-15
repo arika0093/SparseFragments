@@ -1,13 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Temporary-identity merge for keyed-sequence ChangeSet composition.</summary>
-/// <remarks>
-/// Handles unassigned elements that carry a stable Guid identity alongside
-/// the assigned-key machinery owned by
-/// <see cref="SparseChangeSetKeyedComposeEmitter"/>. The assigned path stays
-/// untouched: temp items are segregated before it runs, merged here by Guid,
-/// and reunited with assigned results during order finalization.
-/// </remarks>
+/// <remarks>Matches temporary items by Guid alongside assigned keys.</remarks>
 internal static class SparseChangeSetKeyedTempMergeEmitter
 {
     /// <summary>Emits the whole-path before-state guard, temp-aware.</summary>
@@ -229,12 +223,7 @@ internal static class SparseChangeSetKeyedTempMergeEmitter
     }
 
     /// <summary>Emits temp-aware item enumeration for composed transitions.</summary>
-    /// <remarks>
-    /// Sentinel slots in the composed after-order consume the composed temp
-    /// order one-to-one; indexes are absolute in the composed orders. Temp
-    /// removals enumerate in before-temp order. Degenerate leftovers append
-    /// without loss instead of being dropped.
-    /// </remarks>
+    /// <remarks>Sentinel slots in the composed after-order consume the composed temp order one-to-one.</remarks>
     internal static void AppendTempAssembly(
         SharedIndentedBuilder code,
         SparseMemberModel member,
@@ -422,14 +411,7 @@ internal static class SparseChangeSetKeyedTempMergeEmitter
         code.AppendLineAt(6, "}");
     }
 
-    /// <remarks>
-    /// The composed after-temp order is the second after-temp order plus
-    /// first-only additions. Key-order sentinel slots stay aligned: the
-    /// second-after branch already slots every composed temp, while the
-    /// first-after fallback drops removed-temp slots and appends second-only
-    /// additions. Both-orders-absent stays null with item-order fallback at
-    /// assembly time.
-    /// </remarks>
+    /// <remarks>The composed after-temp order is the second after-temp order plus first-only additions.</remarks>
     internal static void AppendTempOrderFinalize(
         SharedIndentedBuilder code,
         SparseMemberModel member,
@@ -519,7 +501,8 @@ internal static class SparseChangeSetKeyedTempMergeEmitter
         code.AppendLineAt(6, "}");
         code.AppendLineAt(6, "else if (__naO" + id + " is not null)");
         code.AppendLineAt(6, "{");
-        // First-after fallback: drop removed-temp slots, append second-only adds.
+        // First-after fallback: drop removed-temp slots, append second-only
+        // adds.
         code.AppendLineAt(
             7,
             "var __tremoved"

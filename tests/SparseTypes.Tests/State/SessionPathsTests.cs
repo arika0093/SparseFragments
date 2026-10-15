@@ -2,7 +2,7 @@ using SparseTypes;
 
 namespace SparseTypes.Tests;
 
-// Issue #270: session-owned typed path navigation.
+// session-owned typed path navigation.
 [SparseModel]
 public partial class SessionPathsCustomer
 {
@@ -63,7 +63,7 @@ public partial class SessionPathsReadonly
     public int Count { get; init; }
 }
 
-/// <summary>Session-owned typed path navigation (issue #270).</summary>
+/// <summary>Session-owned typed path navigation.</summary>
 public sealed class SessionPathsTests
 {
     private static string ReadRootPath<TModel, TPaths>(

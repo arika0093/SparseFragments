@@ -5,7 +5,8 @@ namespace SparseTypes.Generator.Shared;
 
 internal static class SharedSourceBufferPool
 {
-    // Share one character budget across four owners rather than reserving it per buffer.
+    // Share one character budget across four owners rather than reserving it
+    // per buffer.
     private const int SlotCount = 4;
     private const int OrdinaryCapacity = 128 * 1024;
     private const int MaximumCapacity = SlotCount * OrdinaryCapacity;
@@ -43,7 +44,8 @@ internal static class SharedSourceBufferPool
         var compatible = TryRent(initialCapacity);
         if (compatible is not null)
             return compatible;
-        // Preserve ordinary cached buffers when no retained buffer fits a large rewrite.
+        // Preserve ordinary cached buffers when no retained buffer fits a large
+        // rewrite.
         if (initialCapacity > OrdinaryCapacity)
             return new StringBuilder(initialCapacity);
         var buffer = Rent();

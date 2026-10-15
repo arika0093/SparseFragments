@@ -5,27 +5,7 @@ using System.Linq;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Relocation target for per-model Patch and ChangeSet operations.</summary>
-/// <remarks>
-/// <para>
-/// Issue #194 moved model-specific Patch and ChangeSet algorithms out of the
-/// facades into external per-model operation containers. Issue #230 moves the
-/// state-bound bodies into the private nested <c>Patch.__Core</c> and
-/// <c>ChangeSet.__Core</c> with direct private-state access. Emitters receive
-/// this target alongside the facade builder: a null target keeps the legacy
-/// single-file emission for downstream dialects without an implementation
-/// namespace, while a non-null target writes a thin delegating stub to the
-/// facade and the algorithm body to the nested core (<c>__Core</c>).
-/// </para>
-/// <para>
-/// Facade state stays private: Patch keeps private fields, typed <c>ref</c>
-/// member access and lazy nested identity, and ChangeSet keeps private
-/// canonical sparse storage with a private constructor. Nested cores take the
-/// facade as an explicit <c>self</c> parameter and read private state
-/// directly. Cross-family use goes through typed facades or narrow internal
-/// <c>__Sparse*</c> bridges. Bare names resolve lexically inside the facade,
-/// so emitter bodies stay product-neutral with no hard-coded product names.
-/// </para>
-/// </remarks>
+/// <remarks>Moves operations into per-model containers.</remarks>
 internal sealed class SparseOperationTarget
 {
     public SparseOperationTarget(
@@ -56,13 +36,7 @@ internal sealed class SparseOperationTarget
     private readonly HashSet<string> _openMembers = new(System.StringComparer.Ordinal);
 
     /// <summary>Opens the per-member operation class for one collection patch.</summary>
-    /// <remarks>
-    /// One member's surface, apply, algebra and rebase emitters run
-    /// consecutively, so the class is closed by
-    /// <see cref="CloseMemberOperations"/> right after that member's
-    /// emission finishes. Emission is single-threaded and structured, so the
-    /// member bodies write directly into the patch container builder.
-    /// </remarks>
+    /// <remarks>One member's surface, apply, algebra and rebase emitters run consecutively.</remarks>
     /// <param name="key">Stable per-member key (the member id).</param>
     /// <param name="className">Nested operation class simple name.</param>
     /// <returns>The builder scoped for the member operation bodies.</returns>
@@ -109,14 +83,7 @@ internal sealed class SparseOperationTarget
 }
 
 /// <summary>Split emission context for one nested collection patch.</summary>
-/// <remarks>
-/// A null split keeps legacy single-file emission into one builder. A
-/// non-null split writes the thin nested facade (storage, lazy identity and
-/// delegating stubs) to <see cref="Shell"/> and the mutator/apply/algebra
-/// bodies to <see cref="Operations"/>, reached through <see cref="Receiver"/>
-/// (<c>self.</c>). Bodies keep bare sibling references; facade type names
-/// resolve through the implementation-file aliases.
-/// </remarks>
+/// <remarks>A null split keeps legacy single-file emission into one builder.</remarks>
 internal sealed record SparseMemberOperationSplit(
     SharedIndentedBuilder Shell,
     SharedIndentedBuilder Operations,
@@ -125,13 +92,7 @@ internal sealed record SparseMemberOperationSplit(
 );
 
 /// <summary>File-level aliases letting relocated bodies reuse bare facade type names.</summary>
-/// <remarks>
-/// Relocated Patch/ChangeSet bodies name <c>Patch</c>, <c>ChangeSet</c>,
-/// <c>Fragment</c>, nested collection patches, transition types and payload
-/// envelopes without qualification. The implementation file aliases each of
-/// those to the model-facing facade so emitter bodies move without
-/// product-specific qualification.
-/// </remarks>
+/// <remarks>Relocated Patch/ChangeSet bodies name <c>Patch</c>.</remarks>
 internal static class SparseModelOperationAliases
 {
     /// <summary>Collects the alias directives for one model's implementation file.</summary>

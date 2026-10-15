@@ -192,7 +192,8 @@ internal static class SparseChangeSetDictBetweenEmitter
         );
         code.AppendLineAt(5, "{");
         code.AppendLineAt(6, "__h" + id + " = true;");
-        // Reuse the first group while preserving the established added/removed/edited order.
+        // Reuse the first group while preserving the established
+        // added/removed/edited order.
         code.AppendLineAt(
             6,
             "var __list = __added" + id + " ?? __removed" + id + " ?? __edited" + id + "!;"
@@ -298,7 +299,8 @@ internal static class SparseChangeSetDictBetweenEmitter
         var comparer =
             "global::System.Collections.Generic.EqualityComparer<" + keyType + ">.Default";
         var native = target + "Native";
-        // Between only reads these maps. Other comparers still need default-key normalization.
+        // Between only reads these maps. Other comparers still need default-key
+        // normalization.
         code.AppendLineAt(
             5,
             "var "

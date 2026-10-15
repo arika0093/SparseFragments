@@ -38,9 +38,7 @@ internal static class SparseFragmentJsonEmitter
     }
 
     /// <summary>Emits the thin model-facing converter shell delegating to the implementation converter.</summary>
-    /// <remarks>The heavyweight read/write bodies live in the per-model implementation
-    /// source; the shell preserves the private nested-converter surface and the
-    /// public accessor while adding no serialization logic.</remarks>
+    /// <remarks>The heavyweight read/write bodies live in the per-model implementation source.</remarks>
     /// <param name="code">Surface target builder.</param>
     /// <param name="jsonConverterQualifiedName">Qualified implementation converter type.</param>
     public static void AppendStandaloneFragmentJsonFacade(
@@ -113,9 +111,11 @@ internal static class SparseFragmentJsonEmitter
                 + " : global::System.Text.Json.Serialization.JsonConverter<Fragment>"
         );
         code.AppendLineAt(2, "{");
-        // Keep linear UTF-8 dispatch limited to small models; wider converters retain string dispatch.
+        // Keep linear UTF-8 dispatch limited to small models; wider converters
+        // retain string dispatch.
         var utf8Dispatch = members.Length > 0 && members.Length <= 3;
-        // Public readers first; private buffers and helpers trail the writers below.
+        // Public readers first; private buffers and helpers trail the writers
+        // below.
         code.AppendLineAt(
             3,
             "/// <summary>Reads a fragment from its JSON object representation.</summary>"
@@ -156,7 +156,8 @@ internal static class SparseFragmentJsonEmitter
         if (utf8Dispatch)
         {
             code.AppendIndent(5).Append("var propertyIndex = !useUtf8Names ? -2 : ");
-            // Match visible members before ignored members, as in the string dispatch below.
+            // Match visible members before ignored members, as in the string
+            // dispatch below.
             foreach (
                 var member in members
                     .Where(static m => !m.Property.IsJsonIgnored)
@@ -483,7 +484,8 @@ internal static class SparseFragmentJsonEmitter
             }
             else if (jsonMembers.Length == 1)
             {
-                // Retain naming-policy evaluation even when collisions are impossible.
+                // Retain naming-policy evaluation even when collisions are
+                // impossible.
                 code.AppendLineAt(4, "_ = " + expression + ";");
             }
             else

@@ -8,32 +8,8 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Generator;
 
-/// <summary>
-/// Emits conventional EntityFrameworkCore mapping defaults and mapper bridges
-/// for <c>[SparseFragmentMapper{TEntity, TDto}]</c> types discovered by the
-/// ordinary generator.
-/// </summary>
-/// <remarks>
-/// Product-specific surface, not Shared: Shared never hard-codes
-/// SparseTypes runtime or mapper names. For each mapper carrying the generic
-/// marker attribute (the DTO may live in a referenced Contracts assembly),
-/// the emitter writes an external companion
-/// <c>{Mapper}_SparseEfDefaults</c> whose <c>RegisterDefaults</c> registers
-/// source-level conventional registrations: same-name exact-type scalars via
-/// <c>Member</c>, same-name nested models via recursive <c>Object</c>, and
-/// same-name collections via <c>DeclareCollection</c> markers, plus a partial
-/// bridge implementing <c>IEntityModelMapping&lt;TEntity, TDto&gt;</c> with a
-/// lock-guarded <c>Map</c> scope for the optional parameterless
-/// <c>Configure()</c>. Explicit <c>Configure</c> entries replace each default
-/// exactly once at runtime.
-/// Same-name members whose types differ produce SPF033 instead of a deferred
-/// reflection failure. Members without a same-name entity counterpart stay
-/// explicit-only and fail fast at mapper creation when unconfigured.
-/// Declaration errors (missing partial, bad shapes, colliding members,
-/// unsupported Configure) produce SPF034. Mappers with a parameterless
-/// constructor additionally gain a <c>Create(IModel)</c> shorthand on the
-/// mapper itself.
-/// </remarks>
+/// <summary>Emits conventional mapping defaults and mapper bridges.</summary>
+/// <remarks>Product-specific surface, not Shared: Shared never hard-codes SparseTypes runtime or mapper names.</remarks>
 internal static class SparseEntityMapperEmitter
 {
     internal const string MapperAttributeMetadataName =
@@ -125,12 +101,8 @@ internal static class SparseEntityMapperEmitter
         nesting.Reverse();
         nesting.Add(mapper.Name);
         var companionName = string.Join("_", nesting) + "_SparseEfDefaults";
-        // Supported-declarative Configure analysis: explicit Map.Member/Ignore
-        // (and scoped Object/Collection/Element) registrations suppress SPF033
-        // for the members they cover. A Configure body outside the analyzable
-        // subset (helpers, control flow, dynamic calls) suppresses nothing
-        // provable: diagnostics stay silent there and runtime plan validation
-        // remains the backstop. Defaults-only mappers cover nothing provably.
+        // Suppress SPF033 only for recognized Map registrations.
+        // Unanalyzable Configure bodies leave validation to the runtime.
         var covered = SparseEntityMapperConfigureAnalysis.TryCollectCoveredMembers(mapper);
         var hasConfigure = SparseEntityMapperConfigureAnalysis.TryFindParameterlessConfigure(
             mapper,
@@ -184,11 +156,8 @@ internal static class SparseEntityMapperEmitter
             .AppendLine("), RegisterDefaults);");
         AppendIndent(code, indent + 1).AppendLine("}");
         AppendIndent(code, indent).AppendLine("}");
-        // Generated bridge: the partial mapper implements
-        // IEntityModelMapping plus the Map scope. The Create shorthand below
-        // covers partial mappers with a parameterless constructor; mappers
-        // without one (for example constructor-injected mappings) keep the
-        // generic factory only.
+        // Emit the parameterless Create shortcut when available; injected
+        // mappers continue to use the generic factory.
         SparseEntityMapperBridgeEmitter.AppendBridge(
             code,
             indent,
@@ -309,13 +278,8 @@ internal static class SparseEntityMapperEmitter
 
             if (entityMember is null)
             {
-                // A same-name member that exists but is unreachable from the
-                // companion would fail with a CS error if referenced, so report
-                // it instead of emitting an invalid selector. A missing
-                // counterpart stays explicit-only by design (runtime plan
-                // validation fails fast when unconfigured), as does anything
-                // already covered by (or hidden behind an unanalyzable)
-                // Configure.
+                // Diagnose inaccessible same-name members instead of emitting
+                // invalid selectors.
                 if (
                     covered is not null
                     && !covered.Contains((scope, name))
@@ -399,10 +363,7 @@ internal static class SparseEntityMapperEmitter
                             )
                         );
                     }
-                    // Path-scoped conventional element defaults: the explicit
-                    // Collection(..., lines => lines.Element(...)) composes
-                    // these underneath its own overrides, which replace each
-                    // default exactly once. Policies stay explicit.
+                    // Path-scoped conventional element defaults.
                     AppendIndent(code, indent)
                         .Append(builder)
                         .Append(".DeclareCollectionElement<")
@@ -457,13 +418,8 @@ internal static class SparseEntityMapperEmitter
                             )
                         )
                         {
-                            // An init-only (or otherwise non-assignable)
-                            // temporary key cannot be written by a runtime
-                            // delegate outside construction: pass null so the
-                            // companion still compiles, and diagnose instead of
-                            // emitting an invalid assignment. The runtime
-                            // reports a clear MetadataMismatch if it ever needs
-                            // to assign one.
+                            // Init-only keys cannot be assigned by this
+                            // delegate.
                             if (temporaryProperty is not null)
                             {
                                 diagnostics.Add(
@@ -539,11 +495,8 @@ internal static class SparseEntityMapperEmitter
             {
                 if (!SparseEntityMapperSymbolHelpers.SameType(dtoPropertyType, entityMemberType))
                 {
-                    // Explicit Configure owns this path: no default to emit and
-                    // no diagnostic when the member is provably covered there.
-                    // An unanalyzable Configure proves nothing either way, so
-                    // diagnostics stay silent there with runtime plan validation
-                    // as the backstop.
+                    // Explicit Configure covers this member; unanalyzable
+                    // bodies leave validation to the runtime.
                     if (covered is null || covered.Contains((scope, name)))
                     {
                         continue;
@@ -578,9 +531,7 @@ internal static class SparseEntityMapperEmitter
             }
 
             // Value types outside the scalar set (custom structs) cannot take
-            // Object mappings, whose builder contracts require reference
-            // types: report a clear diagnostic instead of emitting code that
-            // violates the generic constraint.
+            // Object mappings, whose builder contracts require reference types.
             if (
                 !SparseEntityMapperSymbolHelpers.IsScalarType(dtoPropertyType)
                 && !SparseEntityMapperSymbolHelpers.IsScalarType(entityMemberType)
@@ -660,14 +611,8 @@ internal static class SparseEntityMapperEmitter
         INamedTypeSymbol mapper
     )
     {
-        // Walk the base chain explicitly: inherited writable properties take
-        // conventional defaults too, with the nearest declaration winning.
-        // Only members (and member types) reachable from the emitted companion
-        // qualify: private/protected or cross-assembly internal members would
-        // fail with CS errors when named from the unrelated companion type.
-        // Init-only setters stay eligible here because conventional
-        // Member/Object/Collection selectors only read; the temporary-key
-        // assignment delegate guards IsInitOnly separately.
+        // Include the nearest inherited writable property when the companion
+        // can access it; setter delegates separately reject init-only members.
         var properties = new List<IPropertySymbol>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         for (
@@ -766,11 +711,8 @@ internal static class SparseEntityMapperEmitter
         }
 
         keyProperty = keys[0];
-        // A usable temporary identity mirrors the Shared analyzer's declaration
-        // rules (single, readable, Guid?, not combined with [SparseKey]) plus
-        // companion reachability. Init-only setters stay eligible here because
-        // correlation only reads; assignability is guarded separately when the
-        // setter delegate is emitted.
+        // Temporary identity requires one readable Guid? member without
+        // [SparseKey].
         if (temporaries.Length == 1)
         {
             var candidate = temporaries[0];

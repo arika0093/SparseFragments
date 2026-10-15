@@ -1,17 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Emits the optional System.Text.Json bridge for ChangePayload DTOs.</summary>
-/// <remarks>
-/// The base runtime is serializer-agnostic (issue #242): endpoint and enum
-/// types carry no JSON attributes. When the consuming compilation references a
-/// compatible API set, each payload container gains closed-generic endpoint
-/// converters plus an item-kind converter that preserve the v1 wire shape —
-/// <c>state</c>/<c>value</c> order, explicit null values, lower-case tokens
-/// from the runtime <c>ChangePayloadWire</c> constants, and strict rejection
-/// of unknown states, kinds, and missing members. The converters are
-/// closed-generic attribute arguments (no reflection factory) so trimming and
-/// NativeAOT keep working.
-/// </remarks>
+/// <remarks>The base runtime is serializer-agnostic: endpoint and enum types carry no JSON attributes.</remarks>
 internal static class SparseChangePayloadJsonBridgeEmitter
 {
     /// <summary>Nested generic endpoint converter name within one payload container.</summary>
@@ -102,11 +92,8 @@ internal static class SparseChangePayloadJsonBridgeEmitter
         code.AppendLineAt(4, "}");
         code.AppendLineAt(4, "else if (name == " + wire + ".ValueProperty)");
         code.AppendLineAt(4, "{");
-        // Trim-safe value codec: the non-generic JsonTypeInfo overloads carry
-        // no RequiresUnreferencedCode/RequiresDynamicCode annotations, unlike
-        // the options-based generics, so trimming/AOT builds stay clean.
-        // Metadata resolves the declared value type exactly like the previous
-        // attribute-driven envelopes; source-generated contexts supply it.
+        // Use non-generic JsonTypeInfo overloads to remain trim-safe; generated
+        // contexts provide metadata for the declared value type.
         code.AppendLineAt(
             5,
             "value = (TValue?)global::System.Text.Json.JsonSerializer.Deserialize(ref reader, options.GetTypeInfo(typeof(TValue)));"
@@ -119,11 +106,8 @@ internal static class SparseChangePayloadJsonBridgeEmitter
         code.AppendLineAt(5, "reader.Skip();");
         code.AppendLineAt(4, "}");
         code.AppendLineAt(3, "}");
-        // Missing members stay defaulted exactly like the previous
-        // attribute-driven envelopes: absent state reads as Missing and an
-        // absent value reads as default. Unknown tokens still fail here;
-        // value-carrying Missing/Null/Redacted states are rejected later by
-        // endpoint validation during ToChangeSet/ToPatch conversion.
+        // Absent members retain Missing/default values; unknown tokens fail
+        // here.
         code.AppendLineAt(
             3,
             "return new " + endpoint + "<TValue> { State = state, Value = value };"
@@ -207,11 +191,7 @@ internal static class SparseChangePayloadJsonBridgeEmitter
     }
 
     /// <summary>Emits a bare exclude-from-JSON marker when JSON is enabled.</summary>
-    /// <remarks>
-    /// Computed transition projections must not serialize; the marker is
-    /// omitted entirely when the probed surface lacks System.Text.Json so
-    /// serializer-free compilations keep building.
-    /// </remarks>
+    /// <remarks>Computed transition projections must not serialize.</remarks>
     /// <param name="code">Target builder.</param>
     /// <param name="indent">Member indent.</param>
     /// <param name="emitJson">Whether the v1 JSON surface is enabled.</param>

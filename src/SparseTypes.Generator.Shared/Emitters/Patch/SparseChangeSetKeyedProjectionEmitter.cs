@@ -203,7 +203,8 @@ internal static class SparseChangeSetKeyedProjectionEmitter
         shell.AppendLineAt(2, "{");
         shell.AppendLineAt(3, "get");
         shell.AppendLineAt(3, "{");
-        // Whole endpoints expose mutable container snapshots and must stay independent.
+        // Whole endpoints expose mutable container snapshots and must stay
+        // independent.
         shell.AppendLineAt(
             4,
             "if (__sparse_hasWhole || " + KeyedWholeFlag(member) + ") return " + projectCall + ";"

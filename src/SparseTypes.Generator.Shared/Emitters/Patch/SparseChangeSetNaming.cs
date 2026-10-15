@@ -4,12 +4,7 @@ using System.Collections.Immutable;
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>Central reserved-name resolver for ChangeSet public surfaces.</summary>
-/// <remarks>
-/// Typed transitions, enumeration helpers, and path helpers must share one name
-/// map. Separate reserved sets let a source member such as
-/// <c>EnumerateChanges</c> collide with a generated method on one surface but
-/// not the other, producing uncompilable output.
-/// </remarks>
+/// <remarks>Typed transitions, enumeration helpers, and path helpers must share one name map.</remarks>
 internal static class SparseChangeSetNaming
 {
     /// <summary>Names reserved on the generated <c>ChangeSet</c> public surface.</summary>

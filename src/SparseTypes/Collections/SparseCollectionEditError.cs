@@ -3,13 +3,7 @@ using System.ComponentModel;
 namespace SparseTypes;
 
 /// <summary>Deterministic failure reasons for path-addressed collection edits.</summary>
-/// <remarks>
-/// Every <c>Try*</c> member of the collection editing facade reports one of
-/// these values instead of a bare boolean, so UI clients can distinguish a
-/// missing collection from a duplicate key without guessing. Values describe
-/// the collection state at operation time; the facade holds no collection
-/// snapshot, so a later retry may report a different value.
-/// </remarks>
+/// <remarks>Every <c>Try*</c> member of the collection editing facade reports one of these values instead of a bare boolean.</remarks>
 [EditorBrowsable(EditorBrowsableState.Advanced)]
 public enum SparseCollectionEditError
 {

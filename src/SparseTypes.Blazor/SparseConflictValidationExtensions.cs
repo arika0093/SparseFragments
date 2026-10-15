@@ -46,12 +46,7 @@ public sealed record SparseConflictValidationOptions
 public static class SparseConflictValidationExtensions
 {
     /// <summary>Surfaces rebase conflicts as validation errors and notifies the context.</summary>
-    /// <remarks>
-    /// The store is preserved by default; set <see cref="SparseConflictValidationOptions.ClearStoreFirst"/>
-    /// to clear first. Use a dedicated conflict store so clearing never drops DataAnnotations messages,
-    /// which live in the validator's own store. Unresolvable paths fall back deterministically and are
-    /// never dropped. The call notifies <paramref name="editContext"/> when anything changed.
-    /// </remarks>
+    /// <remarks>Existing validation messages are preserved by default; use a dedicated store when clearing conflict messages.</remarks>
     /// <param name="session">The edit session owning the live model.</param>
     /// <param name="store">The dedicated conflict validation store.</param>
     /// <param name="editContext">The context the store was created from.</param>
@@ -106,9 +101,7 @@ public static class SparseConflictValidationExtensions
     }
 
     /// <summary>Clears a dedicated conflict store and notifies the context.</summary>
-    /// <remarks>
-    /// Only the supplied store is cleared; DataAnnotations messages in other stores stay intact.
-    /// </remarks>
+    /// <remarks>Only the supplied store is cleared; DataAnnotations messages in other stores stay intact.</remarks>
     /// <param name="session">The edit session owning the live model.</param>
     /// <param name="store">The dedicated conflict validation store.</param>
     /// <param name="editContext">The context the store was created from.</param>
@@ -136,12 +129,7 @@ public static class SparseConflictValidationExtensions
     }
 
     /// <summary>Creates a replacement context after adopting an authoritative server model.</summary>
-    /// <remarks>
-    /// Create a fresh session from the persisted model first, detach validation handlers from
-    /// <paramref name="staleContext"/>, then call this on the fresh session. Recreate rendered
-    /// inputs (for example by keying the <c>EditForm</c>) because <c>InputBase</c> owns its
-    /// context instance and must not be reused across contexts. Transport and retries stay out.
-    /// </remarks>
+    /// <remarks>Create a fresh session from the persisted model first.</remarks>
     /// <param name="freshSession">The session created from the authoritative model.</param>
     /// <param name="staleContext">The previous context being replaced.</param>
     /// <typeparam name="TModel">The session model type.</typeparam>
@@ -172,7 +160,8 @@ public static class SparseConflictValidationExtensions
     )
         where TModel : class
     {
-        // Foreign-root paths never resolve against this graph; surface them at model level.
+        // Foreign-root paths never resolve against this graph; surface them at
+        // model level.
         if (conflict.Path.RootType != typeof(TModel))
         {
             return new FieldIdentifier(model, string.Empty);
@@ -189,8 +178,8 @@ public static class SparseConflictValidationExtensions
         }
         catch (ArgumentException) when (fallback is SparseConflictFallbackMode.NearestParent)
         {
-            // Walk toward the root so removed keys and missing nested models land on
-            // the nearest surviving member instead of being dropped.
+            // Walk toward the root so removed keys and missing nested models
+            // land on the nearest surviving member instead of being dropped.
             var parent = conflict.Path.Parent;
             while (parent is not null && !parent.Value.IsRoot)
             {

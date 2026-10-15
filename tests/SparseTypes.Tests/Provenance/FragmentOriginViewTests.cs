@@ -221,7 +221,7 @@ public sealed class FragmentOriginViewTests
     [Test]
     public void SparsePath_TypedBuildersBindToOriginQueries()
     {
-        // Canonical typed paths (issue #202) bind to the same origin queries
+        // Canonical typed paths bind to the same origin queries
         // without signature changes via the typed-to-untyped conversion.
         SparsePath root = SparsePath.Root<OriginSettings>();
         root.IsRoot.ShouldBeTrue();

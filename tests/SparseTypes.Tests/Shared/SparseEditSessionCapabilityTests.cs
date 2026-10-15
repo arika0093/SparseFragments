@@ -2,7 +2,7 @@ using SparseTypes.Generator.Shared;
 
 namespace SparseTypes.Tests.Shared;
 
-/// <summary>Capability-driven session-core emission regressions (issue #184).</summary>
+/// <summary>Capability-driven session-core emission regressions.</summary>
 public sealed class SparseEditSessionCapabilityTests
 {
     private static SparseGeneratorConfig Config(

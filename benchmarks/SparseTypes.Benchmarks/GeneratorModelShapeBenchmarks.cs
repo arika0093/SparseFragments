@@ -4,17 +4,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using SparseTypes;
 using SparseTypes.Generator;
 
-/// <summary>
-/// Model-shape scaling benchmarks (issue #61): beyond the root-count axis of
-/// <see cref="GeneratorInvalidationBenchmarks"/>, generation cost is measured
-/// over properties per root, nested structural depth, nested fan-out, keyed
-/// structural collections, dictionary members, and promoted-model count.
-/// Each benchmark returns total generated source bytes (source count is
-/// asserted by <c>GeneratorStepTrackingTests</c>); allocation is recorded by
-/// <c>MemoryDiagnoser</c>. Only cold generation and one-file incremental edits
-/// are measured; step invalidation is attributed by the tracked benchmarks and
-/// never optimized from wall-clock noise alone.
-/// </summary>
+/// <summary>Model-shape scaling benchmarks.</summary>
 [MemoryDiagnoser]
 public class GeneratorWideModelBenchmarks
 {

@@ -4,17 +4,8 @@ using static SparseTypes.Generator.Shared.SparseChangeSetEmitter;
 
 namespace SparseTypes.Generator.Shared;
 
-/// <summary>Read-only transition-contract surface for generated ChangeSets (issue #223).</summary>
-/// <remarks>
-/// Implements the product-owned <see cref="SparseTransitionContracts"/> on the
-/// existing typed transition shapes without touching their public APIs:
-/// scalar/set transitions gain the value-change contract, keyed/dictionary
-/// transitions gain their contracts plus explicit lookup/enumeration members,
-/// items gain their item contracts, and every ChangeSet gains the shared
-/// traversal entry points. All names come from the dialect; null contracts
-/// disable the whole surface so products without the runtime contracts keep
-/// byte-identical output.
-/// </remarks>
+/// <summary>Read-only transition-contract surface for generated ChangeSets.</summary>
+/// <remarks>Emits the product-configured change-set contract.</remarks>
 internal static class SparseChangeSetContractEmitter
 {
     /// <summary>Nullability contract for the <c>TryGet*</c> out parameters.</summary>
@@ -143,13 +134,7 @@ internal static class SparseChangeSetContractEmitter
         IsStructuralDict(member) ? ValueChangeSetOf(member) : ValueTypeOf(member);
 
     /// <summary>Appends explicit keyed lookup/enumeration contract members.</summary>
-    /// <remarks>
-    /// The public typed <c>GetChange</c> and <c>IEnumerable&lt;Item&gt;</c>
-    /// stay canonical; these forward to them so generic consumers program
-    /// against the contracts without knowing the nested <c>Item</c> type.
-    /// Enumeration is a named method rather than <c>IEnumerable&lt;T&gt;</c>
-    /// so the existing typed enumerable keeps unambiguous LINQ inference.
-    /// </remarks>
+    /// <remarks>The public typed <c>GetChange</c> and <c>IEnumerable&lt.</remarks>
     internal static void AppendKeyedContractMembers(
         SharedIndentedBuilder code,
         SparseMemberModel member,
@@ -159,9 +144,8 @@ internal static class SparseChangeSetContractEmitter
         if (!HasContracts(dialect))
             return;
         var contracts = dialect.TransitionContracts!;
-        // Explicit lookup qualifies the declaring interface: GetChange lives
-        // on the base keyed contract even for temporary members, while
-        // GetTemporaryChange lives on the derived temporary contract.
+        // GetChange lives on the base keyed contract even for temporary
+        // members, while GetTemporaryChange lives on the derived temporary
         var keyed =
             contracts.KeyedChangeInterfaceType
             + "<"
@@ -275,11 +259,7 @@ internal static class SparseChangeSetContractEmitter
     }
 
     /// <summary>Appends the ChangeSet-level contract: emptiness plus traversal entry points.</summary>
-    /// <remarks>
-    /// Everything projects the existing typed surface (properties, typed
-    /// <c>EnumerateChanges</c>, nested ChangeSets); no parallel change
-    /// representation is introduced.
-    /// </remarks>
+    /// <remarks>Everything projects the existing typed surface (properties.</remarks>
     internal static void AppendChangeSetContract(
         SharedIndentedBuilder code,
         ImmutableArray<SparseMemberModel> members,
@@ -432,10 +412,7 @@ internal static class SparseChangeSetContractEmitter
                 member.Property.Name,
                 true
             );
-            // Exact-match dispatch through interface pattern matching: the
-            // invariant generic contract only matches the member's own value
-            // type, so no typeof() spelling (reference-nullable annotations
-            // are illegal there) is needed.
+            // Exact-match dispatch through interface pattern matching.
             code.AppendLineAt(
                 3,
                 "if (global::System.String.Equals(memberName, "

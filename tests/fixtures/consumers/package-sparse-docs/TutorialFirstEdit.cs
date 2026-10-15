@@ -1,10 +1,7 @@
 using SparseTypes;
 
-// Canonical compile-checked mirror of docs/tutorial/first-sparse-edit.md.
-// One annotated model and one continuous sequence: baseline snapshot, sparse
-// environment override, Merge, Patch command, ChangeSet transition with typed
-// Before/After, then Invert. Regions execute in order as part of Run() so the
-// documented values are verified, not just compiled.
+// Compile-checked tutorial sample for baseline, merge, patch, and inversion.
+// Run() verifies the documented transition values.
 public static class TutorialFirstEditSamples
 {
     public static void Run()

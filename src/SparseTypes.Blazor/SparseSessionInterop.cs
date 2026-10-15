@@ -4,19 +4,8 @@ using System.Reflection;
 
 namespace SparseTypes.Blazor;
 
-/// <summary>
-/// Reflection bridge to the generated session members that stay outside the minimal
-/// session contract: the session-owned history surface and the generated state queries.
-/// </summary>
-/// <remarks>
-/// Generated sessions expose <c>History</c>/<c>HistoryChanged</c>/<c>EnableHistory</c>/
-/// <c>DisableHistory</c> and <c>FieldState</c>/<c>CollectionState</c> as ordinary public
-/// members without a shared interface, so the headless components resolve them by name and
-/// shape here instead of depending on generated types. Lookups are cached per session type.
-/// History is only ever read or observed here: this bridge never enables, disables,
-/// reconfigures, or disposes it. Missing members degrade gracefully (null history, clean
-/// field state) so custom minimal sessions keep working.
-/// </remarks>
+/// <summary>Reflection bridge to the generated session members that stay outside the minimal session contract.</summary>
+/// <remarks>Reflects over optional generated session members.</remarks>
 internal static class SparseSessionInterop
 {
     private static readonly ConcurrentDictionary<Type, PropertyInfo?> HistoryProperties = new();
@@ -155,8 +144,7 @@ internal static class SparseSessionInterop
                             or InvalidOperationException
                 )
             {
-                // Best-effort detach during teardown; a failed remove leaves no
-                // functional subscription behind once the subscriber is dropped.
+                // Best-effort detach during teardown.
             }
         };
     }
@@ -241,7 +229,8 @@ internal static class SparseSessionInterop
         catch (TargetInvocationException exception)
             when (exception.InnerException is ArgumentException)
         {
-            // Not a root keyed or dictionary collection path; the caller reports absence.
+            // Not a root keyed or dictionary collection path; the caller
+            // reports absence.
             state = null;
             return false;
         }

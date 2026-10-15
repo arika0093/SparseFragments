@@ -2,12 +2,8 @@ using SparseTypes.Generated;
 
 namespace SparseTypes.Tests;
 
-/// <summary>Exception-safety contract for state-mutating edit-session operations (issue #248).</summary>
-/// <remarks>
-/// Faults are injected at the same seams the generator wires (<c>WriteModel</c> standing in for a
-/// throwing custom setter, plus throwing <c>retarget</c>/<c>buildMap</c> callbacks), so these tests
-/// exercise the shared template paths used by every generated session.
-/// </remarks>
+/// <summary>Exception-safety contract for state-mutating edit-session operations.</summary>
+/// <remarks>Faults are injected at the same seams the generator wires (<c>WriteModel</c> standing in for a throwing custom setter.</remarks>
 public sealed class EditSessionExceptionSafetyTests
 {
     private const string SetterFailure = "Version setter failed.";
@@ -114,7 +110,8 @@ public sealed class EditSessionExceptionSafetyTests
             .Throw<InvalidOperationException>(() => session.TryApplyInPlace(changes, out _))
             .Message.ShouldBe(SetterFailure);
 
-        // The failure is not atomic over external setters, but the session heals.
+        // The failure is not atomic over external setters, but the session
+        // heals.
         model.Name.ShouldBe("after");
         model.Version.ShouldBe(1);
         session.HasChanges.ShouldBeTrue();
@@ -164,7 +161,8 @@ public sealed class EditSessionExceptionSafetyTests
             .Throw<InvalidOperationException>(() => session.Reload(server))
             .Message.ShouldBe(SetterFailure);
 
-        // The partial write stays visible, while the server baseline is not adopted.
+        // The partial write stays visible, while the server baseline is not
+        // adopted.
         model.Name.ShouldBe("server");
         model.Version.ShouldBe(10);
         session.Observable.Name.ShouldBe("server");
@@ -186,7 +184,8 @@ public sealed class EditSessionExceptionSafetyTests
         transitions.Count.ShouldBe(transitionsBeforeReload + 1);
         refreshShouldThrow = false;
 
-        // A healthy retry still rebases onto the server and adopts its baseline.
+        // A healthy retry still rebases onto the server and adopts its
+        // baseline.
         writeShouldThrow = false;
         var retry = session.Reload(server);
         retry.HasConflicts.ShouldBeFalse();
@@ -324,7 +323,8 @@ public sealed class EditSessionExceptionSafetyTests
             .ShouldBeFalse();
         error.ShouldBe(RetargetError);
 
-        // Nothing diverged, so the backup was never written back over the live references.
+        // Nothing diverged, so the backup was never written back over the live
+        // references.
         model.Name.ShouldBe("local");
         ReferenceEquals(model.Tags, tags).ShouldBeTrue();
         session.HasChanges.ShouldBeTrue();
@@ -372,9 +372,7 @@ public sealed class EditSessionExceptionSafetyTests
         var persisted = new NeutralSessionModel { Name = "base", Version = 1 };
         var transitionsBeforeReconcile = transitions.Count;
 
-        // True rollback is impossible with arbitrary setters: the rollback restores Name
-        // but throws before Version, so its failure yields to resynchronization while the
-        // original retarget failure still propagates.
+        // True rollback is impossible with arbitrary setters.
         Should
             .Throw<InvalidOperationException>(() =>
                 session.TryReconcile<object>(

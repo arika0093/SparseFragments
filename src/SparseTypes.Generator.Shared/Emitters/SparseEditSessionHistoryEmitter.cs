@@ -1,11 +1,7 @@
 namespace SparseTypes.Generator.Shared;
 
 /// <summary>History type names bound by the configured dialect.</summary>
-/// <remarks>
-/// Groups the caller-owned history names so session emission stays neutral:
-/// Shared never hard-codes a runtime history, options, hooks, or contract
-/// type. A null binding keeps sessions byte-identical without history.
-/// </remarks>
+/// <remarks>Shared never hard-codes a runtime history, options, hooks, or contract type.</remarks>
 internal sealed record HistoryBinding
 {
     public HistoryBinding(
@@ -38,10 +34,7 @@ internal sealed record HistoryBinding
 }
 
 /// <summary>Opt-in history factory and session-owned history for edit sessions.</summary>
-/// <remarks>
-/// Split from the session emitter to keep each file under the size guideline.
-/// Both session placements share these helpers so history stays identical.
-/// </remarks>
+/// <remarks>Split from the session emitter to keep each file under the size guideline.</remarks>
 internal static class SparseEditSessionHistoryEmitter
 {
     /// <summary>Binds the configured dialect history surface, if complete.</summary>
@@ -70,12 +63,7 @@ internal static class SparseEditSessionHistoryEmitter
     }
 
     /// <summary>Appends baseline lifecycle members with history invalidation.</summary>
-    /// <remarks>
-    /// Without a history binding the legacy expression-bodied members are
-    /// emitted unchanged. With a binding the same members clear registered
-    /// histories only after the underlying session operation succeeds, so a
-    /// failed accept, reload, reconcile, or revert keeps history intact.
-    /// </remarks>
+    /// <remarks>Without a history binding the legacy expression-bodied members are emitted unchanged.</remarks>
     internal static void AppendLifecycleMembers(
         SharedIndentedBuilder code,
         string modelType,
@@ -225,11 +213,7 @@ internal static class SparseEditSessionHistoryEmitter
     }
 
     /// <summary>Appends the legacy opt-in history factory for one model session.</summary>
-    /// <remarks>
-    /// Advanced multi-observer escape hatch: prefer the single-owned
-    /// <c>EnableHistory</c> surface for ordinary undo/redo. Each factory call
-    /// subscribes an independent disposable history.
-    /// </remarks>
+    /// <remarks>Advanced multi-observer escape hatch: prefer the single-owned <c>EnableHistory</c> surface for ordinary undo/redo.</remarks>
     private static void AppendHistoryFactory(
         SharedIndentedBuilder code,
         string modelType,
@@ -284,12 +268,7 @@ internal static class SparseEditSessionHistoryEmitter
     }
 
     /// <summary>Appends the single-owned history surface for one model session.</summary>
-    /// <remarks>
-    /// The session retains one enabled history behind a non-disposable
-    /// framework-neutral contract. The typed change-set algebra stays inside
-    /// the wired history core; consumers use the contract for ordinary
-    /// undo/redo, counts, grouping, and stack-state notifications.
-    /// </remarks>
+    /// <remarks>The session retains one enabled history behind a non-disposable framework-neutral contract.</remarks>
     private static void AppendOwnedHistoryMembers(
         SharedIndentedBuilder code,
         string modelType,
@@ -454,11 +433,7 @@ internal static class SparseEditSessionHistoryEmitter
     }
 
     /// <summary>Appends the non-disposable session-owned history view.</summary>
-    /// <remarks>
-    /// The view forwards the control contract to the retained typed history
-    /// and releases it only through the owning session, so consumers can
-    /// never dispose session-owned state by accident.
-    /// </remarks>
+    /// <remarks>The view forwards the control contract to the retained typed history and releases it only through the owning session.</remarks>
     private static void AppendOwnedHistoryView(
         SharedIndentedBuilder code,
         string modelType,

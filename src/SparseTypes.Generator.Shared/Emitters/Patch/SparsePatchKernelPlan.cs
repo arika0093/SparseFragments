@@ -26,17 +26,7 @@ internal enum SparsePatchKernelKind
 }
 
 /// <summary>Inventory of extracted kernels versus model-specific code.</summary>
-/// <remarks>
-/// Extracted (pure, model-independent): presence composition, empty-operation
-/// identities, keyed add/remove composition and inversion parameterized by
-/// key/comparer, order-only flags, canonical bracket-key formatting and
-/// segment-aware ancestor checks (mirroring the runtime mixed-operation path
-/// algebra). Remaining model-specific: typed nested fragment/patch/changeset
-/// operations, sparse canonical storage, keyed/dictionary sparse transitions,
-/// unassigned-key rules, ownership boundaries and custom rebase/comparison
-/// policies. Rationale: the former depends only on keys, kinds, orders and
-/// comparers; the latter needs member types, storage layout and policies.
-/// </remarks>
+/// <remarks>Extracted (pure, model-independent).</remarks>
 internal static class SparsePatchKernelInventory
 {
     /// <summary>Names of the extracted reusable kernels.</summary>
@@ -66,16 +56,7 @@ internal static class SparsePatchKernelInventory
 }
 
 /// <summary>Capability aggregation for model-independent operation kernels.</summary>
-/// <remarks>
-/// Merge-time seam: the Generated-Once pipeline (#178) aggregates these flags
-/// across model families; the ownership design (#177) owns the
-/// Runtime/Generated-Once/Per-Model boundary. Model-specific emitters invoke
-/// the helpers while preserving typed nested operations; keyed/dictionary
-/// canonical transitions, order-only changes, unassigned-key rules, ownership
-/// boundaries and custom policies stay model-specific. Per-model placement
-/// keeps using the #176 seam; kernel helpers keep one stable hint name per
-/// compilation.
-/// </remarks>
+/// <remarks>Merge-time seam: the Generated-Once pipeline aggregates these flags across model families.</remarks>
 internal static class SparsePatchKernelCapabilities
 {
     /// <summary>Stable hint name for the once-per-compilation kernel helpers.</summary>
@@ -111,12 +92,7 @@ internal static class SparsePatchKernelCapabilities
 }
 
 /// <summary>Product-neutral Generated-Once source for operation kernels.</summary>
-/// <remarks>
-/// Emits BCL-only generic helpers (no product runtime references) so
-/// downstream generators reuse the same semantics without a SparseTypes
-/// dependency. The standalone runtime kernels mirror this source for the
-/// default product.
-/// </remarks>
+/// <remarks>Emits BCL-only helpers for downstream generators.</remarks>
 internal static class SparsePatchKernelEmitter
 {
     /// <summary>Renders the once-per-compilation kernel helper source.</summary>
