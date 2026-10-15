@@ -37,7 +37,26 @@ var payload = submitted.ToPayload();
 Console.WriteLine(
     $"[Client] Sending update {runId}: notes, {draft.Lines.Count} lines, new line quantity={addedLine.Quantity}, unitPrice={addedLine.UnitPrice}."
 );
-using var response = await client.PutAsJsonAsync($"orders/{orderId}", payload);
+using var request = new HttpRequestMessage(HttpMethod.Put, $"orders/{orderId}");
+request.Headers.TryAddWithoutValidation("If-Match", current.Version.ToString());
+request.Content = JsonContent.Create(payload);
+using var response = await client.SendAsync(request);
+if (response.StatusCode == System.Net.HttpStatusCode.PreconditionFailed)
+{
+    Console.Error.WriteLine(
+        $"[Client] Update {runId} lost a write race: the order changed since version {current.Version}. Re-read the order, rebase pending edits, and submit again with the fresh version."
+    );
+    return 2;
+}
+
+if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+{
+    Console.Error.WriteLine(
+        $"[Client] Update {runId} has semantic conflicts with the current order. Resolve them against a fresh read instead of resubmitting."
+    );
+    return 2;
+}
+
 response.EnsureSuccessStatusCode();
 var authoritative =
     await response.Content.ReadFromJsonAsync<OrderDto>()

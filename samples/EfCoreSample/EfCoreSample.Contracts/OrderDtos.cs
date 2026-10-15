@@ -41,6 +41,13 @@ public partial class OrderDto
 
     /// <summary>Gets or sets the keyed order lines.</summary>
     public List<OrderLineDto> Lines { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the concurrency token observed when the order was read.
+    /// The client never edits it; it travels back to the server as the
+    /// If-Match header so the write can guard against a stale read.
+    /// </summary>
+    public Guid Version { get; set; }
 }
 
 /// <summary>

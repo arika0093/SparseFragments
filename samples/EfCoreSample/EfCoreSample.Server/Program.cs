@@ -1,5 +1,6 @@
 using EfCoreSample.Contracts;
 using EfCoreSample.Server;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SparseTypes.EntityFrameworkCore;
 
@@ -79,6 +80,7 @@ static async Task<IResult> GetOrderAsync(
 static async Task<IResult> UpdateOrderAsync(
     int id,
     OrderDto.ChangePayload payload,
+    [FromHeader(Name = "If-Match")] string? ifMatch,
     SampleDbContext db,
     ISparseEntityMapper<OrderEntity, OrderDto> mapper,
     ILogger<Program> logger,
@@ -108,16 +110,63 @@ static async Task<IResult> UpdateOrderAsync(
         return Results.BadRequest();
     }
 
+    // Semantic conflicts come from ChangeSet rebase: the submitted edits
+    // overlap current values member by member.
     var accepted = changes.RebaseOnto(current);
     if (accepted.HasConflicts)
     {
         logger.LogWarning("Rejected update for order {OrderId} because it has conflicts", id);
-        return Results.Conflict();
+        return Results.Conflict(
+            accepted.Conflicts.Select(static conflict => new
+            {
+                path = conflict.PathText,
+                kind = conflict.Kind.ToString(),
+                reason = conflict.Reason,
+            })
+        );
     }
 
-    var applied = mapper.ApplyWithResult(db, entity, accepted.Rebased);
-    await db.SaveChangesAsync(cancellationToken);
+    // The database race is separate: the token records the version the
+    // client read, and the conditional write fails when another writer
+    // advanced it first, even for disjoint member edits. Quotes are trimmed
+    // because HTTP clients may send the entity-tag in its quoted form.
+    if (!Guid.TryParse(ifMatch?.Trim('"'), out var clientVersion))
+    {
+        logger.LogWarning("Rejected update for order {OrderId} without an If-Match version", id);
+        return Results.Problem(
+            title: "If-Match header with the order version is required.",
+            detail: "Read the order again and send its Version back as If-Match.",
+            statusCode: StatusCodes.Status400BadRequest
+        );
+    }
 
+    db.Entry(entity).Property(static order => order.Version).OriginalValue = clientVersion;
+
+    var applied = mapper.ApplyWithResult(db, entity, accepted.Rebased);
+    try
+    {
+        await db.SaveChangesAsync(cancellationToken);
+    }
+    catch (DbUpdateConcurrencyException exception)
+    {
+        // Stale write, not a semantic conflict: another writer committed
+        // first. Never retry the same submission blindly; the client must
+        // re-read, rebase its pending edits onto the new current state, and
+        // submit with the fresh version.
+        logger.LogWarning(
+            exception,
+            "Rejected stale update for order {OrderId}; the client must refresh",
+            id
+        );
+        return Results.Problem(
+            title: "The order changed since it was read.",
+            detail: "Read the order again, rebase pending edits onto it, and submit with the fresh Version as If-Match.",
+            statusCode: StatusCodes.Status412PreconditionFailed
+        );
+    }
+
+    // Cancellation propagates to the host instead of mapping to 409/412:
+    // only the pipeline result model reports it per stage.
     var authoritative = mapper.ToDto(db, entity);
     mapper.AssignTemporaryKeys(db, applied, current, authoritative);
 

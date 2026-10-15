@@ -2,6 +2,7 @@ using System.Data.Common;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using SparseTypes.EntityFrameworkCore.Tests.Concurrency;
 using SparseTypes.EntityFrameworkCore.Tests.Sample;
 
 namespace SparseTypes.EntityFrameworkCore.Tests;
@@ -184,6 +185,20 @@ public static class TestDatabases
             connection,
             counter,
             (DbContextOptions<SampleDbContext> options) => new SampleDbContext(options)
+        );
+    }
+
+    /// <summary>Creates a versioned-orders context over an open connection.</summary>
+    public static VersionedOrdersContext CreateVersioned(
+        SqliteConnection connection,
+        QueryCounter counter
+    )
+    {
+        return Create(
+            connection,
+            counter,
+            (DbContextOptions<VersionedOrdersContext> options) =>
+                new VersionedOrdersContext(options)
         );
     }
 

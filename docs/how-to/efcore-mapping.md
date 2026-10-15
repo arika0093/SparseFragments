@@ -157,4 +157,38 @@ if (outcome.Error is OperationCanceledException)
 }
 ```
 
+## Guard the SQLite write race with an application-managed token
+
+SQLite cannot store-generate a SQL Server style rowversion, so declare an
+application-managed token (for example a `Guid`) and advance it on every
+write that belongs to the aggregate, including child-only line changes:
+
+1. Mark the token with `IsConcurrencyToken()` and keep it read-only for
+   the mapper: `Map.Ignore` for writes, `Map.Read` for the projection.
+2. Assign a new value in `SaveChanges`/`SaveChangesAsync` for every added
+   or modified aggregate root, and for the parent of every added, modified,
+   or deleted child. A child-only write leaves the parent row untouched by
+   change tracking, so bump the parent explicitly.
+3. Carry the token outside the change set: return it on reads, accept it
+   as `If-Match` on writes, and set it as the entry's `OriginalValue`
+   before saving.
+4. Catch `DbUpdateConcurrencyException` and answer 412 with refresh
+   guidance. Keep semantic `RebaseOnto` conflicts as 409. Never resubmit
+   the same change set blindly; re-read, rebase pending edits onto the new
+   current state, and submit with the fresh token. Let cancellation
+   propagate instead of mapping it to 409 or 412.
+
+<!-- illustrative: token plumbing excerpt; context and DTO names are defined elsewhere -->
+```csharp
+db.Entry(order).Property(static item => item.Version).OriginalValue = clientVersion;
+try
+{
+    await db.SaveChangesAsync(cancellationToken);
+}
+catch (DbUpdateConcurrencyException)
+{
+    return Results.Problem("The order changed since it was read.", statusCode: 412);
+}
+```
+
 For full mapper configuration options, custom write handlers, and metadata constraints, see [EF Core mapping reference](../reference/efcore-mapping.md).

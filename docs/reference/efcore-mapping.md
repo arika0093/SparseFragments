@@ -120,3 +120,4 @@ Mappings run against EF property entries:
 | Unkeyed collections, skip navigations (many-to-many) | Unsupported (fail explicitly) |
 | Filtered includes for collections with additions/removals | Unsupported (unfiltered required) |
 | Rebase, authorization, `SaveChanges` | Application-owned |
+| Optimistic concurrency tokens | Application-owned (`IsConcurrencyToken` plus a per-write advance covering child writes) |

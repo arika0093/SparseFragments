@@ -22,6 +22,10 @@ public sealed partial class OrderMapper
         Map.Read(dto => dto.Code, entity => entity.Code);
         Map.Member(dto => dto.ShipCity, entity => entity.Address!.City);
         Map.Ignore(dto => dto.DisplayTotal);
+        // The concurrency token is read-only for the mapper: the context
+        // advances it on every write, while EF guards the update with it.
+        Map.Ignore(dto => dto.Version);
+        Map.Read(dto => dto.Version, entity => entity.Version);
         Map.Object(
             dto => dto.Address,
             entity => entity.Address,
