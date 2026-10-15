@@ -32,24 +32,23 @@
     [Parameter, EditorRequired]
     public SettingsSession Session { get; set; } = null!;
 
-    // Retained only so Add avoids reusing an id from the submitted baseline,
-    // which would read as an edit of the removed row instead of an addition.
+    /// <summary>Gets or sets the submitted baseline task IDs reserved against reuse.</summary>
+    /// <remarks>Kept even for rows removed from the draft, so an addition never reads as an edit of a removed identity. Rebuilt when the submitted baseline advances.</remarks>
     [Parameter, EditorRequired]
-    public List<PlaygroundTask> BaselineTasks { get; set; } = [];
+    public IReadOnlyCollection<string> BaselineTaskIds { get; set; } = [];
 
     private string? _taskError;
 
     private void AddTask()
     {
-        var existing = Session.Observable.Tasks.Select(task => task.Id)
-            .Concat(BaselineTasks.Select(task => task.Id))
-            .ToHashSet(StringComparer.Ordinal);
-        string id;
-        do
-        {
-            id = $"t{Random.Shared.Next(1, 1000)}";
-        }
-        while (!existing.Add(id));
+        // Deterministic allocation over the draft plus the reserved baseline
+        // IDs: always terminates, unlike the previous random retry loop.
+        var id = PlaygroundIds.Allocate(
+            "t",
+            Session.Observable.Tasks
+                .Select(static task => task.Id)
+                .Concat(BaselineTaskIds)
+        );
 
         // Path-addressed add: one batched transition with keyed duplicate
         // rejection, instead of a handwritten BatchEdit plus AddModel call.

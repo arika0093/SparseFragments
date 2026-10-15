@@ -1,13 +1,18 @@
 @using SparseTypes.Playground.Models
 @using SparseTypes.Playground.Components
+@using SparseTypes.Playground.Pages.Case3
 
+@{
+    // One reference-based position map per render, shared by all rows.
+    var positions = RosterPositions.Build(Model.Quests);
+}
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
     @if (AllowReorder)
     {
         <SortableList @key="Model.Quests.Count" Items="Model.Quests" Handle=".pg-drag" Class="pg-roster-list"
             OnUpdate="OnSortableUpdate" Context="quest">
             <SortableItemTemplate>
-                <QuestRow @key="quest.Id" Model="Model" Quest="quest" Changes="Changes" AllowReorder="AllowReorder" RemovedOnly="RemovedOnly" OnChanged="OnChanged" />
+                <QuestRow @key="quest.Id" Model="Model" Quest="quest" Changes="Changes" AllowReorder="AllowReorder" RemovedOnly="RemovedOnly" Position="RosterPositions.GetPosition(positions, quest)" OnChanged="OnChanged" />
             </SortableItemTemplate>
         </SortableList>
     }
@@ -16,7 +21,7 @@
         <div class="pg-roster-list">
         @foreach (var quest in Model.Quests)
         {
-            <QuestRow @key="quest.Id" Model="Model" Quest="quest" Changes="Changes" AllowReorder="AllowReorder" RemovedOnly="RemovedOnly" OnChanged="OnChanged" />
+            <QuestRow @key="quest.Id" Model="Model" Quest="quest" Changes="Changes" AllowReorder="AllowReorder" RemovedOnly="RemovedOnly" Position="RosterPositions.GetPosition(positions, quest)" OnChanged="OnChanged" />
         }
         </div>
     }
@@ -35,7 +40,7 @@
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
-    /// <summary>Gets or sets the typed keyed quest transition consumed through the shared collection and typed field states.</summary>
+    /// <summary>Gets or sets the typed keyed quest transition consumed through one typed lookup per row.</summary>
     [Parameter, EditorRequired]
     public PlaygroundRoster.ChangeSet.QuestsTransition Changes { get; set; } = null!;
 
@@ -73,13 +78,9 @@
 
     private Task AddAsync()
     {
-        var existing = new HashSet<string>(Model.Quests.Select(q => q.Id));
-        string id;
-        do
-        {
-            id = $"q{Random.Shared.Next(1, 100)}";
-        }
-        while (!existing.Add(id));
+        // Deterministic allocation: the helper scans the reserved IDs and
+        // always terminates, unlike the previous random retry loop.
+        var id = PlaygroundIds.Allocate("q", Model.Quests.Select(static quest => quest.Id));
         var scoreCount = Random.Shared.Next(0, 3);
         var scores = Enumerable.Range(0, scoreCount)
             .Select(_ => Random.Shared.Next(0, 100))

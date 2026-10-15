@@ -1,4 +1,3 @@
-@using System.Text.Json
 @using SparseTypes
 @using SparseTypes.Blazor
 @using SparseTypes.Playground.Models
@@ -69,7 +68,7 @@
             </SparseField>
         </div>
 
-        <TaskListEditor Session="_session" BaselineTasks="_baselineModel.Tasks" />
+        <TaskListEditor Session="_session" BaselineTaskIds="_baselineTaskIds" />
         <div class="pg-legend pg-session-legend" aria-label="Edit highlight legend">
             <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
             <span class="pg-lg"><span class="pg-sw pg-sw-move"></span>moved</span>
@@ -184,7 +183,10 @@
 
     private SettingsSession _session = null!;
     private SparseEditHistory<PlaygroundSettings.ChangeSet> _history = null!;
-    private PlaygroundSettings _baselineModel = null!;
+    // The submit preview derives from the session ChangeSet, so the second
+    // model baseline is gone: only the serialized pane and the reserved task
+    // IDs (including removed rows) are retained.
+    private HashSet<string> _baselineTaskIds = new(StringComparer.Ordinal);
     private string _baselineJson = string.Empty;
     private string _activeTab = "diff";
     private string? _editError;
@@ -227,12 +229,12 @@
         }
     };
 
-    private PlaygroundSettings CloneModel() => _model.DeepClone();
-
     private void CaptureBaseline()
     {
-        _baselineModel = CloneModel();
-        _baselineJson = PlaygroundJson.WriteMaskedSettingsSummary(_baselineModel);
+        _baselineJson = PlaygroundJson.WriteMaskedSettingsSummary(_model);
+        _baselineTaskIds = _model.Tasks
+            .Select(static task => task.Id)
+            .ToHashSet(StringComparer.Ordinal);
     }
 
     private async Task RequestSubmit()
@@ -242,15 +244,9 @@
             return;
         }
 
-        _submitChanges = BuildSubmitChanges()
-            .Select(static change => new ChangePreviewRow
-            {
-                Target = change.Target,
-                Operation = change.Operation,
-                Before = change.Before,
-                After = change.After,
-            })
-            .ToArray();
+        // Freeze the typed snapshot first: later edits must not leak into the
+        // confirmation dialog.
+        _submitChanges = SubmitPreview.Build(_session.CreateChangeSet());
         if (_submitDialog is null)
         {
             throw new InvalidOperationException("The submit confirmation dialog is not initialized.");
@@ -259,102 +255,6 @@
         _submitDialogHidden = false;
         await _submitDialog.ShowAsync();
     }
-
-    // Keep this preview as a live-model diff: it groups task operations and
-    // shows unquoted key targets, unlike the shared wire projection.
-    private List<(string Target, string Operation, string Before, string After)> BuildSubmitChanges()
-    {
-        var changes = new List<(string Target, string Operation, string Before, string After)>();
-        var current = _model;
-        AddSubmitChange(changes, nameof(PlaygroundSettings.Enabled), "Edit", _baselineModel.Enabled, current.Enabled);
-        AddSubmitChange(changes, nameof(PlaygroundSettings.RetryCount), "Edit", _baselineModel.RetryCount, current.RetryCount);
-        AddSubmitChange(changes, nameof(PlaygroundSettings.Label), "Edit", _baselineModel.Label, current.Label);
-        AddSubmitChange(changes, nameof(PlaygroundSettings.Password), "Edit", _baselineModel.Password, current.Password);
-        AddSubmitChange(
-            changes,
-            $"{nameof(PlaygroundSettings.Nested)}.{nameof(PlaygroundNested.Host)}",
-            "Edit",
-            _baselineModel.Nested?.Host,
-            current.Nested?.Host
-        );
-        AddSubmitChange(
-            changes,
-            $"{nameof(PlaygroundSettings.Nested)}.{nameof(PlaygroundNested.Port)}",
-            "Edit",
-            _baselineModel.Nested?.Port,
-            current.Nested?.Port
-        );
-
-        var presentBaselines = new HashSet<PlaygroundTask>();
-        foreach (var task in _session.Observable.Tasks)
-        {
-            var currentTask = task.Model;
-            var baselineTask = _baselineModel.Tasks.FirstOrDefault(item => item.Id == currentTask.Id);
-            if (baselineTask is null)
-            {
-                changes.Add(($"Tasks[{currentTask.Id}]", "Add", "—", FormatTask(currentTask)));
-                continue;
-            }
-
-            presentBaselines.Add(baselineTask);
-            var target = $"Tasks[{baselineTask.Id}]";
-            AddSubmitChange(changes, $"{target}.Id", "Edit", baselineTask.Id, currentTask.Id);
-            AddSubmitChange(changes, $"{target}.Title", "Edit", baselineTask.Title, currentTask.Title);
-            AddSubmitChange(changes, $"{target}.Points", "Edit", baselineTask.Points, currentTask.Points);
-        }
-
-        foreach (var task in _baselineModel.Tasks)
-        {
-            if (!presentBaselines.Contains(task))
-            {
-                changes.Add(($"Tasks[{task.Id}]", "Remove", FormatTask(task), "—"));
-            }
-        }
-
-        var beforeOrder = _baselineModel.Tasks.Select(static task => task.Id).ToArray();
-        var afterOrder = _session.Observable.Tasks.Select(static task => task.Id);
-        if (!beforeOrder.SequenceEqual(afterOrder, StringComparer.Ordinal))
-        {
-            changes.Add(("Tasks", "Order", FormatOrder(beforeOrder), FormatOrder(afterOrder)));
-        }
-
-        return changes.OrderBy(change => SubmitOperationOrder(change.Operation)).ToList();
-    }
-
-    private static int SubmitOperationOrder(string operation) => operation switch
-    {
-        "Add" => 0,
-        "Remove" => 1,
-        "Edit" => 2,
-        "Order" => 3,
-        _ => 4,
-    };
-
-    private static void AddSubmitChange<T>(
-        List<(string Target, string Operation, string Before, string After)> changes,
-        string target,
-        string operation,
-        T before,
-        T after
-    )
-    {
-        if (!EqualityComparer<T>.Default.Equals(before, after))
-        {
-            changes.Add(
-                (
-                    target,
-                    operation,
-                    PlaygroundJson.MaskPasswordSummaryValue(target, JsonSerializer.Serialize(before)),
-                    PlaygroundJson.MaskPasswordSummaryValue(target, JsonSerializer.Serialize(after))
-                )
-            );
-        }
-    }
-
-    private static string FormatTask(PlaygroundTask task) =>
-        $"{{ Title = {JsonSerializer.Serialize(task.Title)}, Points = {task.Points} }}";
-
-    private static string FormatOrder(IEnumerable<string> ids) => $"[{string.Join(", ", ids)}]";
 
     private async Task CancelSubmit()
     {

@@ -179,23 +179,17 @@ public sealed class Case4ConsumerFlowTests
     public void ConsumerAdd_SkipsBaselineIds()
     {
         // Mirrors TaskListEditor.AddTask.
-        var baseline = Tasks(("t1", "One"), ("t2", "Two"), ("t3", "Removed"));
+        var baselineIds = new[] { "t1", "t2", "t3" };
         var model = Tasks(("t1", "One"), ("t2", "Two"));
         var session = model.CreateEditSession();
         var editor = session.EditCollection<PlaygroundTask, string>(
             PlaygroundSettings.SparsePath.Tasks
         );
 
-        var existing = session
-            .Observable.Tasks.Select(static task => task.Id)
-            .Concat(baseline.Tasks.Select(static task => task.Id))
-            .ToHashSet(StringComparer.Ordinal);
-        var candidate = string.Empty;
-        var suffix = 1;
-        do
-        {
-            candidate = $"t{suffix++}";
-        } while (!existing.Add(candidate));
+        var candidate = PlaygroundIds.Allocate(
+            "t",
+            session.Observable.Tasks.Select(static task => task.Id).Concat(baselineIds)
+        );
         candidate.ShouldBe("t4");
 
         editor.TryAdd(new PlaygroundTask { Id = candidate, Title = "Four" }, out _).ShouldBeTrue();
