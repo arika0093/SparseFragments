@@ -1,6 +1,8 @@
+extern alias Playground;
+
 using Microsoft.EntityFrameworkCore;
-using SparseTypes.Playground.Models;
-using SparseTypes.Playground.Pages.Case5;
+using Playground::SparseTypes.Playground.Models;
+using Playground::SparseTypes.Playground.Pages.Case5;
 
 namespace SparseTypes.Tests.Generation;
 

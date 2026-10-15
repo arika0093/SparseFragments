@@ -1,6 +1,8 @@
+extern alias Playground;
+
 using System.Text.Json;
-using SparseTypes.Playground.Models;
-using SparseTypes.Playground.Pages.Case4;
+using Playground::SparseTypes.Playground.Models;
+using Playground::SparseTypes.Playground.Pages.Case4;
 
 namespace SparseTypes.Tests.Patch;
 

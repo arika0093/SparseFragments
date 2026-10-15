@@ -1,6 +1,8 @@
+extern alias Playground;
+
 using System.Reflection;
 using System.Text.Json;
-using SparseTypes.Playground.Models;
+using Playground::SparseTypes.Playground.Models;
 
 namespace SparseTypes.Tests.Patch;
 

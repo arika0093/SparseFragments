@@ -1,4 +1,6 @@
-using SparseTypes.Playground.Models;
+extern alias Playground;
+
+using Playground::SparseTypes.Playground.Models;
 
 namespace SparseTypes.Tests;
 
