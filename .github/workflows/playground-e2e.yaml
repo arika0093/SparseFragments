@@ -1,16 +1,13 @@
 name: Playground E2E
 
 on:
+  workflow_call:
   pull_request:
     branches: [main]
     paths:
       - playground/**
       - src/**
-      - assets/**
       - tests/e2e/playground/**
-      - global.json
-      - '**/*.props'
-      - '**/*.targets'
       - .github/workflows/playground-e2e.yaml
       - .github/workflows/playground.yaml
   workflow_dispatch:
@@ -19,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: playground-e2e-${{ github.event.pull_request.number || github.ref }}
+  group: playground-e2e-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
