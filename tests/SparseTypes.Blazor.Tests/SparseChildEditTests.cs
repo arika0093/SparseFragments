@@ -57,7 +57,8 @@ public sealed class SparseChildEditTests
     private static RenderFragment ScopeContent<TModel>(
         ISparseEditSession<TModel> session,
         RenderFragment child,
-        Action<SparseSessionScope<TModel>> capture
+        Action<SparseSessionScope<TModel>> capture,
+        bool? autoAccept = null
     )
         where TModel : class =>
         builder =>
@@ -65,8 +66,9 @@ public sealed class SparseChildEditTests
             builder.OpenComponent<SparseSessionScope<TModel>>(0);
             builder.AddAttribute(1, nameof(SparseSessionScope<TModel>.Session), session);
             builder.AddAttribute(2, nameof(SparseSessionScope<TModel>.ChildContent), child);
+            builder.AddAttribute(3, nameof(SparseSessionScope<TModel>.AutoAccept), autoAccept);
             builder.AddComponentReferenceCapture(
-                3,
+                4,
                 component => capture((SparseSessionScope<TModel>)component)
             );
             builder.CloseComponent();
@@ -182,12 +184,14 @@ public sealed class SparseChildEditTests
     {
         var root = new ScopeGrandchildRoot
         {
+            Title = "Root",
             Child = new ScopeGrandchildChild
             {
                 Leaf = new ScopeGrandchildLeaf { Name = "Baseline" },
             },
         };
         var rootSession = root.CreateEditSession();
+        var rootHistory = rootSession.EnableHistory();
         ISparseChildEditContext<ScopeGrandchildChild, SparseConflict>? childContext = null;
         ISparseChildEditContext<ScopeGrandchildLeaf, SparseConflict>? leafContext = null;
         SparseFieldContext<ScopeGrandchildLeaf, string>? leafName = null;
@@ -257,10 +261,126 @@ public sealed class SparseChildEditTests
 
         leafContext.HasChanges.ShouldBeTrue();
         childContext!.HasChanges.ShouldBeTrue();
+        leafContext.CanUndo.ShouldBeTrue();
+        rootHistory.CanUndo.ShouldBeFalse();
         leafName!.Value.ShouldBe("Draft");
         rootSession.GetModelForFrameworkAccess().Child.Leaf.Name.ShouldBe("Baseline");
         ((ScopeGrandchildChild.EditSession)childContext!.Session)
             .GetModelForFrameworkAccess()
             .Leaf.Name.ShouldBe("Baseline");
+
+        rootSession.Observable.Title = "Direct";
+        await tree.FlushAsync();
+        rootHistory.CanUndo.ShouldBeTrue();
+        leafContext.CanUndo.ShouldBeTrue();
+    }
+
+    [Test]
+    public async Task ChildFragmentReopensWhenModelChangesAtTheSameParentPath()
+    {
+        var root = new OrderDto { Customer = new OrderCustomer { Name = "Ada" } };
+        var session = root.CreateEditSession();
+        var contexts = new List<ISparseChildEditContext<OrderCustomer, SparseConflict>>();
+
+        var child = ChildWithContent(
+            (ISparseEditSessionWithChildren<OrderDto, SparseConflict>)session,
+            OrderDto.SparsePath.Customer,
+            context =>
+                builder =>
+                {
+                    if (contexts.Count == 0 || !ReferenceEquals(contexts[^1], context))
+                    {
+                        contexts.Add(context);
+                    }
+                    builder.AddContent(0, "child");
+                }
+        );
+        using var tree = await Headless.Tree.CreateAsync(
+            ScopeContent(session, child, static _ => { })
+        );
+
+        var original = contexts.ShouldHaveSingleItem();
+        session.Descriptors.TryGet(nameof(OrderDto.Customer), out var customer).ShouldBeTrue();
+        customer.TrySetValue(new OrderCustomer { Name = "Grace" }).ShouldBeTrue();
+        await tree.FlushAsync();
+
+        contexts.Count.ShouldBe(2);
+        ReferenceEquals(contexts[1], original).ShouldBeFalse();
+        ((OrderCustomer.EditSession)contexts[1].Session).Observable.Name.ShouldBe("Grace");
+        Should.Throw<ObjectDisposedException>(() => original.Session);
+        Should.Throw<ObjectDisposedException>(() => original.Undo());
+    }
+
+    [Test]
+    public async Task DeletedKeyedChildContextCannotEditOrAcceptAfterDisconnection()
+    {
+        var root = new OrderDto { Lines = [new OrderLine { Sku = "line", Quantity = 1 }] };
+        var session = root.CreateEditSession();
+        ISparseChildEditContext<OrderLine, SparseConflict>? childContext = null;
+        var child = ChildWithContent(
+            (ISparseEditSessionWithChildren<OrderDto, SparseConflict>)session,
+            OrderDto.SparsePath.Lines.Key("line"),
+            context =>
+                builder =>
+                {
+                    childContext = context;
+                    builder.AddContent(0, "line");
+                }
+        );
+        using var tree = await Headless.Tree.CreateAsync(
+            ScopeContent(session, child, static _ => { })
+        );
+
+        var staleContext = childContext.ShouldNotBeNull();
+        ((OrderLine.EditSession)staleContext.Session).Observable.Quantity = 4;
+        session.Observable.Lines.Clear();
+        await tree.FlushAsync();
+
+        staleContext.HasChanges.ShouldBeFalse();
+        Should.Throw<ObjectDisposedException>(() => staleContext.Session);
+        Should.Throw<ObjectDisposedException>(() => staleContext.Undo());
+        Should.Throw<ObjectDisposedException>(() => staleContext.AcceptChanges());
+        session.Observable.Lines.ShouldBeEmpty();
+    }
+
+    [Test]
+    public async Task AutoAcceptModeCannotChangeWhileChildEditsArePending()
+    {
+        var root = new ScopeGrandchildRoot
+        {
+            Child = new ScopeGrandchildChild
+            {
+                Leaf = new ScopeGrandchildLeaf { Name = "Baseline" },
+            },
+        };
+        var session = root.CreateEditSession();
+        ISparseChildEditContext<ScopeGrandchildChild, SparseConflict>? childContext = null;
+        var child = ChildWithContent(
+            (ISparseEditSessionWithChildren<ScopeGrandchildRoot, SparseConflict>)session,
+            ScopeGrandchildRoot.SparsePath.Child,
+            context =>
+                builder =>
+                {
+                    childContext = context;
+                    builder.AddContent(0, "child");
+                }
+        );
+        using var tree = await Headless.Tree.CreateAsync(
+            ScopeContent(session, child, static _ => { })
+        );
+
+        var context = childContext.ShouldNotBeNull();
+        ((ScopeGrandchildChild.EditSession)context.Session).Observable.Leaf!.Name = "Draft";
+        await tree.FlushAsync();
+        context.HasChanges.ShouldBeTrue();
+
+        var failure = await tree.TryShowAsync(
+            ScopeContent(session, child, static _ => { }, autoAccept: true)
+        );
+
+        failure.ShouldNotBeNull();
+        failure!.ToString().ShouldContain("while child edits are pending");
+        context.HasChanges.ShouldBeTrue();
+        session.GetModelForFrameworkAccess().Child.Leaf.Name.ShouldBe("Baseline");
     }
 }

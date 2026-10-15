@@ -63,7 +63,8 @@
                     <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddDocument">Add document</FluentButton>
                 </div>
                 <div class="pg-roster-list">
-                    <SparseCollection TModel="CatalogOperationsDetails" TElement="CatalogOperationDocument"
+                    <SparseCollection @ref="_documentCollection"
+                        TModel="CatalogOperationsDetails" TElement="CatalogOperationDocument"
                         Path="child.Path.Documents">
                         <RowTemplate Context="documentRow">
                             <div class="@CatalogCollectionRowState.ClassFor(documentRow.RequireItemState())">
@@ -87,8 +88,7 @@
                             </div>
                         </RowTemplate>
                     </SparseCollection>
-                    @foreach (var removed in _baseline.Documents.Where(document =>
-                        !Draft.Documents.Any(current => current.Code == document.Code)))
+                    @foreach (var removed in _documentCollection?.RemovedItems ?? [])
                     {
                         <div class="pg-roster-row pg-removed">
                             <div class="pg-catalog-inline-row">
@@ -107,7 +107,7 @@
                 SectionDraftsEnabled="SectionDraftsEnabled"
                 AutoAcceptConflicts="_childSession?.AutoAcceptConflicts"
                 Undo="Undo" Redo="Redo" Accept="TryAcceptChildSession" Discard="DiscardChildSession"
-                OnFinished="RefreshBaseline" OnStatusChanged="ReportStatus" />
+                OnFinished="NotifyChanged" OnStatusChanged="ReportStatus" />
         </FluentCard>
     </SparseChildEdit>
 }
@@ -127,7 +127,7 @@
 
     private ISparseChildEditContext<CatalogOperationsDetails, SparseConflict>? _childSession;
     private CatalogOperationsDetails.EditSession _draftSession = null!;
-    private CatalogOperationsDetails _baseline = null!;
+    private SparseCollection<CatalogOperationsDetails, CatalogOperationDocument>? _documentCollection;
     private int _newDocumentNumber;
     private CatalogOperationsDetails.Observable Draft => _draftSession.Observable;
     private bool HasChanges => _childSession?.HasChanges == true;
@@ -144,7 +144,6 @@
         _childSession = context;
         _draftSession = context.Session as CatalogOperationsDetails.EditSession
             ?? throw new InvalidOperationException("The operations edit session is unavailable.");
-        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
     }
 
     private Task ReportStatus(bool _)
@@ -152,11 +151,7 @@
         return OnChanged.InvokeAsync();
     }
 
-    private Task RefreshBaseline()
-    {
-        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
-        return OnChanged.InvokeAsync();
-    }
+    private Task NotifyChanged() => OnChanged.InvokeAsync();
 
     private bool GetHasChanges() => _childSession?.HasChanges == true;
     private bool GetCanUndo() => _childSession?.CanUndo == true;
@@ -173,7 +168,6 @@
     private void DiscardChildSession()
     {
         _childSession!.DiscardChanges();
-        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
     }
 
     private Task AddDocument()

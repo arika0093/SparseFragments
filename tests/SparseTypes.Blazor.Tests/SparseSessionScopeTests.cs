@@ -699,7 +699,7 @@ public sealed class SparseSessionScopeTests
 
         consumer.RenderCount.ShouldBe(renders);
         session.HasPendingChildSessions.ShouldBeFalse();
-        child.Session.History.ShouldBeNull();
+        Should.Throw<ObjectDisposedException>(() => child.Session);
         Should.Throw<ObjectDisposedException>(() => child.DiscardChanges());
     }
 
@@ -834,7 +834,7 @@ public sealed class SparseSessionScopeTests
     }
 
     [Test]
-    public async Task EnablingAutoAcceptRetainsConflictingChildDraft()
+    public async Task AutoAcceptModeChangeIsRejectedWhileChildDraftIsPending()
     {
         var model = Order();
         var parent = model.CreateEditSession();
@@ -844,16 +844,26 @@ public sealed class SparseSessionScopeTests
 
         child.Session.Observable.Name = "Child";
         parent.Observable.Customer!.Name = "Parent";
-        await harness.SetAutoAcceptAsync(true);
+        InvalidOperationException? rejection = null;
+        try
+        {
+            await harness.SetAutoAcceptAsync(true);
+        }
+        catch (InvalidOperationException exception)
+        {
+            rejection = exception;
+        }
 
-        child.AutoAcceptConflicts.ShouldNotBeNull();
+        rejection.ShouldNotBeNull();
+        rejection!.Message.ShouldContain("while child edits are pending");
+        child.AutoAcceptConflicts.ShouldBeNull();
         child.HasChanges.ShouldBeTrue();
         scope.HasChanges.ShouldBeTrue();
         model.Customer.Name.ShouldBe("Parent");
 
-        await harness.SetAutoAcceptAsync(false);
-        child.AutoAcceptConflicts.ShouldBeNull();
-        child.HasChanges.ShouldBeTrue();
+        child.DiscardChanges();
+        await harness.SetAutoAcceptAsync(true);
+        child.HasChanges.ShouldBeFalse();
     }
 
     [Test]

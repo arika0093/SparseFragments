@@ -152,5 +152,7 @@ public partial class ScopeGrandchildChild
 [SparseModel]
 public partial class ScopeGrandchildRoot
 {
+    public string Title { get; set; } = string.Empty;
+
     public ScopeGrandchildChild Child { get; set; } = new();
 }

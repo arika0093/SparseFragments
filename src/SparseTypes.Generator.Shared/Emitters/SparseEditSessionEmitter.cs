@@ -338,6 +338,19 @@ internal static class SparseEditSessionEmitter
                 "/// <summary>Gets whether this session has changes apart from its registered child sessions.</summary>"
             );
             code.AppendLineAt(2, "public bool HasOwnChanges => _session.HasChanges;");
+            var childPathType = config.DescriptorDialect!.EffectivePathType(
+                config.RuntimeDialect?.Namespace ?? patchDialect.RuntimeNamespace
+            );
+            code.AppendLineAt(
+                2,
+                "/// <summary>Resolves the model currently addressed by a child-session path.</summary>"
+            );
+            code.AppendLineAt(
+                2,
+                "public object? ResolveChildModel("
+                    + childPathType
+                    + " path) => Descriptors.ResolveModel(path);"
+            );
         }
         SparseEditSessionPathsEmitter.AppendPathsProperty(
             code,

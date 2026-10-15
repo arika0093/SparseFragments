@@ -44,6 +44,8 @@ public sealed class SparseSessionScopeContext<TModel>
 {
     private sealed record ChildEntry(
         object Context,
+        object TargetModel,
+        Func<object?> ResolveTarget,
         Func<bool> HasChanges,
         Action<bool> SetAutoAccept,
         Action Dispose
@@ -51,6 +53,7 @@ public sealed class SparseSessionScopeContext<TModel>
 
     private readonly ISparseEditSession<TModel> _session;
     private readonly Dictionary<SparsePath, ChildEntry> _children = new();
+    private INotifyPropertyChanged? _sessionNotifier;
     private bool _disposed;
 
     internal SparseSessionScopeContext(ISparseEditSession<TModel> session, bool autoAccept)
@@ -58,6 +61,11 @@ public sealed class SparseSessionScopeContext<TModel>
         _session = session;
         SparseSessionScopeOwnership.Register(session, this);
         AutoAccept = autoAccept;
+        if (session is INotifyPropertyChanged notifier)
+        {
+            _sessionNotifier = notifier;
+            notifier.PropertyChanged += OnParentSessionChanged;
+        }
     }
 
     /// <summary>Gets whether child sessions accept changes into their parent automatically.</summary>
@@ -91,6 +99,27 @@ public sealed class SparseSessionScopeContext<TModel>
         where TConflict : class
         where TChildSession : ISparseEditSessionWithPaths<TChild, TChildPaths>
     {
+        if (TryOpenChildSession(parentSession, path, out var context))
+        {
+            return context!;
+        }
+
+        throw new ArgumentException(
+            "The path does not resolve to a model value of the requested type.",
+            nameof(path)
+        );
+    }
+
+    internal bool TryOpenChildSession<TChild, TChildPaths, TConflict, TChildSession>(
+        ISparseEditSessionWithChildren<TModel, TConflict> parentSession,
+        ISparseChildEditPath<TModel, TChild, TChildPaths, TChildSession> path,
+        out SparseChildEditContext<TChild, TChildPaths, TConflict, TChildSession>? context
+    )
+        where TChild : class
+        where TChildPaths : ISparseTypedPath<TChild, TChild>
+        where TConflict : class
+        where TChildSession : ISparseEditSessionWithPaths<TChild, TChildPaths>
+    {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(parentSession);
         ArgumentNullException.ThrowIfNull(path);
@@ -103,19 +132,32 @@ public sealed class SparseSessionScopeContext<TModel>
         }
 
         var untypedPath = path.UntypedPath;
+        var targetModel = ResolveChildModel(parentSession, untypedPath);
+        if (targetModel is not TChild target)
+        {
+            RemoveChild(untypedPath);
+            context = null;
+            return false;
+        }
+
         if (_children.TryGetValue(untypedPath, out var entry))
         {
             if (
-                entry.Context
-                is SparseChildEditContext<TChild, TChildPaths, TConflict, TChildSession> retained
+                ReferenceEquals(entry.TargetModel, target)
+                && entry.Context
+                    is SparseChildEditContext<
+                        TChild,
+                        TChildPaths,
+                        TConflict,
+                        TChildSession
+                    > retained
             )
             {
-                return retained;
+                context = retained;
+                return true;
             }
 
-            throw new InvalidOperationException(
-                "A child session with this path was opened using incompatible generated types."
-            );
+            RemoveChild(untypedPath);
         }
 
         var child = parentSession.OpenChildSession(path);
@@ -124,22 +166,25 @@ public sealed class SparseSessionScopeContext<TModel>
         {
             SparseSessionInterop.EnableHistory(child.Session);
             historyEnabled = true;
-            var context = new SparseChildEditContext<TChild, TChildPaths, TConflict, TChildSession>(
-                child,
-                () => RemoveChild(untypedPath),
-                AutoAccept,
-                NotifyChanged
-            );
+            var childContext = new SparseChildEditContext<
+                TChild,
+                TChildPaths,
+                TConflict,
+                TChildSession
+            >(child, () => RemoveChild(untypedPath), AutoAccept, NotifyChanged);
             _children.Add(
                 untypedPath,
                 new ChildEntry(
-                    context,
-                    () => context.HasChanges,
-                    context.SetAutoAccept,
-                    context.DisposeOwned
+                    childContext,
+                    target,
+                    () => ResolveChildModel(parentSession, untypedPath),
+                    () => childContext.HasChanges,
+                    childContext.SetAutoAccept,
+                    childContext.DisposeOwned
                 )
             );
-            return context;
+            context = childContext;
+            return true;
         }
         catch
         {
@@ -176,12 +221,25 @@ public sealed class SparseSessionScopeContext<TModel>
     internal bool OwnsSession(ISparseEditSession<TModel> session) =>
         !_disposed && ReferenceEquals(_session, session);
 
+    internal bool IsChildSessionCurrent(SparsePath path, object context) =>
+        !_disposed
+        && _children.TryGetValue(path, out var entry)
+        && ReferenceEquals(entry.Context, context)
+        && ReferenceEquals(entry.TargetModel, entry.ResolveTarget());
+
     internal void SetAutoAccept(bool autoAccept)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (AutoAccept == autoAccept)
         {
             return;
+        }
+
+        if (HasChanges)
+        {
+            throw new InvalidOperationException(
+                "Cannot change automatic child acceptance while child edits are pending."
+            );
         }
 
         AutoAccept = autoAccept;
@@ -220,6 +278,12 @@ public sealed class SparseSessionScopeContext<TModel>
         }
         finally
         {
+            if (_sessionNotifier is not null)
+            {
+                _sessionNotifier.PropertyChanged -= OnParentSessionChanged;
+                _sessionNotifier = null;
+            }
+
             SparseSessionScopeOwnership.Release(_session, this);
         }
 
@@ -248,6 +312,33 @@ public sealed class SparseSessionScopeContext<TModel>
             Changed?.Invoke();
         }
     }
+
+    private static object? ResolveChildModel<TConflict>(
+        ISparseEditSessionWithChildren<TModel, TConflict> parentSession,
+        SparsePath path
+    )
+        where TConflict : class
+    {
+        if (parentSession is not ISparseEditSessionWithChildStatus<TModel, TConflict> childStatus)
+        {
+            throw new InvalidOperationException(
+                "The parent session does not support resolving child model paths."
+            );
+        }
+
+        return childStatus.ResolveChildModel(path);
+    }
+
+    private void OnParentSessionChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        foreach (var (path, entry) in _children.ToArray())
+        {
+            if (!ReferenceEquals(entry.TargetModel, entry.ResolveTarget()))
+            {
+                RemoveChild(path);
+            }
+        }
+    }
 }
 
 /// <summary>A typed child-session context owned by a <see cref="SparseSessionScopeContext{TModel}"/>.</summary>
@@ -265,6 +356,7 @@ public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
     private readonly ISparseEditChildSession<TModel, TPaths, TConflict, TSession> _child;
     private readonly Action _invalidate;
     private readonly Action _changed;
+    private readonly EditContext _editContext;
     private INotifyPropertyChanged? _notifier;
     private bool _autoAccept;
     private bool _handlingSessionChange;
@@ -281,7 +373,7 @@ public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
         _child = child;
         _invalidate = invalidate;
         _changed = changed;
-        EditContext = child.Session.CreateEditContext();
+        _editContext = child.Session.CreateEditContext();
         if (autoAccept && child.Session is not INotifyPropertyChanged)
         {
             throw new InvalidOperationException(
@@ -299,7 +391,14 @@ public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
     }
 
     /// <summary>Gets the generated edit session for the child model.</summary>
-    public TSession Session => _child.Session;
+    public TSession Session
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return _child.Session;
+        }
+    }
 
     internal SparseSessionScopeContext<TModel> DescendantScopeContext { get; }
 
@@ -309,7 +408,14 @@ public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
     public TPaths Path => Session.Paths;
 
     /// <summary>Gets the Blazor edit context bound to the child model.</summary>
-    public EditContext EditContext { get; }
+    public EditContext EditContext
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return _editContext;
+        }
+    }
 
     /// <summary>Gets whether this child session or its descendants have pending changes.</summary>
     public bool HasChanges => _child.HasChanges;
@@ -358,10 +464,18 @@ public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
     }
 
     /// <summary>Undoes the newest edit in this child session.</summary>
-    public void Undo() => RequireHistory().Undo();
+    public void Undo()
+    {
+        ThrowIfDisposed();
+        RequireHistory().Undo();
+    }
 
     /// <summary>Redoes the newest edit in this child session.</summary>
-    public void Redo() => RequireHistory().Redo();
+    public void Redo()
+    {
+        ThrowIfDisposed();
+        RequireHistory().Redo();
+    }
 
     internal void DisposeOwned()
     {
@@ -385,7 +499,7 @@ public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
         {
             try
             {
-                SparseSessionInterop.DisableHistory(Session);
+                SparseSessionInterop.DisableHistory(_child.Session);
             }
             finally
             {

@@ -69,6 +69,8 @@ public sealed class SparseChildEdit<TParent, TChild, TChildPaths, TConflict, TCh
             || !ReferenceEquals(_boundScopeContext, scope)
             || !_hasBoundPath
             || !_boundPath.Equals(untypedPath)
+            || _context is null
+            || !scope.IsChildSessionCurrent(untypedPath, _context)
         )
         {
             if (parent is not ISparseEditSessionWithChildren<TParent, TConflict> parentWithChildren)
@@ -78,7 +80,16 @@ public sealed class SparseChildEdit<TParent, TChild, TChildPaths, TConflict, TCh
                 );
             }
 
-            _context = scope.OpenChildSession(parentWithChildren, path);
+            if (!scope.TryOpenChildSession(parentWithChildren, path, out _context))
+            {
+                _context = null;
+                _boundParentSession = parent;
+                _boundScopeContext = scope;
+                _boundPath = untypedPath;
+                _hasBoundPath = true;
+                return;
+            }
+
             _boundParentSession = parent;
             _boundScopeContext = scope;
             _boundPath = untypedPath;

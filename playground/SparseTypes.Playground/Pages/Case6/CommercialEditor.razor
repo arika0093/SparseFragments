@@ -63,7 +63,8 @@
                         <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddTier">Add price tier</FluentButton>
                     </div>
                     <div class="pg-roster-list">
-                        <SparseCollection TModel="CatalogCommercialDetails" TElement="CatalogPriceTier"
+                        <SparseCollection @ref="_tierCollection"
+                            TModel="CatalogCommercialDetails" TElement="CatalogPriceTier"
                             Path="child.Path.PriceTiers">
                             <RowTemplate Context="tierRow">
                                 <CatalogPriceTierEditor Code="@tierRow.Item.Code"
@@ -74,8 +75,7 @@
                                     OnChanged="ReportNestedStatus" />
                             </RowTemplate>
                         </SparseCollection>
-                            @foreach (var removed in _baseline.PriceTiers.Where(tier =>
-                                !Draft.PriceTiers.Any(current => current.Code == tier.Code)))
+                            @foreach (var removed in _tierCollection?.RemovedItems ?? [])
                             {
                                 <div class="pg-roster-row pg-removed">
                                     <div class="pg-catalog-inline-row">
@@ -94,7 +94,7 @@
                     SectionDraftsEnabled="SectionDraftsEnabled"
                     AutoAcceptConflicts="_childSession?.AutoAcceptConflicts"
                     Undo="Undo" Redo="Redo" Accept="TryAcceptChildSession" Discard="DiscardChildSession"
-                    OnFinished="RefreshBaseline" OnStatusChanged="ReportStatus" />
+                    OnFinished="NotifyChanged" OnStatusChanged="ReportStatus" />
             </FluentCard>
     </SparseChildEdit>
 
@@ -115,7 +115,7 @@
 
     private ISparseChildEditContext<CatalogCommercialDetails, SparseConflict>? _childSession;
     private CatalogCommercialDetails.EditSession _draftSession = null!;
-    private CatalogCommercialDetails _baseline = null!;
+    private SparseCollection<CatalogCommercialDetails, CatalogPriceTier>? _tierCollection;
     private string? _tierToOpen;
     private CatalogCommercialDetails.Observable Draft => _draftSession.Observable;
     private bool HasChanges => _childSession?.HasChanges == true;
@@ -132,7 +132,6 @@
         _childSession = context;
         _draftSession = context.Session as CatalogCommercialDetails.EditSession
             ?? throw new InvalidOperationException("The commercial edit session is unavailable.");
-        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
     }
 
     private Task ReportStatus(bool _) => UpdateStatus();
@@ -147,11 +146,7 @@
         return OnChanged.InvokeAsync();
     }
 
-    private Task RefreshBaseline()
-    {
-        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
-        return OnChanged.InvokeAsync();
-    }
+    private Task NotifyChanged() => OnChanged.InvokeAsync();
 
     private bool GetHasChanges() => _childSession?.HasChanges == true;
     private bool GetCanUndo() => _childSession?.CanUndo == true;
@@ -168,7 +163,6 @@
     private void DiscardChildSession()
     {
         _childSession!.DiscardChanges();
-        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
     }
 
     private Task AddTier()

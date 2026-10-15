@@ -15,6 +15,11 @@ public interface ISparseEditSessionWithChildStatus<TModel, TConflict>
     /// <summary>Gets whether this session has changes outside its registered child sessions.</summary>
     bool HasOwnChanges { get; }
 
+    /// <summary>Resolves the model currently addressed by a child-session path.</summary>
+    /// <param name="path">The untyped path to resolve.</param>
+    /// <returns>The addressed model, or null when the path is absent or does not identify a model.</returns>
+    object? ResolveChildModel(SparsePath path);
+
     /// <summary>Gets the state of a child session registered for a typed path.</summary>
     /// <typeparam name="TChild">The addressed child model type.</typeparam>
     /// <typeparam name="TChildPaths">The path builder rooted at the child model.</typeparam>
