@@ -259,7 +259,7 @@ internal static class SparseEditSessionEmitter
             patchDialect,
             code.CancellationToken
         );
-        sessionBases = AppendSessionCapabilityBases(
+        sessionBases = SparseEditSessionCapabilityEmitter.AppendSessionCapabilityBases(
             sessionBases,
             modelType,
             config,
@@ -443,14 +443,15 @@ internal static class SparseEditSessionEmitter
             conflictType,
             rebaseResultType,
             historyBinding,
-            patchDialect.ReconcileConflictExpression?.Invoke(modelType, "error")
+            patchDialect.ReconcileConflictExpression?.Invoke(modelType, "error"),
+            HasChildSessionSurface(config, patchDialect)
         );
         // Raw model access bypasses the change cache.
         code.AppendLineAt(
             2,
             modelType + " " + sessionInterface + "<" + modelType + ">.Model => _session.Model;"
         );
-        AppendChildSessionApiMembers(
+        SparseEditSessionChildEmitter.AppendChildSessionApiMembers(
             code,
             modelType,
             sessionSimple,
@@ -458,7 +459,12 @@ internal static class SparseEditSessionEmitter
             config.EffectiveEmissionFeatures.EmitObservable ? config.DescriptorDialect : null,
             config
         );
-        AppendForkMergeMembers(code, core, conflictType, sessionSimple);
+        SparseEditSessionChildEmitter.AppendForkMergeMembers(
+            code,
+            core,
+            conflictType,
+            sessionSimple
+        );
         code.AppendLineAt(
             2,
             "internal "
@@ -479,7 +485,7 @@ internal static class SparseEditSessionEmitter
                 + core
                 + ".Create(baseline, current, __configuration, onChanged); }"
         );
-        AppendChildDraftMembers(
+        SparseEditSessionChildEmitter.AppendChildDraftMembers(
             code,
             modelType,
             sessionSimple,
@@ -487,6 +493,16 @@ internal static class SparseEditSessionEmitter
             config.EffectiveEmissionFeatures.EmitObservable ? config.DescriptorDialect : null,
             config
         );
+        if (HasChildSessionSurface(config, patchDialect))
+        {
+            // Private candidate projection trails every public member.
+            SparseEditSessionChildEmitter.AppendCandidateBuilder(
+                code,
+                modelType,
+                patchDialect.ConflictType,
+                patchDialect
+            );
+        }
         code.AppendLineAt(
             2,
             "private static readonly "
@@ -539,454 +555,6 @@ internal static class SparseEditSessionEmitter
         code.AppendLineAt(1, "}");
         code.AppendLineAt(0, "}");
         code.AppendLine();
-    }
-
-    /// <summary>Appends product-owned session capability interfaces shared by both session placements.</summary>
-    /// <remarks>Each capability is appended only when the contract is bound and the matching members are emitted, so per-model relocation and disabled features stay identical.</remarks>
-    /// <param name="sessionBases">Accumulated base interfaces.</param>
-    /// <param name="modelType">Owning model type name.</param>
-    /// <param name="config">Owning generator configuration.</param>
-    /// <param name="patchDialect">Product patch dialect.</param>
-    /// <param name="hasOwnedHistory">Whether owned-history members are emitted.</param>
-    internal static string AppendSessionCapabilityBases(
-        string sessionBases,
-        string modelType,
-        SparseGeneratorConfig config,
-        SparseFragmentPatchEmitter.SparsePatchDialect patchDialect,
-        bool hasOwnedHistory
-    )
-    {
-        var capabilities = config.SessionCapabilityContracts;
-        if (capabilities is null || !capabilities.HasAny)
-        {
-            return sessionBases;
-        }
-
-        if (capabilities.HistoryInterface is { Length: > 0 } history && hasOwnedHistory)
-        {
-            sessionBases += ", global::" + history;
-        }
-
-        if (SparseEditSessionStateEmitter.HasStateSurface(patchDialect))
-        {
-            if (capabilities.FieldStateInterface is { Length: > 0 } fieldState)
-            {
-                sessionBases += ", global::" + fieldState + "<" + modelType + ">";
-            }
-
-            if (capabilities.CollectionStateInterface is { Length: > 0 } collectionState)
-            {
-                sessionBases += ", global::" + collectionState;
-            }
-        }
-
-        if (capabilities.BatchEditInterface is { Length: > 0 } batchEdit)
-        {
-            sessionBases += ", global::" + batchEdit;
-        }
-
-        if (
-            capabilities.DescriptorSessionInterface is { Length: > 0 } descriptors
-            && config.DescriptorDialect is not null
-            && config.EffectiveEmissionFeatures.EmitObservable
-        )
-        {
-            sessionBases += ", global::" + descriptors;
-        }
-
-        return sessionBases;
-    }
-
-    /// <summary>Appends the fork/merge facade members shared by both session placements.</summary>
-    /// <param name="code">Target builder.</param>
-    /// <param name="core">Qualified reusable core type for this model.</param>
-    /// <param name="conflictType">Qualified structured conflict type.</param>
-    internal static void AppendForkMergeMembers(
-        SharedIndentedBuilder code,
-        string core,
-        string conflictType,
-        string sessionSimple = "EditSession"
-    )
-    {
-        // Public facade first; the internal core-backed ctor trails with the
-        // other internal ctors so generated members stay public-first ordered.
-        code.AppendLineAt(
-            2,
-            "/// <summary>Creates an independent speculative branch of this session.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <remarks>The fork uses the same session type with a private mutable copy of the current model and a baseline equal to the current state at fork time. Edits on either side stay isolated and the fork starts without the change callback. This is not a transaction: use <see cref=\"TryMergeFrom\"/> to reconcile a fork, <see cref=\"BatchEdit\"/> to group notifications, <see cref=\"AcceptChanges()\"/> to acknowledge a save, and <see cref=\"Reload\"/> to rebase onto server state.</remarks>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <returns>A new session with its own live model, baseline, and bindings.</returns>"
-        );
-        code.AppendLineAt(
-            2,
-            "public " + sessionSimple + " Fork() => new " + sessionSimple + "(_session.Fork());"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <summary>Attempts to merge a fork created by <see cref=\"Fork\"/> without modifying either session.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <remarks>The fork transition is rebased onto this session's current model. On success the returned session retains this session's original baseline with the merged model as its current state. A conflict leaves both sessions unchanged. Merging an unrelated session or the session itself throws; both live models are read without locking.</remarks>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <param name=\"fork\">A session created by <see cref=\"Fork\"/> in the same lineage.</param>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <param name=\"merged\">The new session on success; otherwise null.</param>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <param name=\"conflicts\">Structured rebase conflicts on failure; otherwise null.</param>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <returns><see langword=\"true\"/> when the fork merged cleanly; otherwise <see langword=\"false\"/>.</returns>"
-        );
-        code.AppendLineAt(
-            2,
-            "public bool TryMergeFrom("
-                + sessionSimple
-                + " fork, out "
-                + sessionSimple
-                + "? merged, out global::System.Collections.Generic.IReadOnlyList<"
-                + conflictType
-                + ">? conflicts)"
-        );
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(
-            3,
-            "if (fork is null) throw new global::System.ArgumentNullException(nameof(fork));"
-        );
-        code.AppendLineAt(
-            3,
-            "if (_session.TryMergeFrom(fork._session, out var mergedCore, out conflicts) && mergedCore is not null) { merged = new "
-                + sessionSimple
-                + "(mergedCore); return true; }"
-        );
-        code.AppendLineAt(3, "merged = null;");
-        code.AppendLineAt(3, "return false;");
-        code.AppendLineAt(2, "}");
-        code.AppendLineAt(
-            2,
-            "internal " + sessionSimple + "(" + core + " session) { _session = session; }"
-        );
-    }
-
-    /// <summary>Appends the public child-session API.</summary>
-    internal static void AppendChildSessionApiMembers(
-        SharedIndentedBuilder code,
-        string modelType,
-        string sessionSimple,
-        SparseFragmentPatchEmitter.SparsePatchDialect patchDialect,
-        SparseDescriptorDialect? descriptorDialect,
-        SparseGeneratorConfig config
-    )
-    {
-        if (descriptorDialect is null || patchDialect.TypedPathInterfaceType is not { Length: > 0 })
-        {
-            return;
-        }
-
-        SparseEditSessionChildEmitter.AppendCoordinator(
-            code,
-            modelType,
-            patchDialect.ConflictType,
-            config,
-            patchDialect
-        );
-        SparseEditSessionChildEmitter.AppendOpenMethod(
-            code,
-            modelType,
-            sessionSimple,
-            patchDialect,
-            config
-        );
-    }
-
-    /// <summary>Appends the private path-addressed draft used by child sessions.</summary>
-    internal static void AppendChildDraftMembers(
-        SharedIndentedBuilder code,
-        string modelType,
-        string sessionSimple,
-        SparseFragmentPatchEmitter.SparsePatchDialect patchDialect,
-        SparseDescriptorDialect? descriptorDialect,
-        SparseGeneratorConfig config
-    )
-    {
-        if (descriptorDialect is null || patchDialect.TypedPathInterfaceType is not { Length: > 0 })
-        {
-            return;
-        }
-
-        var pathType = SparseFragmentPatchEmitter.GetPathType(patchDialect);
-        var conflictType = patchDialect.ConflictType;
-        var typedPathInterface =
-            patchDialect.TypedPathInterfaceType + "<" + modelType + ", TChild>";
-        SparseEditSessionChildEmitter.AppendCoordinatorStorage(
-            code,
-            modelType,
-            conflictType,
-            pathType,
-            config,
-            patchDialect
-        );
-
-        code.AppendLineAt(2, "private enum ChildDraftState");
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "Open,");
-        code.AppendLineAt(3, "TargetMissing,");
-        code.AppendLineAt(3, "ParentInvalidated,");
-        code.AppendLineAt(2, "}");
-        code.AppendLineAt(
-            2,
-            "private ChildDraft<TChild> CreateChildDraft<TChild>("
-                + typedPathInterface
-                + " path) where TChild : class"
-        );
-        code.AppendLineAt(2, "{");
-        // Validate paths before Fork to avoid cloning on failure; resolve again
-        // on the fork to obtain its owned target instance.
-        code.AppendLineAt(
-            3,
-            "if (path is null) throw new global::System.ArgumentNullException(nameof(path));"
-        );
-        code.AppendLineAt(
-            3,
-            "if (Descriptors.ResolveModel(path.UntypedPath) is not TChild) throw new global::System.ArgumentException(\"The path does not resolve to a model value of the requested type.\", nameof(path));"
-        );
-        code.AppendLineAt(
-            3,
-            "if (!path.CanWriteModelValueInPlace) throw new global::System.ArgumentException(\"The path does not address a generated model value.\", nameof(path));"
-        );
-        code.AppendLineAt(3, "var fork = Fork();");
-        code.AppendLineAt(
-            3,
-            "if (fork.Descriptors.ResolveModel(path.UntypedPath) is not TChild target) throw new global::System.ArgumentException(\"The path does not resolve to a model value of the requested type.\", nameof(path));"
-        );
-        code.AppendLineAt(
-            3,
-            "return new ChildDraft<TChild>(this, fork, path.UntypedPath, path.WriteModelValueInPlace, target, null, null);"
-        );
-        code.AppendLineAt(2, "}");
-        code.AppendLineAt(2, "private sealed class ChildDraft<TChild> where TChild : class");
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "/// <summary>Gets the editable child model.</summary>");
-        code.AppendLineAt(3, "public TChild Model => _model;");
-        code.AppendLineAt(3, "/// <summary>Gets the writable draft model.</summary>");
-        code.AppendLineAt(3, "public TChild Observable => _model;");
-        code.AppendLineAt(3, "/// <summary>Gets the current draft model.</summary>");
-        code.AppendLineAt(3, "public TChild Current => _model;");
-        code.AppendLineAt(
-            3,
-            "/// <summary>Attempts to merge the draft into the parent's current unsaved state.</summary>"
-        );
-        code.AppendLineAt(
-            3,
-            "/// <param name=\"conflicts\">Structured conflicts when the child session cannot be accepted.</param>"
-        );
-        code.AppendLineAt(
-            3,
-            "/// <returns><see langword=\"true\"/> when the child session was accepted; otherwise <see langword=\"false\"/>.</returns>"
-        );
-        code.AppendLineAt(
-            3,
-            "/// <exception cref=\"global::System.InvalidOperationException\">The child session is disconnected, its parent is invalid, or the parent and child belong to unrelated lineages.</exception>"
-        );
-        code.AppendLineAt(
-            3,
-            "public bool TryAcceptIntoParent(out global::System.Collections.Generic.IReadOnlyList<"
-                + conflictType
-                + ">? conflicts)"
-        );
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(
-            4,
-            "if (_state != ChildDraftState.Open) throw new global::System.InvalidOperationException(\"The child edit session is no longer connected.\");"
-        );
-        code.AppendLineAt(
-            4,
-            "if (!_parent._session.IsInSameLineage(_fork._session) || (_parentIsOpen is not null && !_parentIsOpen())) { Close(ChildDraftState.ParentInvalidated); throw new global::System.InvalidOperationException(\"The parent edit session is no longer connected or belongs to an unrelated edit lineage.\"); }"
-        );
-        code.AppendLineAt(
-            4,
-            "if (_parent.Descriptors.ResolveModel(_path) is not TChild) { Close(ChildDraftState.TargetMissing); conflicts = null; return false; }"
-        );
-        code.AppendLineAt(
-            4,
-            "if (_fork.CreateChangeSet().IsEmpty) { conflicts = null; return true; }"
-        );
-        code.AppendLineAt(4, "var changes = _fork.CreateChangeSet();");
-        code.AppendLineAt(
-            4,
-            "var rebased = changes.RebaseOnto(_parent._session.GetModelForFrameworkAccess());"
-        );
-        code.AppendLineAt(
-            4,
-            "if (rebased.HasConflicts) { conflicts = rebased.Conflicts; return false; }"
-        );
-        code.AppendLineAt(
-            4,
-            "if (!rebased.Rebased.IsEmpty) { var candidate = _parent.Fork(); if (!candidate.TryApplyInPlace(rebased.Rebased, out conflicts)) return false; if (_parent.Descriptors.ResolveModel(_path) is not TChild currentTarget || candidate.Descriptors.ResolveModel(_path) is not TChild updatedTarget) { Close(ChildDraftState.TargetMissing); conflicts = null; return false; } try { _writeModelValue(currentTarget, updatedTarget); } finally { _parent._session.RefreshAfterExternalMutation(); } }"
-        );
-        code.AppendLineAt(
-            4,
-            "if (_parent.Descriptors.ResolveModel(_path) is not TChild latestTarget || _fork.Descriptors.ResolveModel(_path) is not TChild draftTarget) { Close(ChildDraftState.TargetMissing); conflicts = null; return false; }"
-        );
-        code.AppendLineAt(4, "_writeModelValue(draftTarget, latestTarget);");
-        code.AppendLineAt(4, "_fork.AcceptChanges();");
-        code.AppendLineAt(4, "conflicts = null;");
-        code.AppendLineAt(4, "return true;");
-        code.AppendLineAt(3, "}");
-        code.AppendLineAt(
-            3,
-            "/// <summary>Checks whether the draft can be merged without changing its parent.</summary>"
-        );
-        code.AppendLineAt(
-            3,
-            "/// <param name=\"conflicts\">Structured conflicts when the draft cannot be merged.</param>"
-        );
-        code.AppendLineAt(
-            3,
-            "/// <returns>True when the draft is conflict-free; otherwise false.</returns>"
-        );
-        code.AppendLineAt(
-            3,
-            "public bool TryPreflightIntoParent(out global::System.Collections.Generic.IReadOnlyList<"
-                + conflictType
-                + ">? conflicts)"
-        );
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(
-            4,
-            "if (_state != ChildDraftState.Open) throw new global::System.InvalidOperationException(\"The child edit session is no longer connected.\");"
-        );
-        code.AppendLineAt(
-            4,
-            "if (!_parent._session.IsInSameLineage(_fork._session) || (_parentIsOpen is not null && !_parentIsOpen())) { Close(ChildDraftState.ParentInvalidated); throw new global::System.InvalidOperationException(\"The parent edit session is no longer connected or belongs to an unrelated edit lineage.\"); }"
-        );
-        code.AppendLineAt(
-            4,
-            "if (_parent.Descriptors.ResolveModel(_path) is not TChild) { conflicts = null; return false; }"
-        );
-        code.AppendLineAt(4, "var changes = _fork.CreateChangeSet();");
-        code.AppendLineAt(4, "if (changes.IsEmpty) { conflicts = null; return true; }");
-        code.AppendLineAt(
-            4,
-            "var rebased = changes.RebaseOnto(_parent._session.GetModelForFrameworkAccess());"
-        );
-        code.AppendLineAt(
-            4,
-            "if (rebased.HasConflicts) { conflicts = rebased.Conflicts; return false; }"
-        );
-        code.AppendLineAt(4, "if (!rebased.Rebased.IsEmpty)");
-        code.AppendLineAt(4, "{");
-        code.AppendLineAt(5, "var candidate = _parent.Fork();");
-        code.AppendLineAt(
-            5,
-            "if (!candidate.TryApplyInPlace(rebased.Rebased, out conflicts)) return false;"
-        );
-        code.AppendLineAt(
-            5,
-            "if (_parent.Descriptors.ResolveModel(_path) is not TChild || candidate.Descriptors.ResolveModel(_path) is not TChild) { conflicts = null; return false; }"
-        );
-        code.AppendLineAt(4, "}");
-        code.AppendLineAt(4, "conflicts = null;");
-        code.AppendLineAt(4, "return true;");
-        code.AppendLineAt(3, "}");
-        code.AppendLineAt(
-            3,
-            "internal ChildDraft("
-                + sessionSimple
-                + " parent, "
-                + sessionSimple
-                + " fork, "
-                + pathType
-                + " path, global::System.Action<TChild, TChild> writeModelValue, TChild model, global::System.Func<bool>? parentIsOpen, global::System.Func<global::System.Action, global::System.Action>? registerNestedScope) { _parent = parent; _fork = fork; _path = path; _writeModelValue = writeModelValue; _model = model; _parentIsOpen = parentIsOpen; _removeFromParent = registerNestedScope?.Invoke(InvalidateFromParent); _state = ChildDraftState.Open; }"
-        );
-        code.AppendLineAt(
-            3,
-            "internal void RefreshParentDraft() => _fork._session.RefreshAfterExternalMutation();"
-        );
-        code.AppendLineAt(
-            3,
-            "internal void Dispose() => Close(ChildDraftState.ParentInvalidated);"
-        );
-        code.AppendLineAt(
-            3,
-            "private ChildDraft<TNested> CreateChildDraft<TNested>("
-                + patchDialect.TypedPathInterfaceType
-                + "<TChild, TNested> path) where TNested : class"
-        );
-        code.AppendLineAt(3, "{");
-        code.AppendLineAt(
-            4,
-            "if (!IsOpenInAncestry) throw new global::System.InvalidOperationException(\"The parent child edit session is no longer connected.\");"
-        );
-        code.AppendLineAt(
-            4,
-            "if (path is null) throw new global::System.ArgumentNullException(nameof(path));"
-        );
-        code.AppendLineAt(4, "var nestedPath = _path.Append(path.UntypedPath);");
-        // Same clone-avoidance as the root scope: the draft already exists, so
-        // resolving against it validates the path without another full fork.
-        code.AppendLineAt(
-            4,
-            "if (_fork.Descriptors.ResolveModel(nestedPath) is not TNested) throw new global::System.ArgumentException(\"The path does not resolve to a model value of the requested type.\", nameof(path));"
-        );
-        code.AppendLineAt(
-            4,
-            "if (!path.CanWriteModelValueInPlace) throw new global::System.ArgumentException(\"The path does not address a generated model value.\", nameof(path));"
-        );
-        code.AppendLineAt(4, "var fork = _fork.Fork();");
-        code.AppendLineAt(
-            4,
-            "if (fork.Descriptors.ResolveModel(nestedPath) is not TNested target) throw new global::System.ArgumentException(\"The path does not resolve to a model value of the requested type.\", nameof(path));"
-        );
-        code.AppendLineAt(
-            4,
-            "return new ChildDraft<TNested>(_fork, fork, nestedPath, path.WriteModelValueInPlace, target, () => IsOpenInAncestry, RegisterNestedScope);"
-        );
-        code.AppendLineAt(3, "}");
-        code.AppendLineAt(3, "private readonly " + sessionSimple + " _parent;");
-        code.AppendLineAt(3, "private readonly " + sessionSimple + " _fork;");
-        code.AppendLineAt(3, "private readonly " + pathType + " _path;");
-        code.AppendLineAt(
-            3,
-            "private readonly global::System.Action<TChild, TChild> _writeModelValue;"
-        );
-        code.AppendLineAt(3, "private readonly global::System.Func<bool>? _parentIsOpen;");
-        code.AppendLineAt(3, "private readonly TChild _model;");
-        code.AppendLineAt(
-            3,
-            "private global::System.Collections.Generic.List<global::System.Action>? _nestedScopes;"
-        );
-        code.AppendLineAt(3, "private global::System.Action? _removeFromParent;");
-        code.AppendLineAt(3, "private ChildDraftState _state;");
-        code.AppendLineAt(
-            3,
-            "private bool IsOpenInAncestry => _state == ChildDraftState.Open && (_parentIsOpen is null || _parentIsOpen());"
-        );
-        code.AppendLineAt(
-            3,
-            "private global::System.Action RegisterNestedScope(global::System.Action close) { var nested = _nestedScopes ??= new global::System.Collections.Generic.List<global::System.Action>(); nested.Add(close); return () => nested.Remove(close); }"
-        );
-        code.AppendLineAt(
-            3,
-            "private void InvalidateFromParent() => Close(ChildDraftState.ParentInvalidated);"
-        );
-        code.AppendLineAt(
-            3,
-            "private void Close(ChildDraftState state) { if (_state != ChildDraftState.Open) return; _state = state; var nested = _nestedScopes; while (nested is { Count: > 0 }) nested[0](); _nestedScopes = null; _removeFromParent?.Invoke(); _removeFromParent = null; }"
-        );
-        code.AppendLineAt(2, "}");
     }
 
     private static string ReadTemplate(string resourceName)

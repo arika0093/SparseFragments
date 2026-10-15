@@ -51,8 +51,17 @@ public sealed class SparseSessionScopeContext<TModel>
         Action Dispose
     );
 
+    private sealed record DetachedChildEntry(
+        SparsePath Path,
+        object Context,
+        Func<bool> HasChanges,
+        Action<bool> SetAutoAccept,
+        Action Dispose
+    );
+
     private readonly ISparseEditSession<TModel> _session;
     private readonly Dictionary<SparsePath, ChildEntry> _children = new();
+    private readonly List<DetachedChildEntry> _detached = new();
     private INotifyPropertyChanged? _sessionNotifier;
     private bool _disposed;
 
@@ -75,7 +84,7 @@ public sealed class SparseSessionScopeContext<TModel>
     public event Action? Changed;
 
     /// <summary>Opens or reuses a typed child session owned by the scope.</summary>
-    /// <remarks>The child is retained by its typed path until the scope is replaced or disposed.</remarks>
+    /// <remarks>The child is retained by its typed path until the scope is replaced or disposed. A changed child whose target was replaced or deleted moves to the detached holding instead of being disposed; see <see cref="GetDetachedChildPaths"/>.</remarks>
     /// <param name="parentSession">The exact parent session assigned to the owning scope.</param>
     /// <param name="path">A generated typed path to the child model.</param>
     /// <typeparam name="TChild">The child model type.</typeparam>
@@ -133,17 +142,11 @@ public sealed class SparseSessionScopeContext<TModel>
 
         var untypedPath = path.UntypedPath;
         var targetModel = ResolveChildModel(parentSession, untypedPath);
-        if (targetModel is not TChild target)
-        {
-            RemoveChild(untypedPath);
-            context = null;
-            return false;
-        }
-
         if (_children.TryGetValue(untypedPath, out var entry))
         {
             if (
-                ReferenceEquals(entry.TargetModel, target)
+                targetModel is TChild target
+                && ReferenceEquals(entry.TargetModel, target)
                 && entry.Context
                     is SparseChildEditContext<
                         TChild,
@@ -157,7 +160,13 @@ public sealed class SparseSessionScopeContext<TModel>
                 return true;
             }
 
-            RemoveChild(untypedPath);
+            DetachOrDisposeChild(untypedPath);
+        }
+
+        if (targetModel is not TChild resolvedTarget)
+        {
+            context = null;
+            return false;
         }
 
         var child = parentSession.OpenChildSession(path);
@@ -171,12 +180,12 @@ public sealed class SparseSessionScopeContext<TModel>
                 TChildPaths,
                 TConflict,
                 TChildSession
-            >(child, () => RemoveChild(untypedPath), AutoAccept, NotifyChanged);
+            >(child, () => DetachOrDisposeChild(untypedPath), AutoAccept, NotifyChanged);
             _children.Add(
                 untypedPath,
                 new ChildEntry(
                     childContext,
-                    target,
+                    resolvedTarget,
                     () => ResolveChildModel(parentSession, untypedPath),
                     () => childContext.HasChanges,
                     childContext.SetAutoAccept,
@@ -215,8 +224,101 @@ public sealed class SparseSessionScopeContext<TModel>
         return _children.TryGetValue(path.UntypedPath, out var entry) && entry.HasChanges();
     }
 
-    /// <summary>Gets whether any opened child session has pending changes.</summary>
-    public bool HasChanges => _children.Values.Any(static entry => entry.HasChanges());
+    /// <summary>Gets whether any opened or detached child session has pending changes.</summary>
+    /// <remarks>Detached drafts keep their edits until the owner recovers or disposes them.</remarks>
+    public bool HasChanges =>
+        _children.Values.Any(static entry => entry.HasChanges())
+        || _detached.Any(static entry => entry.HasChanges());
+
+    /// <summary>Gets the paths of detached child drafts retained by the scope.</summary>
+    /// <remarks>A changed child whose target was replaced or deleted moves to the detached holding instead of being disposed; see <see cref="GetDetachedChildPaths"/>.</remarks>
+    /// <returns>The paths with a retained detached draft.</returns>
+    public IReadOnlyList<SparsePath> GetDetachedChildPaths() =>
+        _detached.Select(static entry => entry.Path).ToArray();
+
+    /// <summary>Gets a detached child draft retained for a typed path.</summary>
+    /// <param name="parentSession">The exact parent session assigned to the owning scope.</param>
+    /// <param name="path">The generated path the draft was opened with.</param>
+    /// <param name="context">The retained child context on success; otherwise null.</param>
+    /// <typeparam name="TChild">The child model type.</typeparam>
+    /// <typeparam name="TChildPaths">The child model's generated path builder type.</typeparam>
+    /// <typeparam name="TConflict">The generated structured conflict type.</typeparam>
+    /// <typeparam name="TChildSession">The child model's generated edit-session type.</typeparam>
+    /// <returns>True when a detached draft is retained for the path; otherwise false.</returns>
+    /// <exception cref="ArgumentException">The parent session differs from the owning scope session.</exception>
+    /// <exception cref="ObjectDisposedException">The scope context has been disposed.</exception>
+    public bool TryGetDetachedChild<TChild, TChildPaths, TConflict, TChildSession>(
+        ISparseEditSessionWithChildren<TModel, TConflict> parentSession,
+        ISparseChildEditPath<TModel, TChild, TChildPaths, TChildSession> path,
+        out SparseChildEditContext<TChild, TChildPaths, TConflict, TChildSession>? context
+    )
+        where TChild : class
+        where TChildPaths : ISparseTypedPath<TChild, TChild>
+        where TConflict : class
+        where TChildSession : ISparseEditSessionWithPaths<TChild, TChildPaths>
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(parentSession);
+        ArgumentNullException.ThrowIfNull(path);
+        if (!ReferenceEquals(parentSession, _session))
+        {
+            throw new ArgumentException(
+                "The parent session must be the session assigned to this scope.",
+                nameof(parentSession)
+            );
+        }
+
+        foreach (var entry in _detached)
+        {
+            if (
+                entry.Path.Equals(path.UntypedPath)
+                && entry.Context
+                    is SparseChildEditContext<TChild, TChildPaths, TConflict, TChildSession> match
+            )
+            {
+                context = match;
+                return true;
+            }
+        }
+
+        context = null;
+        return false;
+    }
+
+    /// <summary>Disposes every detached child draft retained by the scope.</summary>
+    /// <remarks>Use this to abandon drafts that can no longer be recovered, for example after copying their edits elsewhere.</remarks>
+    /// <exception cref="ObjectDisposedException">The scope context has been disposed.</exception>
+    public void DisposeDetachedChildren()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_detached.Count == 0)
+        {
+            return;
+        }
+
+        List<Exception>? failures = null;
+        foreach (var entry in _detached)
+        {
+            try
+            {
+                entry.Dispose();
+            }
+            catch (Exception exception)
+            {
+                (failures ??= []).Add(exception);
+            }
+        }
+
+        _detached.Clear();
+        NotifyChanged();
+        if (failures is not null)
+        {
+            throw new AggregateException(
+                "One or more detached child sessions failed to dispose.",
+                failures
+            );
+        }
+    }
 
     internal bool OwnsSession(ISparseEditSession<TModel> session) =>
         !_disposed && ReferenceEquals(_session, session);
@@ -248,6 +350,11 @@ public sealed class SparseSessionScopeContext<TModel>
             entry.SetAutoAccept(autoAccept);
         }
 
+        foreach (var entry in _detached.ToArray())
+        {
+            entry.SetAutoAccept(autoAccept);
+        }
+
         Changed?.Invoke();
     }
 
@@ -275,6 +382,19 @@ public sealed class SparseSessionScopeContext<TModel>
             }
 
             _children.Clear();
+            foreach (var entry in _detached)
+            {
+                try
+                {
+                    entry.Dispose();
+                }
+                catch (Exception exception)
+                {
+                    (failures ??= []).Add(exception);
+                }
+            }
+
+            _detached.Clear();
         }
         finally
         {
@@ -296,13 +416,31 @@ public sealed class SparseSessionScopeContext<TModel>
         }
     }
 
-    private void RemoveChild(SparsePath path)
+    private void DetachOrDisposeChild(SparsePath path)
     {
-        if (_children.Remove(path, out var entry))
+        if (!_children.Remove(path, out var entry))
+        {
+            return;
+        }
+
+        if (entry.HasChanges())
+        {
+            _detached.Add(
+                new DetachedChildEntry(
+                    path,
+                    entry.Context,
+                    entry.HasChanges,
+                    entry.SetAutoAccept,
+                    entry.Dispose
+                )
+            );
+        }
+        else
         {
             entry.Dispose();
-            NotifyChanged();
         }
+
+        NotifyChanged();
     }
 
     private void NotifyChanged()
@@ -335,7 +473,7 @@ public sealed class SparseSessionScopeContext<TModel>
         {
             if (!ReferenceEquals(entry.TargetModel, entry.ResolveTarget()))
             {
-                RemoveChild(path);
+                DetachOrDisposeChild(path);
             }
         }
     }

@@ -31,6 +31,10 @@ internal static class SparseEditSessionChangeSetEmitter
             );
             code.AppendLineAt(
                 2,
+                "/// <remarks>Capturing never mutates the session; accepting stays explicit.</remarks>"
+            );
+            code.AppendLineAt(
+                2,
                 "/// <returns>The pending change set; empty when there are no changes.</returns>"
             );
             code.AppendLineAt(
@@ -39,28 +43,17 @@ internal static class SparseEditSessionChangeSetEmitter
                     + modelType
                     + ".ChangeSet CreateChangeSet() => _session.CreateChangeSet();"
             );
-            code.AppendLineAt(
-                2,
-                "/// <summary>Prepares a sendable change set from this session.</summary>"
-            );
-            code.AppendLineAt(2, "/// <returns>The pending change set.</returns>");
-            code.AppendLineAt(
-                2,
-                "public "
-                    + modelType
-                    + ".ChangeSet PrepareChangeSet() => _session.CreateChangeSet();"
-            );
         }
 
         code.AppendLineAt(
             2,
-            "/// <summary>Creates a read-only snapshot of changes owned by this session.</summary>"
+            "/// <summary>Creates a read-only snapshot of own changes owned by this session.</summary>"
         );
         code.AppendLineAt(
             2,
-            "/// <remarks>This does not accept or otherwise mutate registered child sessions.</remarks>"
+            "/// <remarks>This does not accept or otherwise mutate registered child sessions, and it excludes their pending edits. Use <see cref=\"CreateChangeSet\"/> for the child-aware submission preview.</remarks>"
         );
-        code.AppendLineAt(2, "/// <returns>This session's pending change set.</returns>");
+        code.AppendLineAt(2, "/// <returns>This session's own pending change set.</returns>");
         code.AppendLineAt(
             2,
             "public " + modelType + ".ChangeSet PreviewChangeSet() => _session.CreateChangeSet();"
@@ -99,11 +92,15 @@ internal static class SparseEditSessionChangeSetEmitter
     {
         code.AppendLineAt(
             2,
-            "/// <summary>Attempts to prepare a sendable change set by accepting pending child sessions.</summary>"
+            "/// <summary>Creates a child-aware preview of the sendable change set without accepting child sessions.</summary>"
         );
         code.AppendLineAt(
             2,
-            "/// <param name=\"changes\">The change set on success; otherwise null.</param>"
+            "/// <remarks>Projects pending child and descendant edits onto a detached candidate and composes them with the session's own changes. Never accepts, discards, or detaches child drafts; merge them explicitly with <see cref=\"TryAcceptChildSessions\"/>. A missing target reports failure with null conflicts and preserves drafts.</remarks>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"changes\">The previewed change set on success; otherwise null.</param>"
         );
         code.AppendLineAt(
             2,
@@ -111,7 +108,7 @@ internal static class SparseEditSessionChangeSetEmitter
         );
         code.AppendLineAt(
             2,
-            "/// <returns>True when the change set was prepared; otherwise false.</returns>"
+            "/// <returns>True when the preview was prepared; otherwise false.</returns>"
         );
         code.AppendLineAt(
             2,
@@ -124,58 +121,43 @@ internal static class SparseEditSessionChangeSetEmitter
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
             3,
-            "if (!TryAcceptChildSessions(out conflicts)) { changes = null; return false; }"
+            "if (!TryBuildChildAcceptanceCandidate(out var candidate, out var hasPendingChildChanges, out conflicts)) { changes = null; return false; }"
         );
-        code.AppendLineAt(3, "changes = _session.CreateChangeSet();");
+        code.AppendLineAt(
+            3,
+            "if (!hasPendingChildChanges || candidate is null) { changes = PreviewChangeSet(); conflicts = null; return true; }"
+        );
+        code.AppendLineAt(
+            3,
+            "var childChanges = "
+                + modelType
+                + ".ChangeSet.Between(_session.GetModelForFrameworkAccess(), candidate);"
+        );
+        code.AppendLineAt(
+            3,
+            "changes = childChanges.IsEmpty ? PreviewChangeSet() : PreviewChangeSet().Compose(childChanges);"
+        );
+        code.AppendLineAt(3, "conflicts = null;");
         code.AppendLineAt(3, "return true;");
         code.AppendLineAt(2, "}");
         code.AppendLineAt(
             2,
-            "/// <summary>Creates a change set after merging pending child sessions.</summary>"
+            "/// <summary>Creates a child-aware preview of the sendable change set without accepting child sessions.</summary>"
         );
-        code.AppendLineAt(2, "/// <returns>The pending change set.</returns>");
         code.AppendLineAt(
             2,
-            "/// <exception cref=\"global::System.InvalidOperationException\">A child session conflicts with this session.</exception>"
+            "/// <remarks>See <see cref=\"TryCreateChangeSet\"/> for the preview contract.</remarks>"
+        );
+        code.AppendLineAt(2, "/// <returns>The previewed change set.</returns>");
+        code.AppendLineAt(
+            2,
+            "/// <exception cref=\"global::System.InvalidOperationException\">A child session conflicts with this session, or its target is missing.</exception>"
         );
         code.AppendLineAt(
             2,
             "public "
                 + modelType
-                + ".ChangeSet CreateChangeSet() => TryCreateChangeSet(out var changes, out var conflicts) ? changes! : throw new global::System.InvalidOperationException(conflicts is null ? \"A child edit session could not be accepted.\" : \"A child edit session conflicts with changes in its parent session.\");"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <summary>Attempts to prepare a sendable change set by accepting pending child sessions.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <param name=\"changes\">The prepared change set on success; otherwise null.</param>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <param name=\"conflicts\">Child-session conflicts on failure.</param>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <returns>True when the change set was prepared; otherwise false.</returns>"
-        );
-        code.AppendLineAt(
-            2,
-            "public bool TryPrepareChangeSet(out "
-                + modelType
-                + ".ChangeSet? changes, out global::System.Collections.Generic.IReadOnlyList<"
-                + patchDialect.ConflictType
-                + ">? conflicts) => TryCreateChangeSet(out changes, out conflicts);"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <summary>Prepares a sendable change set by accepting pending child sessions.</summary>"
-        );
-        code.AppendLineAt(2, "/// <returns>The prepared change set.</returns>");
-        code.AppendLineAt(
-            2,
-            "public " + modelType + ".ChangeSet PrepareChangeSet() => CreateChangeSet();"
+                + ".ChangeSet CreateChangeSet() => TryCreateChangeSet(out var changes, out var conflicts) ? changes! : throw new global::System.InvalidOperationException(conflicts is null ? \"A child edit session target is no longer available.\" : \"A child edit session conflicts with changes in its parent session.\");"
         );
     }
 }

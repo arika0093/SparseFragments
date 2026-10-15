@@ -70,7 +70,8 @@ internal static class SparseEditSessionHistoryEmitter
         string conflictType,
         string rebaseResultType,
         HistoryBinding? history,
-        string? reconcileConflictExpression
+        string? reconcileConflictExpression,
+        bool acceptChildrenFirst
     )
     {
         if (history is null)
@@ -80,7 +81,8 @@ internal static class SparseEditSessionHistoryEmitter
                 modelType,
                 conflictType,
                 rebaseResultType,
-                reconcileConflictExpression
+                reconcileConflictExpression,
+                acceptChildrenFirst
             );
             return;
         }
@@ -162,19 +164,51 @@ internal static class SparseEditSessionHistoryEmitter
             "/// <summary>Accepts the given change set and advances the baseline.</summary>"
         );
         code.AppendLineAt(2, "/// <param name=\"changes\">The change set to accept.</param>");
-        code.AppendLineAt(2, "/// <remarks>Clears registered edit histories on success.</remarks>");
-        code.AppendLineAt(2, "public void AcceptChanges(" + modelType + ".ChangeSet changes)");
-        code.AppendLineAt(2, "{");
-        code.AppendLineAt(3, "_session.AcceptChanges(changes);");
-        code.AppendLineAt(3, "__SparseClearHistories();");
-        code.AppendLineAt(2, "}");
+        if (acceptChildrenFirst)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <remarks>Merges pending child sessions before advancing the baseline by exactly <paramref name=\"changes\"/>; edits made after the change set was captured stay pending. Clears registered edit histories on success.</remarks>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <exception cref=\"global::System.InvalidOperationException\">Pending child sessions conflict or their target is missing.</exception>"
+            );
+            code.AppendLineAt(2, "public void AcceptChanges(" + modelType + ".ChangeSet changes)");
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(
+                3,
+                "if (!TryAcceptChildSessions(out var conflicts)) throw new global::System.InvalidOperationException(conflicts is null ? \"A child edit session target is no longer available.\" : \"A child edit session conflicts with changes in its parent session.\");"
+            );
+            code.AppendLineAt(3, "_session.AcceptChanges(changes);");
+            code.AppendLineAt(3, "__SparseClearHistories();");
+            code.AppendLineAt(2, "}");
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "/// <remarks>Clears registered edit histories on success.</remarks>"
+            );
+            code.AppendLineAt(2, "public void AcceptChanges(" + modelType + ".ChangeSet changes)");
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(3, "_session.AcceptChanges(changes);");
+            code.AppendLineAt(3, "__SparseClearHistories();");
+            code.AppendLineAt(2, "}");
+        }
         code.AppendLineAt(
             2,
             "/// <summary>Reconciles a submitted change set with the authoritative persisted model.</summary>"
         );
         code.AppendLineAt(
             2,
-            "/// <remarks>Submitted unassigned elements correlate with assigned persisted elements through their shared temporary identities; the persisted model becomes the new baseline with post-submit local edits preserved. Mismatches fail without mutating the session. Clears registered edit histories only when reconciliation succeeds.</remarks>"
+            "/// <remarks>Submitted unassigned elements correlate with assigned persisted elements through their shared temporary identities; the persisted model becomes the new baseline with post-submit local edits preserved. Mismatches fail without mutating the session. Clears registered edit histories only when reconciliation succeeds."
+                + (
+                    acceptChildrenFirst
+                        ? " Merges pending child sessions first; edits made after submission stay pending as local edits."
+                        : string.Empty
+                )
+                + "</remarks>"
         );
         code.AppendLineAt(
             2,
@@ -201,6 +235,14 @@ internal static class SparseEditSessionHistoryEmitter
                 + " persisted, out string? error)"
         );
         code.AppendLineAt(2, "{");
+        if (acceptChildrenFirst)
+        {
+            code.AppendLineAt(
+                3,
+                "if (!TryAcceptChildSessions(out var conflicts)) { error = conflicts is null ? \"A child edit session target is no longer available.\" : \"A child edit session conflicts with changes in its parent session.\"; return false; }"
+            );
+        }
+
         code.AppendLineAt(
             3,
             "var reconciled = _session.TryReconcile(submitted, persisted, static (s, p) => "
@@ -217,7 +259,8 @@ internal static class SparseEditSessionHistoryEmitter
             modelType,
             conflictType,
             reconcileConflictExpression,
-            clearHistories: true
+            clearHistories: true,
+            acceptChildrenFirst
         );
         AppendHistoryFactory(code, modelType, conflictType, history);
         if (history.HasOwnedHistory)
@@ -530,7 +573,8 @@ internal static class SparseEditSessionHistoryEmitter
         string modelType,
         string conflictType,
         string rebaseResultType,
-        string? reconcileConflictExpression
+        string? reconcileConflictExpression,
+        bool acceptChildrenFirst
     )
     {
         code.AppendLineAt(
@@ -586,19 +630,47 @@ internal static class SparseEditSessionHistoryEmitter
             "/// <summary>Accepts the given change set and advances the baseline.</summary>"
         );
         code.AppendLineAt(2, "/// <param name=\"changes\">The change set to accept.</param>");
-        code.AppendLineAt(
-            2,
-            "public void AcceptChanges("
-                + modelType
-                + ".ChangeSet changes) => _session.AcceptChanges(changes);"
-        );
+        if (acceptChildrenFirst)
+        {
+            code.AppendLineAt(
+                2,
+                "/// <remarks>Merges pending child sessions before advancing the baseline by exactly <paramref name=\"changes\"/>; edits made after the change set was captured stay pending.</remarks>"
+            );
+            code.AppendLineAt(
+                2,
+                "/// <exception cref=\"global::System.InvalidOperationException\">Pending child sessions conflict or their target is missing.</exception>"
+            );
+            code.AppendLineAt(2, "public void AcceptChanges(" + modelType + ".ChangeSet changes)");
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(
+                3,
+                "if (!TryAcceptChildSessions(out var conflicts)) throw new global::System.InvalidOperationException(conflicts is null ? \"A child edit session target is no longer available.\" : \"A child edit session conflicts with changes in its parent session.\");"
+            );
+            code.AppendLineAt(3, "_session.AcceptChanges(changes);");
+            code.AppendLineAt(2, "}");
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "public void AcceptChanges("
+                    + modelType
+                    + ".ChangeSet changes) => _session.AcceptChanges(changes);"
+            );
+        }
         code.AppendLineAt(
             2,
             "/// <summary>Reconciles a submitted change set with the authoritative persisted model.</summary>"
         );
         code.AppendLineAt(
             2,
-            "/// <remarks>Submitted unassigned elements correlate with assigned persisted elements through their shared temporary identities; the persisted model becomes the new baseline with post-submit local edits preserved. Mismatches fail without mutating the session.</remarks>"
+            "/// <remarks>Submitted unassigned elements correlate with assigned persisted elements through their shared temporary identities; the persisted model becomes the new baseline with post-submit local edits preserved. Mismatches fail without mutating the session."
+                + (
+                    acceptChildrenFirst
+                        ? " Merges pending child sessions first; edits made after submission stay pending as local edits."
+                        : string.Empty
+                )
+                + "</remarks>"
         );
         code.AppendLineAt(
             2,
@@ -622,18 +694,44 @@ internal static class SparseEditSessionHistoryEmitter
                 + modelType
                 + ".ChangeSet submitted, "
                 + modelType
-                + " persisted, out string? error) => _session.TryReconcile(submitted, persisted, static (s, p) => "
-                + modelType
-                + ".__SparseBuildTempMap(s, p), static (live, submittedAfter, persisted, map, pending) => "
-                + modelType
-                + ".__SparseRetargetTemps(live, submittedAfter, persisted, map!, pending, \"\"), out error);"
+                + " persisted, out string? error)"
         );
+        if (acceptChildrenFirst)
+        {
+            code.AppendLineAt(2, "{");
+            code.AppendLineAt(
+                3,
+                "if (!TryAcceptChildSessions(out var conflicts)) { error = conflicts is null ? \"A child edit session target is no longer available.\" : \"A child edit session conflicts with changes in its parent session.\"; return false; }"
+            );
+            code.AppendLineAt(
+                3,
+                "return _session.TryReconcile(submitted, persisted, static (s, p) => "
+                    + modelType
+                    + ".__SparseBuildTempMap(s, p), static (live, submittedAfter, persisted, map, pending) => "
+                    + modelType
+                    + ".__SparseRetargetTemps(live, submittedAfter, persisted, map!, pending, \"\"), out error);"
+            );
+            code.AppendLineAt(2, "}");
+        }
+        else
+        {
+            code.AppendLineAt(
+                2,
+                "=> _session.TryReconcile(submitted, persisted, static (s, p) => "
+                    + modelType
+                    + ".__SparseBuildTempMap(s, p), static (live, submittedAfter, persisted, map, pending) => "
+                    + modelType
+                    + ".__SparseRetargetTemps(live, submittedAfter, persisted, map!, pending, \"\"), out error);"
+            );
+        }
+
         AppendTryReconcileAndApply(
             code,
             modelType,
             conflictType,
             reconcileConflictExpression,
-            clearHistories: false
+            clearHistories: false,
+            acceptChildrenFirst
         );
     }
 
@@ -642,7 +740,8 @@ internal static class SparseEditSessionHistoryEmitter
         string modelType,
         string conflictType,
         string? reconcileConflictExpression,
-        bool clearHistories
+        bool clearHistories,
+        bool acceptChildrenFirst
     )
     {
         if (reconcileConflictExpression is null)
@@ -656,7 +755,13 @@ internal static class SparseEditSessionHistoryEmitter
         );
         code.AppendLineAt(
             2,
-            "/// <remarks>Temporary identities correlate persisted keys. Persisted values are adopted unless changed locally after submission. Post-submit edits remain pending against the persisted baseline; overlapping remote and local edits return typed-path conflicts. Planning conflicts leave the live model and retained baseline unchanged.</remarks>"
+            "/// <remarks>Temporary identities correlate persisted keys. Persisted values are adopted unless changed locally after submission. Post-submit edits remain pending against the persisted baseline; overlapping remote and local edits return typed-path conflicts. Planning conflicts leave the live model and retained baseline unchanged."
+                + (
+                    acceptChildrenFirst
+                        ? " Merges pending child sessions first; edits made after submission stay pending as local edits."
+                        : string.Empty
+                )
+                + "</remarks>"
         );
         code.AppendLineAt(
             2,
@@ -685,6 +790,14 @@ internal static class SparseEditSessionHistoryEmitter
                 + ">? conflicts)"
         );
         code.AppendLineAt(2, "{");
+        if (acceptChildrenFirst)
+        {
+            code.AppendLineAt(
+                3,
+                "if (!TryAcceptChildSessions(out var acceptConflicts)) { conflicts = acceptConflicts; return false; }"
+            );
+        }
+
         code.AppendLineAt(
             3,
             "var reconciled = _session.TryReconcileAndApply(submitted, persisted, static (s, p) => "

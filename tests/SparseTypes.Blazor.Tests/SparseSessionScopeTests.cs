@@ -890,6 +890,109 @@ public sealed class SparseSessionScopeTests
     }
 
     [Test]
+    public async Task DeletedKeyedChildMovesToDetachedHoldingWithDraftIntact()
+    {
+        using var harness = await ScopeHarness.CreateAsync(Order().CreateEditSession());
+        var session = (OrderDto.EditSession)harness.Scope.Session!;
+        var scope = harness.Consumer.ScopeContext!;
+        var path = OrderDto.SparsePath.Lines.Key("a");
+        var child = scope.OpenChildSession(session, path);
+        ((OrderLine.EditSession)child.Session).Observable.Quantity = 9;
+
+        session.Observable.Lines.RemoveAt(0);
+        await harness.FlushAsync();
+
+        // The changed draft is retained instead of disposed.
+        child.HasChanges.ShouldBeTrue();
+        ((OrderLine.EditSession)child.Session).Observable.Quantity.ShouldBe(9);
+        scope.HasChanges.ShouldBeTrue();
+        session.HasPendingChildSessions.ShouldBeTrue();
+        scope.GetDetachedChildPaths().ShouldContain(path.UntypedPath);
+
+        // The owner recovers the draft through the scope and releases it explicitly.
+        scope.TryGetDetachedChild(session, path, out var recovered).ShouldBeTrue();
+        recovered.ShouldBeSameAs(child);
+        scope.DisposeDetachedChildren();
+        scope.GetDetachedChildPaths().ShouldBeEmpty();
+        scope.HasChanges.ShouldBeFalse();
+        Should.Throw<ObjectDisposedException>(() => child.Session);
+    }
+
+    [Test]
+    public async Task UnchangedChildIsDisposedOnDeletion()
+    {
+        using var harness = await ScopeHarness.CreateAsync(Order().CreateEditSession());
+        var session = (OrderDto.EditSession)harness.Scope.Session!;
+        var scope = harness.Consumer.ScopeContext!;
+        var path = OrderDto.SparsePath.Lines.Key("a");
+        var child = scope.OpenChildSession(session, path);
+
+        session.Observable.Lines.RemoveAt(0);
+        await harness.FlushAsync();
+
+        scope.GetDetachedChildPaths().ShouldBeEmpty();
+        Should.Throw<ObjectDisposedException>(() => child.Session);
+    }
+
+    [Test]
+    public async Task ReaddedKeyedTargetOpensFreshWhileDetachedDraftRemains()
+    {
+        using var harness = await ScopeHarness.CreateAsync(Order().CreateEditSession());
+        var session = (OrderDto.EditSession)harness.Scope.Session!;
+        var scope = harness.Consumer.ScopeContext!;
+        var path = OrderDto.SparsePath.Lines.Key("a");
+        var child = scope.OpenChildSession(session, path);
+        ((OrderLine.EditSession)child.Session).Observable.Quantity = 9;
+        session.Observable.Lines.RemoveAt(0);
+        await harness.FlushAsync();
+
+        session.Observable.Lines.AddModel(
+            new OrderLine
+            {
+                Sku = "a",
+                Quantity = 1,
+                Price = 10m,
+            }
+        );
+        var fresh = scope.OpenChildSession(session, path);
+
+        ReferenceEquals(fresh, child).ShouldBeFalse();
+        ((OrderLine.EditSession)fresh.Session).Observable.Quantity.ShouldBe(1);
+        scope.TryGetDetachedChild(session, path, out var stale).ShouldBeTrue();
+        var retained = stale.ShouldNotBeNull();
+        retained.ShouldBeSameAs(child);
+        ((OrderLine.EditSession)retained.Session).Observable.Quantity.ShouldBe(9);
+        // Both drafts coexist until the owner resolves the detached one.
+        session.HasPendingChildSessions.ShouldBeTrue();
+
+        retained.DiscardChanges();
+        scope.DisposeDetachedChildren();
+        scope.GetDetachedChildPaths().ShouldBeEmpty();
+        session.HasPendingChildSessions.ShouldBeFalse();
+        ((OrderLine.EditSession)fresh.Session).Observable.Quantity.ShouldBe(1);
+    }
+
+    [Test]
+    public async Task ScopeDisposalReleasesDetachedDrafts()
+    {
+        using var harness = await ScopeHarness.CreateAsync(Order().CreateEditSession());
+        var session = (OrderDto.EditSession)harness.Scope.Session!;
+        var scope = harness.Consumer.ScopeContext!;
+        var path = OrderDto.SparsePath.Lines.Key("a");
+        var child = scope.OpenChildSession(session, path);
+        ((OrderLine.EditSession)child.Session).Observable.Quantity = 9;
+        session.Observable.Lines.RemoveAt(0);
+        await harness.FlushAsync();
+        scope.GetDetachedChildPaths().ShouldContain(path.UntypedPath);
+
+        await harness.DisposeScopeAsync();
+        harness.Scope.Dispose();
+
+        Should.Throw<ObjectDisposedException>(() => child.Session);
+        Should.Throw<ObjectDisposedException>(() => scope.DisposeDetachedChildren());
+    }
+
+    [Test]
     public async Task ScopePreservesObservableHasChangesCache()
     {
         var session = Order().CreateEditSession();

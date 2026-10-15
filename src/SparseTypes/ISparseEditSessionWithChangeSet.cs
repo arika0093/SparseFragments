@@ -12,9 +12,9 @@ public interface ISparseEditSessionWithChangeSet<TModel, TChangeSet>
     where TModel : class
     where TChangeSet : class
 {
-    /// <summary>Prepares a sendable snapshot of the pending changes.</summary>
-    /// <remarks>Sessions with child drafts may accept them while preparing the snapshot.</remarks>
-    TChangeSet PrepareChangeSet();
+    /// <summary>Creates a change set describing the pending changes without mutating the session.</summary>
+    /// <remarks>Sessions with child drafts include pending descendants as a pure preview; accepting stays explicit.</remarks>
+    TChangeSet CreateChangeSet();
 
     /// <summary>Gets whether a captured change set is empty.</summary>
     /// <param name="changes">The change set to inspect.</param>

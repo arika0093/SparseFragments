@@ -149,7 +149,7 @@ internal static class SparseRelocatedEditSessionCore
             patchDialect,
             code.CancellationToken
         );
-        sessionBases = SparseEditSessionEmitter.AppendSessionCapabilityBases(
+        sessionBases = SparseEditSessionCapabilityEmitter.AppendSessionCapabilityBases(
             sessionBases,
             modelType,
             config,
@@ -332,14 +332,15 @@ internal static class SparseRelocatedEditSessionCore
             conflictType,
             rebaseResultType,
             historyBinding,
-            patchDialect.ReconcileConflictExpression?.Invoke(modelType, "error")
+            patchDialect.ReconcileConflictExpression?.Invoke(modelType, "error"),
+            SparseEditSessionEmitter.HasChildSessionSurface(config, patchDialect)
         );
         // Raw model access bypasses the change cache.
         code.AppendLineAt(
             2,
             modelType + " " + sessionInterface + "<" + modelType + ">.Model => _session.Model;"
         );
-        SparseEditSessionEmitter.AppendChildSessionApiMembers(
+        SparseEditSessionChildEmitter.AppendChildSessionApiMembers(
             code,
             modelType,
             sessionSimple,
@@ -347,7 +348,12 @@ internal static class SparseRelocatedEditSessionCore
             config.EffectiveEmissionFeatures.EmitObservable ? config.DescriptorDialect : null,
             config
         );
-        SparseEditSessionEmitter.AppendForkMergeMembers(code, core, conflictType, sessionSimple);
+        SparseEditSessionChildEmitter.AppendForkMergeMembers(
+            code,
+            core,
+            conflictType,
+            sessionSimple
+        );
         code.AppendLineAt(
             2,
             "internal "
@@ -368,7 +374,7 @@ internal static class SparseRelocatedEditSessionCore
                 + core
                 + ".Create(baseline, current, __configuration, onChanged); }"
         );
-        SparseEditSessionEmitter.AppendChildDraftMembers(
+        SparseEditSessionChildEmitter.AppendChildDraftMembers(
             code,
             modelType,
             sessionSimple,
@@ -376,6 +382,16 @@ internal static class SparseRelocatedEditSessionCore
             config.EffectiveEmissionFeatures.EmitObservable ? config.DescriptorDialect : null,
             config
         );
+        if (SparseEditSessionEmitter.HasChildSessionSurface(config, patchDialect))
+        {
+            // Private candidate projection trails every public member.
+            SparseEditSessionChildEmitter.AppendCandidateBuilder(
+                code,
+                modelType,
+                patchDialect.ConflictType,
+                patchDialect
+            );
+        }
         code.AppendLineAt(
             2,
             "private static readonly "

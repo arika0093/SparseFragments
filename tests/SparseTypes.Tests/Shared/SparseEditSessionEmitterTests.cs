@@ -149,7 +149,8 @@ public sealed class SparseEditSessionEmitterTests
         source.ShouldContain("_session.TryReconcileAndApply(submitted, persisted");
         source.ShouldContain("global::Downstream.Conflict.Reconcile");
         source.ShouldContain("PreviewChangeSet()");
-        source.ShouldContain("PrepareChangeSet()");
+        source.ShouldNotContain("PrepareChangeSet()");
+        source.ShouldNotContain("TryPrepareChangeSet(");
         source.ShouldContain("/// <summary>Reconciles an acknowledged submission");
         source.ShouldContain(
             "global::PackageShared.ISparseEditSessionWithChangeSet<global::Downstream.Order, global::Downstream.Order.ChangeSet>"

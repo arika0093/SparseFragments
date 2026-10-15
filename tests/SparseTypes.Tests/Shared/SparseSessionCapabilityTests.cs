@@ -132,7 +132,7 @@ public sealed class SparseSessionCapabilityTests
     {
         var config = ConfigFor(StateDialect(), null, withDescriptors: true);
 
-        SparseEditSessionEmitter
+        SparseEditSessionCapabilityEmitter
             .AppendSessionCapabilityBases(
                 "global::PackageShared.ISparseEditSession<global::Downstream.Order>",
                 "global::Downstream.Order",
@@ -148,7 +148,7 @@ public sealed class SparseSessionCapabilityTests
     {
         var config = ConfigFor(StateDialect(), AllCapabilities(), withDescriptors: true);
 
-        var bases = SparseEditSessionEmitter.AppendSessionCapabilityBases(
+        var bases = SparseEditSessionCapabilityEmitter.AppendSessionCapabilityBases(
             string.Empty,
             "global::Downstream.Order",
             config,
@@ -173,7 +173,7 @@ public sealed class SparseSessionCapabilityTests
         // always-emitted batch capability applies.
         var config = ConfigFor(PlainDialect(), AllCapabilities(), withDescriptors: false);
 
-        SparseEditSessionEmitter
+        SparseEditSessionCapabilityEmitter
             .AppendSessionCapabilityBases(
                 string.Empty,
                 "global::Downstream.Order",
@@ -213,9 +213,7 @@ public sealed class SparseSessionCapabilityTests
 
         var source = code.ToString();
         source.ShouldContain("global::Downstream.ISessionWithHistory");
-        source.ShouldContain(
-            "global::Downstream.ISessionWithFieldState<global::Downstream.Order>"
-        );
+        source.ShouldContain("global::Downstream.ISessionWithFieldState<global::Downstream.Order>");
         source.ShouldContain("global::Downstream.ISessionWithCollectionState");
         source.ShouldContain("global::Downstream.ISessionWithBatchEdit");
         source.ShouldContain("global::Downstream.ISessionWithDescriptors");

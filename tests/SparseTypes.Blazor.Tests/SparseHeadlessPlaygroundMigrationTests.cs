@@ -274,7 +274,8 @@ public sealed class SparseHeadlessPlaygroundMigrationTests
         var captured = submission.Get(profileHandle);
         captured.Changes.Number.After.Value.ShouldBe("ORD-2");
         captured.Changes.Customer.Name.After.Value.ShouldBe("Grace");
-        customer.HasChanges.ShouldBeFalse();
+        // Preparation is observational: the child draft stays pending.
+        customer.HasChanges.ShouldBeTrue();
 
         // Post-capture edits never rewrite the captured submission.
         profileSession.Observable.Number = "ORD-3";

@@ -14,4 +14,8 @@ public enum SparseChildSessionStatus
 
     /// <summary>A child session or one of its descendants has pending changes.</summary>
     OpenChanged,
+
+    /// <summary>A child session is registered but its path no longer resolves to a model.</summary>
+    /// <remarks>The draft is retained with its pending edits until the owner discards, accepts after the target returns, or disposes it.</remarks>
+    TargetMissing,
 }

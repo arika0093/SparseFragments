@@ -16,9 +16,13 @@ public interface ISparseEditSessionWithChildren<TModel, TConflict>
 
     /// <summary>Attempts to merge all pending child sessions into this session.</summary>
     /// <param name="conflicts">Structured conflicts when a child merge fails.</param>
-    /// <returns>True when all pending child sessions were merged; otherwise false.</returns>
-    /// <remarks>Generated sessions that also implement <see cref="ISparseEditSessionWithChildStatus{TModel, TConflict}"/> preflight every child and descendant before committing. Arbitrary setter or callback exceptions during commit are not transactional.</remarks>
+    /// <returns>True when all pending children were merged; otherwise false.</returns>
+    /// <remarks>Generated sessions preflight every child and descendant onto one detached candidate before committing it with a single write. Typed conflicts and missing targets fail without mutating parent, child, or descendant state. Arbitrary setter or notification exceptions during the commit propagate after a best-effort model rollback; acknowledged children are never left half-accepted because acknowledgement runs only after every write succeeds. A rolled-back attempt may still appear in the parent history, and edits made from commit notifications observe undefined freshness.</remarks>
     bool TryAcceptChildSessions(out IReadOnlyList<TConflict>? conflicts);
+
+    /// <summary>Acknowledges staged child writes after their parent commit succeeded.</summary>
+    /// <remarks>Coordinator use only: prefer <see cref="TryAcceptChildSessions(out IReadOnlyList{TConflict}?)"/>. Throws when a child target cannot be confirmed; already-confirmed children stay confirmed, so callers may retry after restoring the target.</remarks>
+    void ConfirmChildSessions();
 
     /// <summary>Discards pending edits in every registered child session.</summary>
     void DiscardChildSessions();

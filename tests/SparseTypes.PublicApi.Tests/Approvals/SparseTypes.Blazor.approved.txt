@@ -258,11 +258,18 @@ namespace SparseTypes.Blazor
         public bool AutoAccept { get; }
         public bool HasChanges { get; }
         public event System.Action? Changed;
+        public void DisposeDetachedChildren() { }
+        public System.Collections.Generic.IReadOnlyList<SparseTypes.SparsePath> GetDetachedChildPaths() { }
         public bool HasChangesFor<TChild, TChildPaths, TChildSession>(SparseTypes.ISparseChildEditPath<TModel, TChild, TChildPaths, TChildSession> path)
             where TChild :  class
             where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
             where TChildSession : SparseTypes.ISparseEditSessionWithPaths<TChild, TChildPaths> { }
         public SparseTypes.Blazor.SparseChildEditContext<TChild, TChildPaths, TConflict, TChildSession> OpenChildSession<TChild, TChildPaths, TConflict, TChildSession>(SparseTypes.ISparseEditSessionWithChildren<TModel, TConflict> parentSession, SparseTypes.ISparseChildEditPath<TModel, TChild, TChildPaths, TChildSession> path)
+            where TChild :  class
+            where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
+            where TConflict :  class
+            where TChildSession : SparseTypes.ISparseEditSessionWithPaths<TChild, TChildPaths> { }
+        public bool TryGetDetachedChild<TChild, TChildPaths, TConflict, TChildSession>(SparseTypes.ISparseEditSessionWithChildren<TModel, TConflict> parentSession, SparseTypes.ISparseChildEditPath<TModel, TChild, TChildPaths, TChildSession> path, out SparseTypes.Blazor.SparseChildEditContext<TChild, TChildPaths, TConflict, TChildSession>? context)
             where TChild :  class
             where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
             where TConflict :  class

@@ -1378,6 +1378,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public void ApplyInPlace(SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet changes) { }
             public void BatchEdit(System.Action edit) { }
             public SparseTypes.SparseCollectionState CollectionState(SparseTypes.SparsePath collectionPath) { }
+            public void ConfirmChildSessions() { }
             public SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet CreateChangeSet() { }
             public SparseTypes.SparseEditHistory<SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet> CreateHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public SparseTypes.GeneratedApiFixtures.CatalogDictionaries.Patch CreatePatch() { }
@@ -1399,7 +1400,6 @@ namespace SparseTypes.GeneratedApiFixtures
                 where TChild :  class
                 where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
                 where TChildSession : SparseTypes.ISparseEditSessionWithPaths<TChild, TChildPaths> { }
-            public SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet PrepareChangeSet() { }
             public SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet PreviewChangeSet() { }
             public SparseTypes.RebaseResult<SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet> Reload(SparseTypes.GeneratedApiFixtures.CatalogDictionaries serverState) { }
             public object? ResolveChildModel(SparseTypes.SparsePath path) { }
@@ -1410,7 +1410,6 @@ namespace SparseTypes.GeneratedApiFixtures
             public bool TryCreateChangeSet(out SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet? changes, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryMergeFrom(SparseTypes.GeneratedApiFixtures.CatalogDictionaries.EditSession fork, out SparseTypes.GeneratedApiFixtures.CatalogDictionaries.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryPreflightChildSessions(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
-            public bool TryPrepareChangeSet(out SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet? changes, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryReconcile(SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet submitted, SparseTypes.GeneratedApiFixtures.CatalogDictionaries persisted, out string? error) { }
             public bool TryReconcileAndApply(SparseTypes.GeneratedApiFixtures.CatalogDictionaries.ChangeSet submitted, SparseTypes.GeneratedApiFixtures.CatalogDictionaries persisted, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
@@ -1644,6 +1643,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public void ApplyInPlace(SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet changes) { }
             public void BatchEdit(System.Action edit) { }
             public SparseTypes.SparseCollectionState CollectionState(SparseTypes.SparsePath collectionPath) { }
+            public void ConfirmChildSessions() { }
             public SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet CreateChangeSet() { }
             public SparseTypes.SparseEditHistory<SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet> CreateHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public SparseTypes.GeneratedApiFixtures.CatalogImmutable.Patch CreatePatch() { }
@@ -1665,7 +1665,6 @@ namespace SparseTypes.GeneratedApiFixtures
                 where TChild :  class
                 where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
                 where TChildSession : SparseTypes.ISparseEditSessionWithPaths<TChild, TChildPaths> { }
-            public SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet PrepareChangeSet() { }
             public SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet PreviewChangeSet() { }
             public SparseTypes.RebaseResult<SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet> Reload(SparseTypes.GeneratedApiFixtures.CatalogImmutable serverState) { }
             public object? ResolveChildModel(SparseTypes.SparsePath path) { }
@@ -1676,7 +1675,6 @@ namespace SparseTypes.GeneratedApiFixtures
             public bool TryCreateChangeSet(out SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet? changes, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryMergeFrom(SparseTypes.GeneratedApiFixtures.CatalogImmutable.EditSession fork, out SparseTypes.GeneratedApiFixtures.CatalogImmutable.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryPreflightChildSessions(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
-            public bool TryPrepareChangeSet(out SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet? changes, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryReconcile(SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet submitted, SparseTypes.GeneratedApiFixtures.CatalogImmutable persisted, out string? error) { }
             public bool TryReconcileAndApply(SparseTypes.GeneratedApiFixtures.CatalogImmutable.ChangeSet submitted, SparseTypes.GeneratedApiFixtures.CatalogImmutable persisted, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
@@ -1878,6 +1876,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public void ApplyInPlace(SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet changes) { }
             public void BatchEdit(System.Action edit) { }
             public SparseTypes.SparseCollectionState CollectionState(SparseTypes.SparsePath collectionPath) { }
+            public void ConfirmChildSessions() { }
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet CreateChangeSet() { }
             public SparseTypes.SparseEditHistory<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet> CreateHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.Patch CreatePatch() { }
@@ -1899,7 +1898,6 @@ namespace SparseTypes.GeneratedApiFixtures
                 where TChild :  class
                 where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
                 where TChildSession : SparseTypes.ISparseEditSessionWithPaths<TChild, TChildPaths> { }
-            public SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet PrepareChangeSet() { }
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet PreviewChangeSet() { }
             public SparseTypes.RebaseResult<SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet> Reload(SparseTypes.GeneratedApiFixtures.CatalogKeyedItem serverState) { }
             public object? ResolveChildModel(SparseTypes.SparsePath path) { }
@@ -1910,7 +1908,6 @@ namespace SparseTypes.GeneratedApiFixtures
             public bool TryCreateChangeSet(out SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet? changes, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryMergeFrom(SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.EditSession fork, out SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryPreflightChildSessions(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
-            public bool TryPrepareChangeSet(out SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet? changes, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryReconcile(SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet submitted, SparseTypes.GeneratedApiFixtures.CatalogKeyedItem persisted, out string? error) { }
             public bool TryReconcileAndApply(SparseTypes.GeneratedApiFixtures.CatalogKeyedItem.ChangeSet submitted, SparseTypes.GeneratedApiFixtures.CatalogKeyedItem persisted, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
@@ -2120,6 +2117,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public void ApplyInPlace(SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet changes) { }
             public void BatchEdit(System.Action edit) { }
             public SparseTypes.SparseCollectionState CollectionState(SparseTypes.SparsePath collectionPath) { }
+            public void ConfirmChildSessions() { }
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet CreateChangeSet() { }
             public SparseTypes.SparseEditHistory<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet> CreateHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.Patch CreatePatch() { }
@@ -2141,7 +2139,6 @@ namespace SparseTypes.GeneratedApiFixtures
                 where TChild :  class
                 where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
                 where TChildSession : SparseTypes.ISparseEditSessionWithPaths<TChild, TChildPaths> { }
-            public SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet PrepareChangeSet() { }
             public SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet PreviewChangeSet() { }
             public SparseTypes.RebaseResult<SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet> Reload(SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster serverState) { }
             public object? ResolveChildModel(SparseTypes.SparsePath path) { }
@@ -2152,7 +2149,6 @@ namespace SparseTypes.GeneratedApiFixtures
             public bool TryCreateChangeSet(out SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet? changes, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryMergeFrom(SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.EditSession fork, out SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryPreflightChildSessions(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
-            public bool TryPrepareChangeSet(out SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet? changes, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryReconcile(SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet submitted, SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster persisted, out string? error) { }
             public bool TryReconcileAndApply(SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster.ChangeSet submitted, SparseTypes.GeneratedApiFixtures.CatalogKeyedRoster persisted, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
@@ -2384,6 +2380,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public void ApplyInPlace(SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet changes) { }
             public void BatchEdit(System.Action edit) { }
             public SparseTypes.SparseCollectionState CollectionState(SparseTypes.SparsePath collectionPath) { }
+            public void ConfirmChildSessions() { }
             public SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet CreateChangeSet() { }
             public SparseTypes.SparseEditHistory<SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet> CreateHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public SparseTypes.GeneratedApiFixtures.CatalogNested.Patch CreatePatch() { }
@@ -2405,7 +2402,6 @@ namespace SparseTypes.GeneratedApiFixtures
                 where TChild :  class
                 where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
                 where TChildSession : SparseTypes.ISparseEditSessionWithPaths<TChild, TChildPaths> { }
-            public SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet PrepareChangeSet() { }
             public SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet PreviewChangeSet() { }
             public SparseTypes.RebaseResult<SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet> Reload(SparseTypes.GeneratedApiFixtures.CatalogNested serverState) { }
             public object? ResolveChildModel(SparseTypes.SparsePath path) { }
@@ -2416,7 +2412,6 @@ namespace SparseTypes.GeneratedApiFixtures
             public bool TryCreateChangeSet(out SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet? changes, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryMergeFrom(SparseTypes.GeneratedApiFixtures.CatalogNested.EditSession fork, out SparseTypes.GeneratedApiFixtures.CatalogNested.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryPreflightChildSessions(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
-            public bool TryPrepareChangeSet(out SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet? changes, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryReconcile(SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet submitted, SparseTypes.GeneratedApiFixtures.CatalogNested persisted, out string? error) { }
             public bool TryReconcileAndApply(SparseTypes.GeneratedApiFixtures.CatalogNested.ChangeSet submitted, SparseTypes.GeneratedApiFixtures.CatalogNested persisted, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
@@ -2653,6 +2648,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public void ApplyInPlace(SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet changes) { }
             public void BatchEdit(System.Action edit) { }
             public SparseTypes.SparseCollectionState CollectionState(SparseTypes.SparsePath collectionPath) { }
+            public void ConfirmChildSessions() { }
             public SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet CreateChangeSet() { }
             public SparseTypes.SparseEditHistory<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet> CreateHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.Patch CreatePatch() { }
@@ -2674,7 +2670,6 @@ namespace SparseTypes.GeneratedApiFixtures
                 where TChild :  class
                 where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
                 where TChildSession : SparseTypes.ISparseEditSessionWithPaths<TChild, TChildPaths> { }
-            public SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet PrepareChangeSet() { }
             public SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet PreviewChangeSet() { }
             public SparseTypes.RebaseResult<SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet> Reload(SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration serverState) { }
             public object? ResolveChildModel(SparseTypes.SparsePath path) { }
@@ -2685,7 +2680,6 @@ namespace SparseTypes.GeneratedApiFixtures
             public bool TryCreateChangeSet(out SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet? changes, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryMergeFrom(SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.EditSession fork, out SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryPreflightChildSessions(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
-            public bool TryPrepareChangeSet(out SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet? changes, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryReconcile(SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet submitted, SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration persisted, out string? error) { }
             public bool TryReconcileAndApply(SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration.ChangeSet submitted, SparseTypes.GeneratedApiFixtures.CatalogReservedEnumeration persisted, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
@@ -2912,6 +2906,7 @@ namespace SparseTypes.GeneratedApiFixtures
             public void ApplyInPlace(SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet changes) { }
             public void BatchEdit(System.Action edit) { }
             public SparseTypes.SparseCollectionState CollectionState(SparseTypes.SparsePath collectionPath) { }
+            public void ConfirmChildSessions() { }
             public SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet CreateChangeSet() { }
             public SparseTypes.SparseEditHistory<SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet> CreateHistory(SparseTypes.EditHistoryOptions? options = null) { }
             public SparseTypes.GeneratedApiFixtures.CatalogScalar.Patch CreatePatch() { }
@@ -2933,7 +2928,6 @@ namespace SparseTypes.GeneratedApiFixtures
                 where TChild :  class
                 where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
                 where TChildSession : SparseTypes.ISparseEditSessionWithPaths<TChild, TChildPaths> { }
-            public SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet PrepareChangeSet() { }
             public SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet PreviewChangeSet() { }
             public SparseTypes.RebaseResult<SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet> Reload(SparseTypes.GeneratedApiFixtures.CatalogScalar serverState) { }
             public object? ResolveChildModel(SparseTypes.SparsePath path) { }
@@ -2944,7 +2938,6 @@ namespace SparseTypes.GeneratedApiFixtures
             public bool TryCreateChangeSet(out SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet? changes, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryMergeFrom(SparseTypes.GeneratedApiFixtures.CatalogScalar.EditSession fork, out SparseTypes.GeneratedApiFixtures.CatalogScalar.EditSession? merged, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryPreflightChildSessions(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
-            public bool TryPrepareChangeSet(out SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet? changes, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryReconcile(SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet submitted, SparseTypes.GeneratedApiFixtures.CatalogScalar persisted, out string? error) { }
             public bool TryReconcileAndApply(SparseTypes.GeneratedApiFixtures.CatalogScalar.ChangeSet submitted, SparseTypes.GeneratedApiFixtures.CatalogScalar persisted, out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }
             public bool TryRevertChanges(out System.Collections.Generic.IReadOnlyList<SparseTypes.SparseConflict>? conflicts) { }

@@ -25,6 +25,9 @@ public sealed class SparseEditChildSession<TModel, TPaths, TConflict, TSession>
         (bool Accepted, TModel? Current, IReadOnlyList<TConflict>? Conflicts)
     > _tryAccept;
     private readonly Func<(bool Accepted, IReadOnlyList<TConflict>? Conflicts)> _preflight;
+    private readonly Func<TModel>? _confirmAccept;
+    private readonly Func<bool>? _isTargetMissing;
+    private readonly Func<bool>? _isDetached;
     private readonly Action _onDiscarded;
     private readonly Action _detach;
     private bool _isDisposed;
@@ -38,6 +41,9 @@ public sealed class SparseEditChildSession<TModel, TPaths, TConflict, TSession>
     /// <param name="onDiscarded">Callback raised after restoring the child model.</param>
     /// <param name="detach">Callback that disconnects this child session from its parent.</param>
     /// <param name="preflight">Checks whether the child merge can succeed without changing the parent.</param>
+    /// <param name="confirmAccept">Confirms a committed merge without rewriting the parent.</param>
+    /// <param name="isTargetMissing">Reports whether the child path no longer resolves.</param>
+    /// <param name="isDetached">Reports whether the underlying draft left the open state.</param>
     public SparseEditChildSession(
         TSession session,
         TPaths rootPath,
@@ -49,7 +55,10 @@ public sealed class SparseEditChildSession<TModel, TPaths, TConflict, TSession>
         > tryAccept,
         Action onDiscarded,
         Action detach,
-        Func<(bool Accepted, IReadOnlyList<TConflict>? Conflicts)>? preflight = null
+        Func<(bool Accepted, IReadOnlyList<TConflict>? Conflicts)>? preflight = null,
+        Func<TModel>? confirmAccept = null,
+        Func<bool>? isTargetMissing = null,
+        Func<bool>? isDetached = null
     )
     {
         Session = session ?? throw new ArgumentNullException(nameof(session));
@@ -58,6 +67,9 @@ public sealed class SparseEditChildSession<TModel, TPaths, TConflict, TSession>
         _clone = clone ?? throw new ArgumentNullException(nameof(clone));
         _tryAccept = tryAccept ?? throw new ArgumentNullException(nameof(tryAccept));
         _preflight = preflight ?? (static () => (true, null));
+        _confirmAccept = confirmAccept;
+        _isTargetMissing = isTargetMissing;
+        _isDetached = isDetached;
         _onDiscarded = onDiscarded ?? throw new ArgumentNullException(nameof(onDiscarded));
         _detach = detach ?? throw new ArgumentNullException(nameof(detach));
     }
@@ -76,9 +88,29 @@ public sealed class SparseEditChildSession<TModel, TPaths, TConflict, TSession>
             )
         );
 
+    /// <summary>Gets whether this child session left the open state.</summary>
+    /// <remarks>Only an explicit dispose or parent invalidation detaches; a missing target keeps the draft open.</remarks>
+    public bool IsDetached => _isDisposed || (_isDetached?.Invoke() == true);
+
+    /// <summary>Gets whether the child path currently resolves to no model.</summary>
+    /// <remarks>The draft and its pending edits are retained while the target is missing.</remarks>
+    public bool IsTargetMissing
+    {
+        get
+        {
+            if (IsDetached || _isTargetMissing is null)
+            {
+                return false;
+            }
+
+            return _isTargetMissing();
+        }
+    }
+
     /// <summary>Attempts to merge the child session and its descendants into its parent.</summary>
     /// <param name="conflicts">Structured conflicts when the merge fails.</param>
     /// <returns>True when the child state was merged; otherwise false.</returns>
+    /// <remarks>A missing target reports failure with null conflicts and preserves the draft; only an explicit discard or dispose abandons it.</remarks>
     public bool TryAcceptChanges(out IReadOnlyList<TConflict>? conflicts)
     {
         ThrowIfDisposed();
@@ -100,11 +132,6 @@ public sealed class SparseEditChildSession<TModel, TPaths, TConflict, TSession>
         conflicts = result.Conflicts;
         if (!result.Accepted || result.Current is null)
         {
-            if (conflicts is null)
-            {
-                Dispose();
-            }
-
             return false;
         }
 
@@ -113,6 +140,30 @@ public sealed class SparseEditChildSession<TModel, TPaths, TConflict, TSession>
         _baseline = _clone(Session.Model);
         conflicts = null;
         return true;
+    }
+
+    /// <summary>Acknowledges a committed merge without rewriting the parent.</summary>
+    /// <remarks>Coordinator use only: generated parents call this after the commit write succeeded, parent-first so descendant confirmations observe committed state. Throws when the target cannot be confirmed; confirmed descendants stay confirmed, so callers may retry after restoring the target.</remarks>
+    /// <exception cref="InvalidOperationException">The merge cannot be confirmed, or this coordinator was built without confirmation support.</exception>
+    public void ConfirmAccept()
+    {
+        ThrowIfDisposed();
+        if (_confirmAccept is null)
+        {
+            throw new InvalidOperationException(
+                "The child edit session does not support staged acceptance."
+            );
+        }
+
+        var draftModel = _confirmAccept();
+        if (Session is ISparseEditSessionWithChildren<TModel, TConflict> children)
+        {
+            children.ConfirmChildSessions();
+        }
+
+        _rootPath.WriteModelValueInPlace(Session.Model, draftModel);
+        Session.AcceptChanges();
+        _baseline = _clone(Session.Model);
     }
 
     /// <inheritdoc />
@@ -137,6 +188,7 @@ public sealed class SparseEditChildSession<TModel, TPaths, TConflict, TSession>
     /// <summary>Checks whether this child and its descendants can be merged into their parents.</summary>
     /// <param name="conflicts">Structured conflicts when the merge cannot be prepared.</param>
     /// <returns>True when the merge is conflict-free; otherwise false.</returns>
+    /// <remarks>Never accepts, discards, or disposes; a missing target reports failure with null conflicts and preserves the draft.</remarks>
     public bool TryPreflightAcceptChanges(out IReadOnlyList<TConflict>? conflicts)
     {
         ThrowIfDisposed();
@@ -150,15 +202,11 @@ public sealed class SparseEditChildSession<TModel, TPaths, TConflict, TSession>
 
         var result = _preflight();
         conflicts = result.Conflicts;
-        if (!result.Accepted && conflicts is null)
-        {
-            Dispose();
-        }
-
         return result.Accepted;
     }
 
     /// <summary>Merges the child session into its parent, throwing when the merge conflicts.</summary>
+    /// <remarks>A missing target throws without abandoning the draft; restore the target and retry, or discard or dispose explicitly.</remarks>
     public void AcceptChanges()
     {
         if (!TryAcceptChanges(out var conflicts))

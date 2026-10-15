@@ -30,10 +30,12 @@ asynchronous submission validator. It receives the captured change set and a
 cancellation token, paired with `ValidateChanges` for synchronous coverage.
 
 `Prepare` checks every registered section, including unchanged sections, and
-evaluates readiness before returning a submission. A generated session's
-`CreateChangeSet` accepts pending child sessions and descendants before
-capturing the root change set. A child-session conflict makes capture fail;
-the group reports the exception message as a validation issue.
+evaluates readiness before returning a submission. Capture never mutates a
+session: a generated session's `CreateChangeSet` builds a child-aware preview
+of its own changes composed with the projected descendant edits, without
+accepting any child draft. A child-session conflict or a missing target makes
+capture fail; the group reports the exception message as a validation issue
+and every draft stays pending.
 
 ## Preparing and acknowledging changes
 
@@ -47,8 +49,8 @@ not change the submission. Post-capture edits remain pending on the live
 session.
 
 Preparation follows capture, readiness, and submission validation in that
-order. Capture produces immutable snapshots and accepts pending child
-sessions. Readiness evaluates the live `Validate` hook. Submission validation
+order. Capture produces immutable snapshots and leaves all sessions
+untouched, including open child drafts. Readiness evaluates the live `Validate` hook. Submission validation
 runs `ValidateChanges` and `ValidateAsync` against the captured change sets. A synchronous validator
 that throws (other than cancellation) produces a validation issue with the
 exception message. An asynchronous validator that throws produces a
@@ -80,10 +82,15 @@ Validation failures produce `EditSessionGroupValidationException`, and
 `PrepareAsync` propagates cancellation as `OperationCanceledException`.
 
 After a successful save, call `AcceptChanges(submission, handle)` for each
-saved section. Each call advances only that section's baseline by the submitted
-transition. Edits made after preparation remain pending. Acknowledgements are
+saved section. Acknowledging merges the section's currently pending child
+sessions first, then advances only that section's baseline by the exact
+captured transition. Child edits made after preparation are merged into the
+live model by that step but stay pending, as do other post-capture edits.
+Acknowledgements are
 independent, so a failed section can remain dirty while successful sections
-advance.
+advance. Merging can fail when a post-capture edit conflicts with a still
+pending child draft; the acknowledgement then throws and nothing is
+acknowledged.
 
 For server-assigned values or normalized state, call
 `TryReconcile(submission, handle, persisted, out error)` with the authoritative
@@ -111,6 +118,16 @@ directly. Keep a `Validate` callback only for the part of the check that
 needs live state. `ValidateAsync` already receives the captured change set,
 so its signature is unchanged; add `ValidateChanges` alongside it when the
 same rule needs synchronous coverage in `Prepare`.
+
+## Child sessions and capture purity
+
+Capture methods never accept child drafts. `CreateChangeSet` and
+`TryCreateChangeSet` return a child-aware preview; merge drafts explicitly
+with `TryAcceptChildSessions` on the session, with `AcceptChanges` on a
+single child handle, or by acknowledging a group submission. The
+`TryPrepareChangeSet`/`PrepareChangeSet` aliases are removed. Callers that
+relied on capture-time acceptance now call `TryAcceptChildSessions` first
+and then capture.
 
 ## Unregistering and replacement
 

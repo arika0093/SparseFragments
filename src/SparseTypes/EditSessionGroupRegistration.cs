@@ -27,12 +27,13 @@ public sealed class EditSessionGroupRegistration<TModel, TChangeSet>
     public EditSessionGroupRegistration() { }
 
     /// <summary>Creates a registration with the standard generated session operations.</summary>
+    /// <remarks>Capture uses the session's non-mutating change-set preview; acknowledgement merges and advances by the captured submission.</remarks>
     /// <param name="session">The generated session that captures and describes change sets.</param>
     public EditSessionGroupRegistration(ISparseEditSessionWithChangeSet<TModel, TChangeSet> session)
     {
         ArgumentNullException.ThrowIfNull(session);
         Session = session;
-        CreateChangeSet = session.PrepareChangeSet;
+        CreateChangeSet = session.CreateChangeSet;
         IsEmpty = session.IsEmpty;
         EnumerateChangedPaths = session.EnumerateChangedPaths;
     }
@@ -40,7 +41,7 @@ public sealed class EditSessionGroupRegistration<TModel, TChangeSet>
     /// <summary>Gets or initializes the edit session.</summary>
     public ISparseEditSession<TModel, TChangeSet> Session { get; init; } = null!;
 
-    /// <summary>Captures the session's current change set.</summary>
+    /// <summary>Captures the session's current change set without mutating the session.</summary>
     public Func<TChangeSet> CreateChangeSet { get; init; } = null!;
 
     /// <summary>Tests whether a captured change set is empty.</summary>

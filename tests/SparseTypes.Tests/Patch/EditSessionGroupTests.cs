@@ -330,7 +330,7 @@ public sealed class EditSessionGroupTests
     }
 
     [Test]
-    public void PrepareCapturesPendingChildSessions()
+    public void PrepareCapturesPendingChildSessionsWithoutAccepting()
     {
         var model = new ObservableHolder
         {
@@ -346,8 +346,242 @@ public sealed class EditSessionGroupTests
 
         submission.Get(handle).Changes.Child.IsChanged.ShouldBeTrue();
         submission.Get(handle).Changes.Child.Name.After.Value.ShouldBe("updated");
-        child.HasChanges.ShouldBeFalse();
+        // Preparation is observational: the draft stays pending and the model is untouched.
+        child.HasChanges.ShouldBeTrue();
+        model.Child.Name.ShouldBe("before");
         session.HasChanges.ShouldBeTrue();
+
+        group.AcceptChanges(submission, handle);
+
+        child.HasChanges.ShouldBeFalse();
+        model.Child.Name.ShouldBe("updated");
+        session.HasChanges.ShouldBeFalse();
+    }
+
+    [Test]
+    public void FailedValidationLeavesChildSessionsUntouched()
+    {
+        var model = new ObservableHolder
+        {
+            Child = new ObservableChild { Name = "before", Count = 1 },
+        };
+        var session = model.CreateEditSession();
+        var child = session.OpenChildSession(ObservableHolder.SparsePath.Child);
+        var childHistory = child.Session.EnableHistory();
+        child.Session.Observable.Name = "draft";
+        var group = new EditSessionGroup();
+        group.Register(
+            "child",
+            new EditSessionGroupRegistration<ObservableHolder, ObservableHolder.ChangeSet>
+            {
+                Session = session,
+                CreateChangeSet = session.CreateChangeSet,
+                IsEmpty = static changes => changes.IsEmpty,
+                EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
+                ValidateChanges = static _ => "Validation failed.",
+            }
+        );
+
+        var failure = Should.Throw<EditSessionGroupValidationException>(() => group.Prepare());
+
+        failure.Issues.ShouldHaveSingleItem().Message.ShouldBe("Validation failed.");
+        child.HasChanges.ShouldBeTrue();
+        child.Session.Observable.Name.ShouldBe("draft");
+        model.Child.Name.ShouldBe("before");
+        session.HasChanges.ShouldBeTrue();
+        childHistory.CanUndo.ShouldBeTrue();
+    }
+
+    [Test]
+    public void ConflictingChildrenFailPrepareWithoutMutation()
+    {
+        var model = new ObservableHolder
+        {
+            Child = new ObservableChild { Name = "before", Count = 1 },
+        };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        group.Register("child", Registration(session));
+        var child = session.OpenChildSession(ObservableHolder.SparsePath.Child);
+        child.Session.Observable.Name = "child edit";
+        session.Observable.Child!.Name = "parent edit";
+
+        Should.Throw<EditSessionGroupValidationException>(() => group.Prepare());
+
+        child.HasChanges.ShouldBeTrue();
+        child.Session.Observable.Name.ShouldBe("child edit");
+        session.Observable.Child.Name.ShouldBe("parent edit");
+        model.Child.Name.ShouldBe("parent edit");
+    }
+
+    [Test]
+    public void AcceptChangesMergesChildrenAndPreservesLaterEdits()
+    {
+        var model = new ObservableHolder
+        {
+            Child = new ObservableChild { Name = "before", Count = 1 },
+        };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        var handle = group.Register("child", Registration(session));
+        var child = session.OpenChildSession(ObservableHolder.SparsePath.Child);
+        child.Session.Observable.Name = "submitted";
+
+        var submission = group.Prepare();
+        child.HasChanges.ShouldBeTrue();
+
+        // Edits made after capture stay pending through acknowledgement.
+        session.Observable.Title = "later parent";
+        child.Session.Observable.Count = 2;
+
+        group.AcceptChanges(submission, handle);
+
+        model.Child.Name.ShouldBe("submitted");
+        model.Child.Count.ShouldBe(2);
+        model.Title.ShouldBe("later parent");
+        session.HasPendingChildSessions.ShouldBeFalse();
+        submission.Get(handle).Changes.Child.Count.IsChanged.ShouldBeFalse();
+        var pending = session.CreateChangeSet();
+        pending.Title.IsChanged.ShouldBeTrue();
+        pending.Child.Count.IsChanged.ShouldBeTrue();
+        pending.Child.Name.IsChanged.ShouldBeFalse();
+    }
+
+    [Test]
+    public void TryReconcileWithPendingChildrenUsesCapturedSubmission()
+    {
+        var model = new ObservableHolder
+        {
+            Child = new ObservableChild { Name = "before", Count = 1 },
+        };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        var handle = group.Register(
+            "child",
+            new EditSessionGroupRegistration<ObservableHolder, ObservableHolder.ChangeSet>
+            {
+                Session = session,
+                CreateChangeSet = session.CreateChangeSet,
+                IsEmpty = static changes => changes.IsEmpty,
+                EnumerateChangedPaths = static changes => changes.EnumerateChangedPaths(),
+                TryReconcile = (changes, persisted) =>
+                {
+                    var success = session.TryReconcile(changes, persisted, out var error);
+                    return (success, error);
+                },
+            }
+        );
+        var child = session.OpenChildSession(ObservableHolder.SparsePath.Child);
+        child.Session.Observable.Name = "submitted";
+
+        var submission = group.Prepare();
+        child.HasChanges.ShouldBeTrue();
+
+        session.Observable.Title = "later parent";
+        var persisted = new ObservableHolder
+        {
+            Title = "before",
+            Child = new ObservableChild { Name = "submitted", Count = 1 },
+        };
+
+        group.TryReconcile(submission, handle, persisted, out var error).ShouldBeTrue();
+
+        error.ShouldBeNull();
+        session.Observable.Title.ShouldBe("later parent");
+        session.HasPendingChildSessions.ShouldBeFalse();
+        var pending = session.CreateChangeSet();
+        pending.Title.IsChanged.ShouldBeTrue();
+        pending.Child.Name.IsChanged.ShouldBeFalse();
+    }
+
+    [Test]
+    public async Task FailedPrepareAsyncLeavesChildSessionsUntouched()
+    {
+        var model = new ObservableHolder
+        {
+            Child = new ObservableChild { Name = "before", Count = 1 },
+        };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        group.Register(
+            "child",
+            Registration(
+                session,
+                validateAsync: static (_, _) => Task.FromResult<string?>("Async validation failed.")
+            )
+        );
+        var child = session.OpenChildSession(ObservableHolder.SparsePath.Child);
+        child.Session.Observable.Name = "submitted";
+
+        EditSessionGroupValidationException? failure = null;
+        try
+        {
+            await group.PrepareAsync(CancellationToken.None);
+        }
+        catch (EditSessionGroupValidationException exception)
+        {
+            failure = exception;
+        }
+
+        failure.ShouldNotBeNull();
+        failure!.Issues.ShouldHaveSingleItem().Message.ShouldBe("Async validation failed.");
+        child.HasChanges.ShouldBeTrue();
+        child.Session.Observable.Name.ShouldBe("submitted");
+        model.Child.Name.ShouldBe("before");
+    }
+
+    [Test]
+    public async Task CanceledPrepareAsyncPreservesChildDrafts()
+    {
+        var model = new ObservableHolder
+        {
+            Child = new ObservableChild { Name = "before", Count = 1 },
+        };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        var validationStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        var releaseValidation = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        group.Register(
+            "child",
+            Registration(
+                session,
+                validateAsync: async (_, cancellationToken) =>
+                {
+                    validationStarted.TrySetResult(true);
+                    await releaseValidation.Task.WaitAsync(cancellationToken);
+                    return null;
+                }
+            )
+        );
+        var child = session.OpenChildSession(ObservableHolder.SparsePath.Child);
+        child.Session.Observable.Name = "submitted";
+
+        using var cancellation = new CancellationTokenSource();
+        var prepareTask = group.PrepareAsync(cancellation.Token);
+        await validationStarted.Task;
+        child.Session.Observable.Count = 2;
+        cancellation.Cancel();
+
+        var wasCanceled = false;
+        try
+        {
+            await prepareTask;
+        }
+        catch (OperationCanceledException)
+        {
+            wasCanceled = true;
+        }
+
+        wasCanceled.ShouldBeTrue();
+        child.HasChanges.ShouldBeTrue();
+        child.Session.Observable.Name.ShouldBe("submitted");
+        child.Session.Observable.Count.ShouldBe(2);
+        model.Child.Name.ShouldBe("before");
+        model.Child.Count.ShouldBe(1);
     }
 
     [Test]

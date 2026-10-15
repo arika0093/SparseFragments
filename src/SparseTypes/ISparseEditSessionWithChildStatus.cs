@@ -36,8 +36,10 @@ public interface ISparseEditSessionWithChildStatus<TModel, TConflict>
     /// <summary>Checks every pending child and descendant merge without changing session state.</summary>
     /// <remarks>
     /// Generated implementations validate a candidate containing all pending descendants before
-    /// returning. A conflict leaves parent, child, and descendant values, baselines, and histories
-    /// unchanged. This guarantee does not make the later commit transactional when arbitrary
+    /// returning. Success and failure both leave parent, child, and descendant values, baselines,
+    /// histories, and registrations unchanged. A missing target reports failure with null conflicts
+    /// and keeps the draft; only an explicit discard, accept, or dispose abandons pending edits.
+    /// This guarantee does not make the later commit transactional when arbitrary
     /// setters, notifications, or callbacks throw.
     /// </remarks>
     /// <param name="conflicts">Structured conflicts when a child merge cannot be prepared.</param>

@@ -252,6 +252,8 @@ namespace SparseTypes
         where TSession : SparseTypes.ISparseEditSessionWithPaths<TModel, TPaths>
     {
         bool HasChanges { get; }
+        bool IsDetached { get; }
+        bool IsTargetMissing { get; }
         TSession Session { get; }
         void AcceptChanges();
         void DiscardChanges();
@@ -287,9 +289,9 @@ namespace SparseTypes
         where TModel :  class
         where TChangeSet :  class
     {
+        TChangeSet CreateChangeSet();
         System.Collections.Generic.IReadOnlyList<SparseTypes.SparsePath> EnumerateChangedPaths(TChangeSet changes);
         bool IsEmpty(TChangeSet changes);
-        TChangeSet PrepareChangeSet();
     }
     public interface ISparseEditSessionWithChildStatus<TModel, TConflict> : SparseTypes.ISparseEditSessionWithChildren<TModel, TConflict>
         where TModel :  class
@@ -309,6 +311,7 @@ namespace SparseTypes
         where TConflict :  class
     {
         bool HasPendingChildSessions { get; }
+        void ConfirmChildSessions();
         void DiscardChildSessions();
         SparseTypes.ISparseEditChildSession<TChild, TChildPaths, TConflict, TChildSession> OpenChildSession<TChild, TChildPaths, TChildSession>(SparseTypes.ISparseChildEditPath<TModel, TChild, TChildPaths, TChildSession> path)
             where TChild :  class
@@ -548,6 +551,7 @@ namespace SparseTypes
         NotOpen = 0,
         OpenUnchanged = 1,
         OpenChanged = 2,
+        TargetMissing = 3,
     }
     [System.AttributeUsage(System.AttributeTargets.Property, Inherited=true)]
     public sealed class SparseCloneReferenceSafeAttribute : System.Attribute
@@ -674,10 +678,13 @@ namespace SparseTypes
                 "Current",
                 "Conflicts"})] System.Func<TModel, System.ValueTuple<bool, TModel?, System.Collections.Generic.IReadOnlyList<TConflict>?>> tryAccept, System.Action onDiscarded, System.Action detach, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
                 "Accepted",
-                "Conflicts"})] System.Func<System.ValueTuple<bool, System.Collections.Generic.IReadOnlyList<TConflict>?>>? preflight = null) { }
+                "Conflicts"})] System.Func<System.ValueTuple<bool, System.Collections.Generic.IReadOnlyList<TConflict>?>>? preflight = null, System.Func<TModel>? confirmAccept = null, System.Func<bool>? isTargetMissing = null, System.Func<bool>? isDetached = null) { }
         public bool HasChanges { get; }
+        public bool IsDetached { get; }
+        public bool IsTargetMissing { get; }
         public TSession Session { get; }
         public void AcceptChanges() { }
+        public void ConfirmAccept() { }
         public void DiscardChanges() { }
         public void Dispose() { }
         public bool TryAcceptChanges(out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts) { }

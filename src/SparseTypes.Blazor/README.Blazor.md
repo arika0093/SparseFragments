@@ -54,8 +54,12 @@ Typed child sessions
 
 `SparseSessionScope` also cascades a `SparseSessionScopeContext<TModel>`.
 Open a child with its generated parent path; the scope retains it across
-renders and disposes its history and child handle when the parent session is
-replaced or the scope is disposed.
+renders. A changed child whose target is replaced or deleted moves to the
+detached holding with its draft intact instead of being disposed; recover it
+through `TryGetDetachedChild`, list it with `GetDetachedChildPaths`, and
+release it with `DisposeDetachedChildren`. An unchanged child is disposed as
+before. Replacing the parent session or disposing the scope still disposes
+every owned child, including detached drafts.
 
 <!-- illustrative: the parent and child model types are defined by the application -->
 ```csharp
@@ -85,8 +89,9 @@ the parent session; enable it there when parent-level Undo/Redo is needed.
 
 Field and collection state reads inspect the session they are bound to. A
 pending child draft stays separate from changes already accepted into the
-parent, and rendering `SparseField` does not accept or discard it. Explicit
-change-set capture keeps its child-coordination behavior.
+parent, and rendering `SparseField` does not accept or discard it. Change-set
+capture builds a child-aware preview without accepting; acknowledging a
+captured submission merges pending children first.
 
 Session scope and refresh
 

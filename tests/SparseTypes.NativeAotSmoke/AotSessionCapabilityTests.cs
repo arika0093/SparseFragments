@@ -14,9 +14,7 @@ public sealed class AotSessionCapabilityTests
 
         await Assert.That(session is ISparseEditSessionWithHistory).IsTrue();
         await Assert.That(session is ISparseEditSessionWithFieldState<PayloadRoot>).IsTrue();
-        await Assert
-            .That(session is ISparseEditSessionWithCollectionState)
-            .IsTrue();
+        await Assert.That(session is ISparseEditSessionWithCollectionState).IsTrue();
         await Assert.That(session is ISparseEditSessionWithBatchEdit).IsTrue();
         await Assert.That(session is ISparseEditSessionWithDescriptors).IsTrue();
     }
@@ -29,9 +27,7 @@ public sealed class AotSessionCapabilityTests
         var history = historyOwner.EnableHistory(null);
         await Assert.That(history.CanUndo).IsFalse();
 
-        ((ISparseEditSessionWithBatchEdit)session).BatchEdit(
-            () => session.Observable.Label = "b"
-        );
+        ((ISparseEditSessionWithBatchEdit)session).BatchEdit(() => session.Observable.Label = "b");
         await Assert.That(history.CanUndo).IsTrue();
 
         var state = ((ISparseEditSessionWithFieldState<PayloadRoot>)session).FieldState(

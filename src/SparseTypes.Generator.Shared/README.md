@@ -284,8 +284,24 @@ and `EditSessionWithChildrenInterfaceMetadataName` entries configure the
 child-session contracts and implementation. When supplied with descriptors
 and typed paths, generated sessions can open path-addressed child models as
 independent generated sessions. Child sessions can nest, own separate
-histories, accept or discard their edits, and automatically merge pending
-descendants before a root change set is captured.
+histories, and accept or discard their edits. Preflight and submission
+previews are pure projections: they never accept, discard, or detach child
+drafts, and a missing target reports failure with null conflicts while the
+draft is retained. Acceptance stays explicit. `TryAcceptChildSessions`
+validates every descendant onto one detached candidate, commits it with a
+single write, then acknowledges children parent-first; typed conflicts and
+missing targets fail without mutating parent, child, or descendant state.
+`CreateChangeSet`/`TryCreateChangeSet` capture the same child-aware
+projection as an immutable preview without accepting. Acknowledging a
+captured change set (`AcceptChanges(changes)`, `TryReconcile`) merges
+currently pending children first, then advances by exactly the captured
+transition, so edits made after capture stay pending. The removed
+`PrepareChangeSet`/`TryPrepareChangeSet` aliases do not come back: capture
+methods never accept. A downstream runtime that implements the child-session
+contracts provides its own coordinator type for
+`EditChildSessionImplementationType` with staged confirmation support
+(`ConfirmAccept` on its coordinator); generated parents call it after the
+commit write succeeds.
 Setting the optional `EditSessionWithPathsInterfaceMetadataName` implements a
 typed path-provider contract on each generated session and adds a cached
 `Paths` property returning the existing generated `SparsePaths<TModel>`
@@ -323,8 +339,9 @@ runtime type; every state name arrives through the record.
 Session field and collection queries inspect that session's own model and
 baseline without invoking the child-session acceptance path. An unaccepted
 child draft therefore remains separate from changes already accepted into its
-parent; explicit change-set capture retains its existing child-coordination
-behavior.
+parent. Change-set capture is a pure child-aware preview: it composes the
+session's own changes with the projected descendant edits and checks
+conflicts without merging anything into the live model.
 
 `SparseEditSessionDialect` optionally binds an opt-in history surface through
 `HistoryType`, `HistoryOptionsType`, and `HistoryHooksType`. When all three

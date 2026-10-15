@@ -312,7 +312,7 @@ public sealed class SparseChildEditTests
     }
 
     [Test]
-    public async Task DeletedKeyedChildContextCannotEditOrAcceptAfterDisconnection()
+    public async Task DeletedKeyedChildContextRetainsDraftInDetachedHolding()
     {
         var root = new OrderDto { Lines = [new OrderLine { Sku = "line", Quantity = 1 }] };
         var session = root.CreateEditSession();
@@ -331,16 +331,28 @@ public sealed class SparseChildEditTests
             ScopeContent(session, child, static _ => { })
         );
 
-        var staleContext = childContext.ShouldNotBeNull();
-        ((OrderLine.EditSession)staleContext.Session).Observable.Quantity = 4;
+        var detachedContext = childContext.ShouldNotBeNull();
+        ((OrderLine.EditSession)detachedContext.Session).Observable.Quantity = 4;
         session.Observable.Lines.Clear();
         await tree.FlushAsync();
 
-        staleContext.HasChanges.ShouldBeFalse();
-        Should.Throw<ObjectDisposedException>(() => staleContext.Session);
-        Should.Throw<ObjectDisposedException>(() => staleContext.Undo());
-        Should.Throw<ObjectDisposedException>(() => staleContext.AcceptChanges());
+        // The draft survives deletion: it stays editable and inspectable.
+        detachedContext.HasChanges.ShouldBeTrue();
+        ((OrderLine.EditSession)detachedContext.Session).Observable.Quantity.ShouldBe(4);
+        detachedContext.Undo();
+        ((OrderLine.EditSession)detachedContext.Session).Observable.Quantity.ShouldBe(1);
+        detachedContext.Redo();
+        ((OrderLine.EditSession)detachedContext.Session).Observable.Quantity.ShouldBe(4);
+
+        // Acceptance reports the missing target without abandoning the draft.
+        detachedContext.TryAcceptChanges(out var conflicts).ShouldBeFalse();
+        conflicts.ShouldBeNull();
+        detachedContext.HasChanges.ShouldBeTrue();
         session.Observable.Lines.ShouldBeEmpty();
+
+        detachedContext.DiscardChanges();
+        detachedContext.HasChanges.ShouldBeFalse();
+        ((OrderLine.EditSession)detachedContext.Session).Observable.Quantity.ShouldBe(1);
     }
 
     [Test]
