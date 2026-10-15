@@ -138,3 +138,13 @@
 
     configureWhenReady();
 })();
+
+// Detaches the models owned by a playground diff editor before the .NET side
+// disposes them. Monaco reports disposing an attached model through
+// onUnexpectedError, so the detach has to happen first.
+window.pgMonaco = {
+    detachDiff: id => {
+        const holder = window.blazorMonaco?.editors.find(editor => editor.id === id);
+        holder?.editor?.setModel(null);
+    }
+};

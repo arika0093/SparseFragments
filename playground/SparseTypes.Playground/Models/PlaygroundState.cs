@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -354,8 +355,39 @@ public static class PlaygroundJson
     private static readonly string[] QuestFragmentOrder = ["Id", "Title", "Points", "Scores"];
     private static readonly string[] TaskFragmentOrder = ["Id", "Title", "Points"];
 
-    /// <summary>Creates options carrying the generated fragment converters.</summary>
-    public static JsonSerializerOptions FragmentOptions()
+    /// <summary>Creates independent options carrying the generated fragment converters.</summary>
+    /// <remarks>
+    /// Display paths serialize with a cached read-only instance instead; use
+    /// this factory when the caller genuinely needs its own mutable options.
+    /// </remarks>
+    public static JsonSerializerOptions FragmentOptions() => CreateFragmentOptions();
+
+    /// <summary>Creates independent options for ChangePayload JSON.</summary>
+    /// <remarks>
+    /// Display paths serialize with a cached read-only instance instead; use
+    /// this factory when the caller genuinely needs its own mutable options.
+    /// </remarks>
+    public static JsonSerializerOptions ChangeSetOptions() => CreateChangeSetOptions();
+
+    // Display paths serialize directly to indented text, so model rendering
+    // never parses its own output. The Default context stays compact for
+    // scalar/cell formatting (see FormatChangeValue).
+    private static readonly PlaygroundJsonContext IndentedJsonContext = new(
+        new JsonSerializerOptions { WriteIndented = true }
+    );
+
+    // Fully configured once and frozen: display paths reuse these instead of
+    // rebuilding options and resolvers on every render.
+    private static readonly JsonSerializerOptions SharedFragmentOptions = CreateFragmentOptions();
+    private static readonly JsonSerializerOptions SharedChangeSetOptions = CreateChangeSetOptions();
+
+    static PlaygroundJson()
+    {
+        SharedFragmentOptions.MakeReadOnly();
+        SharedChangeSetOptions.MakeReadOnly();
+    }
+
+    private static JsonSerializerOptions CreateFragmentOptions()
     {
         var options = new JsonSerializerOptions
         {
@@ -368,8 +400,7 @@ public static class PlaygroundJson
         return options;
     }
 
-    /// <summary>Creates options for ChangePayload JSON.</summary>
-    public static JsonSerializerOptions ChangeSetOptions() =>
+    private static JsonSerializerOptions CreateChangeSetOptions() =>
         new()
         {
             TypeInfoResolver = JsonTypeInfoResolver.Combine(
@@ -381,11 +412,11 @@ public static class PlaygroundJson
 
     /// <summary>Serializes a settings ChangeSet as its typed payload DTO.</summary>
     public static string WriteSettingsChangeSet(PlaygroundSettings.ChangeSet changes) =>
-        JsonSerializer.Serialize(changes.ToPayload(), ChangeSetOptions());
+        JsonSerializer.Serialize(changes.ToPayload(), SharedChangeSetOptions);
 
     /// <summary>Serializes a roster ChangeSet as its typed payload DTO.</summary>
     public static string WriteRosterChangeSet(PlaygroundRoster.ChangeSet changes) =>
-        JsonSerializer.Serialize(changes.ToPayload(), ChangeSetOptions());
+        JsonSerializer.Serialize(changes.ToPayload(), SharedChangeSetOptions);
 
     /// <summary>Formats a value using the playground's source-generated JSON metadata.</summary>
     public static string FormatChangeValue(object? value)
@@ -462,48 +493,56 @@ public static class PlaygroundJson
     {
         var payload = JsonSerializer.Deserialize<PlaygroundSettings.ChangePayload>(
             json,
-            ChangeSetOptions()
+            SharedChangeSetOptions
         );
         return payload?.ToChangeSet()
             ?? throw new JsonException("The ChangePayload JSON deserialized to null.");
     }
 
+    /// <summary>Decodes a fully written UTF-8 buffer to the final display string.</summary>
+    internal static string DecodeUtf8(ArrayBufferWriter<byte> buffer) =>
+        Encoding.UTF8.GetString(buffer.WrittenSpan);
+
     /// <summary>Serializes a fragment to its canonical (present-members-only) JSON.</summary>
     public static string WriteFragment(PlaygroundSettings.Fragment fragment)
     {
-        var options = FragmentOptions();
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true }))
         {
-            PlaygroundSettings.Fragment.JsonConverter.Write(writer, fragment, options);
+            PlaygroundSettings.Fragment.JsonConverter.Write(
+                writer,
+                fragment,
+                SharedFragmentOptions
+            );
         }
 
-        return OrderFragmentJson(Encoding.UTF8.GetString(stream.ToArray()), "settings");
+        return OrderFragmentJson(buffer, "settings");
     }
 
     /// <summary>Serializes a roster fragment to its canonical (present-members-only) JSON.</summary>
     public static string WriteRosterFragment(PlaygroundRoster.Fragment fragment)
     {
-        var options = FragmentOptions();
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true }))
         {
-            PlaygroundRoster.Fragment.JsonConverter.Write(writer, fragment, options);
+            PlaygroundRoster.Fragment.JsonConverter.Write(writer, fragment, SharedFragmentOptions);
         }
 
-        return OrderFragmentJson(Encoding.UTF8.GetString(stream.ToArray()), "roster");
+        return OrderFragmentJson(buffer, "roster");
     }
 
-    private static string OrderFragmentJson(string json, string context)
+    private static string OrderFragmentJson(ArrayBufferWriter<byte> source, string context)
     {
-        using var document = JsonDocument.Parse(json);
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+        // The document copies the parsed bytes, but the source buffer stays
+        // alive here so the parse never outlives its input.
+        using var document = JsonDocument.Parse(source.WrittenMemory);
+        var output = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(output, new JsonWriterOptions { Indented = true }))
         {
             WriteOrderedFragmentValue(writer, document.RootElement, context);
         }
 
-        return Encoding.UTF8.GetString(stream.ToArray());
+        return DecodeUtf8(output);
     }
 
     private static void WriteOrderedFragmentValue(
@@ -589,31 +628,16 @@ public static class PlaygroundJson
         };
 
     /// <summary>Serializes a roster model to indented JSON.</summary>
-    public static string WriteRosterModel(PlaygroundRoster model)
-    {
-        var json = JsonSerializer.Serialize(model, PlaygroundJsonContext.Default.PlaygroundRoster);
-        return Pretty(json);
-    }
+    public static string WriteRosterModel(PlaygroundRoster model) =>
+        JsonSerializer.Serialize(model, IndentedJsonContext.PlaygroundRoster);
 
     /// <summary>Serializes a model to indented JSON.</summary>
-    public static string WriteModel(PlaygroundSettings model)
-    {
-        var json = JsonSerializer.Serialize(
-            model,
-            PlaygroundJsonContext.Default.PlaygroundSettings
-        );
-        return Pretty(json);
-    }
+    public static string WriteModel(PlaygroundSettings model) =>
+        JsonSerializer.Serialize(model, IndentedJsonContext.PlaygroundSettings);
 
     /// <summary>Serializes an enterprise catalog item using generated JSON metadata.</summary>
-    public static string WriteEnterpriseCatalog(EnterpriseCatalogItem model)
-    {
-        var json = JsonSerializer.Serialize(
-            model,
-            PlaygroundJsonContext.Default.EnterpriseCatalogItem
-        );
-        return Pretty(json);
-    }
+    public static string WriteEnterpriseCatalog(EnterpriseCatalogItem model) =>
+        JsonSerializer.Serialize(model, IndentedJsonContext.EnterpriseCatalogItem);
 
     /// <summary>Pretty-prints JSON, returning the input when it is not valid JSON.</summary>
     public static string Pretty(string json)

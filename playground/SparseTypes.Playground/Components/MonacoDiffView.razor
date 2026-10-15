@@ -3,6 +3,7 @@
 @using SparseTypes.Playground.Models
 @inject PlaygroundThemeState ThemeState
 @inject IJSRuntime JS
+@implements IAsyncDisposable
 @implements IDisposable
 
 <div class="pg-monaco notranslate" translate="no" style="@WrapperStyle">
@@ -20,6 +21,7 @@
     private string? _lastOriginal;
     private string? _lastModified;
     private bool _initialized;
+    private bool _disposed;
 
     [Parameter, EditorRequired]
     public string Original { get; set; } = string.Empty;
@@ -63,18 +65,143 @@
 
     private async Task HandleInit()
     {
-        if (_editor is null)
+        if (_editor is null || _disposed)
         {
             return;
         }
-        _originalModel = await Global.CreateModel(JS, Original, MonacoLanguage);
-        _modifiedModel = await Global.CreateModel(JS, Modified, MonacoLanguage);
-        await _editor.SetModel(
-            new DiffEditorModel { Original = _originalModel, Modified = _modifiedModel });
-        _lastOriginal = Original;
-        _lastModified = Modified;
-        _initialized = true;
+
+        try
+        {
+            _originalModel = await Global.CreateModel(JS, Original, MonacoLanguage);
+            if (await ReleaseIfAbandonedAsync())
+            {
+                return;
+            }
+
+            _modifiedModel = await Global.CreateModel(JS, Modified, MonacoLanguage);
+            if (await ReleaseIfAbandonedAsync())
+            {
+                return;
+            }
+
+            var editor = _editor;
+            if (editor is null || _disposed || _originalModel is null || _modifiedModel is null)
+            {
+                await DetachAndDisposeOwnedModelsAsync(tolerateDisconnect: true);
+                return;
+            }
+
+            await editor.SetModel(
+                new DiffEditorModel { Original = _originalModel, Modified = _modifiedModel });
+            if (_disposed)
+            {
+                await DetachAndDisposeOwnedModelsAsync(tolerateDisconnect: true);
+                return;
+            }
+
+            _lastOriginal = Original;
+            _lastModified = Modified;
+            _initialized = true;
+        }
+        catch (Exception exception) when (_disposed && IsTeardownNoise(exception))
+        {
+            // Navigation already tore the owner down; drop partial models
+            // without faulting the teardown batch.
+            await DetachAndDisposeOwnedModelsAsync(tolerateDisconnect: true);
+        }
+        catch
+        {
+            // The second model or the attach failed: never orphan the first.
+            await DetachAndDisposeOwnedModelsAsync(tolerateDisconnect: false);
+            throw;
+        }
     }
+
+    // Navigation won while a model was being created: release whatever
+    // arrived instead of assigning it to an abandoned component.
+    private async Task<bool> ReleaseIfAbandonedAsync()
+    {
+        if (!_disposed && _editor is not null)
+        {
+            return false;
+        }
+
+        await DetachAndDisposeOwnedModelsAsync(tolerateDisconnect: true);
+        return true;
+    }
+
+    // Detaches the owned models from a live diff editor, then releases both
+    // exactly once; consumed fields make repeat calls (Dispose plus
+    // DisposeAsync, init-race tails) no-ops. Detaching first matters because
+    // Monaco reports disposing an attached model as an error.
+    private async Task DetachAndDisposeOwnedModelsAsync(bool tolerateDisconnect)
+    {
+        var editorId = _editor is null ? null : EditorId;
+        _editor = null;
+        var original = _originalModel;
+        var modified = _modifiedModel;
+        _originalModel = null;
+        _modifiedModel = null;
+        _initialized = false;
+        _lastOriginal = null;
+        _lastModified = null;
+
+        if (editorId is not null && (original is not null || modified is not null))
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("pgMonaco.detachDiff", editorId);
+            }
+            catch (Exception exception) when (IsTeardownNoise(exception))
+            {
+                // The editor (or circuit) is already gone; disposing below
+                // is still safe because nothing references the models.
+            }
+        }
+
+        if (tolerateDisconnect)
+        {
+            await DisposeModelBestEffortAsync(original);
+            await DisposeModelBestEffortAsync(modified);
+        }
+        else
+        {
+            if (original is not null)
+            {
+                await original.DisposeModel();
+            }
+
+            if (modified is not null)
+            {
+                await modified.DisposeModel();
+            }
+        }
+    }
+
+    private static async Task DisposeModelBestEffortAsync(TextModel? model)
+    {
+        if (model is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await model.DisposeModel();
+        }
+        catch (Exception exception) when (IsTeardownNoise(exception))
+        {
+            // The page or circuit already went away with the models.
+        }
+    }
+
+    // Failures that only mean the JS side (or the renderer) is already gone.
+    private static bool IsTeardownNoise(Exception exception) =>
+        exception is JSDisconnectedException
+            or JSException
+            or ObjectDisposedException
+            or TaskCanceledException
+            or InvalidOperationException;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -83,39 +210,76 @@
 
     private async Task SyncAsync()
     {
-        if (!_initialized || _originalModel is null || _modifiedModel is null)
+        if (_disposed || !_initialized || _originalModel is null || _modifiedModel is null)
         {
             return;
         }
-        if (_lastOriginal != Original)
+
+        try
         {
-            _lastOriginal = Original;
-            await _originalModel.SetValue(Original);
+            if (_lastOriginal != Original)
+            {
+                _lastOriginal = Original;
+                await _originalModel.SetValue(Original);
+            }
+            if (_lastModified != Modified)
+            {
+                _lastModified = Modified;
+                await _modifiedModel.SetValue(Modified);
+            }
         }
-        if (_lastModified != Modified)
+        catch (Exception exception) when (_disposed && IsTeardownNoise(exception))
         {
-            _lastModified = Modified;
-            await _modifiedModel.SetValue(Modified);
+            // Navigation raced an in-flight update after cleanup.
         }
     }
 
     private void OnThemeChanged()
     {
-        if (!_initialized || _editor is null)
+        if (_disposed || !_initialized || _editor is null)
         {
             return;
         }
-        _ = InvokeAsync(async () =>
+
+        try
         {
-            try
-            {
-                await JS.InvokeVoidAsync("blazorMonaco.editor.setTheme", CurrentTheme);
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-        });
+            _ = InvokeAsync(ApplyThemeAsync);
+        }
+        catch (Exception exception) when (IsTeardownNoise(exception))
+        {
+            // The renderer is gone; nothing left to theme.
+        }
     }
 
-    public void Dispose() => ThemeState.Changed -= OnThemeChanged;
+    private async Task ApplyThemeAsync()
+    {
+        if (_disposed || _editor is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("blazorMonaco.editor.setTheme", CurrentTheme);
+        }
+        catch (Exception exception)
+            when (exception is JSDisconnectedException
+                || (_disposed && IsTeardownNoise(exception)))
+        {
+            // Teardown raced the theme update.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        ThemeState.Changed -= OnThemeChanged;
+        _disposed = true;
+        await DetachAndDisposeOwnedModelsAsync(tolerateDisconnect: true);
+    }
+
+    public void Dispose()
+    {
+        ThemeState.Changed -= OnThemeChanged;
+        _disposed = true;
+    }
 }

@@ -1,5 +1,5 @@
+using System.Buffers;
 using System.Globalization;
-using System.Text;
 using System.Text.Json;
 using SparseTypes.Playground.Models;
 
@@ -9,8 +9,8 @@ internal static class PlaygroundOrderJson
 {
     internal static string WriteDto(PlaygroundOrderDto dto)
     {
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true }))
         {
             writer.WriteStartObject();
             writer.WriteString("Customer", dto.Customer);
@@ -26,13 +26,13 @@ internal static class PlaygroundOrderJson
             writer.WriteEndObject();
         }
 
-        return Encoding.UTF8.GetString(stream.ToArray());
+        return PlaygroundJson.DecodeUtf8(buffer);
     }
 
     internal static string WriteEntity(PlaygroundOrderEntity order)
     {
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true }))
         {
             writer.WriteStartObject();
             writer.WriteNumber("Id", order.Id);
@@ -67,7 +67,7 @@ internal static class PlaygroundOrderJson
             writer.WriteEndObject();
         }
 
-        return Encoding.UTF8.GetString(stream.ToArray());
+        return PlaygroundJson.DecodeUtf8(buffer);
     }
 
     internal static string FormatValue(object? value) =>
@@ -110,12 +110,12 @@ internal static class PlaygroundOrderJson
 
     private static string WriteLine(PlaygroundOrderLineDto line)
     {
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer))
         {
             WriteLine(writer, line);
         }
 
-        return Encoding.UTF8.GetString(stream.ToArray());
+        return PlaygroundJson.DecodeUtf8(buffer);
     }
 }
