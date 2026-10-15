@@ -27,6 +27,15 @@ internal static class SparseChangeSetKeyedTempRebaseEmitter
                 + id
                 + " = new global::System.Collections.Generic.List<global::System.Guid>();"
         );
+        // Temporary current-position index built in the same pass as the
+        // temp map/order; assigned positions reuse the __cpos table so both
+        // stay aligned with __corder.
+        code.AppendLineAt(
+            5,
+            "var __tpos"
+                + id
+                + " = new global::System.Collections.Generic.Dictionary<global::System.Guid, int>();"
+        );
         code.AppendLineAt(
             5,
             "foreach (var __e in __curM"
@@ -43,13 +52,25 @@ internal static class SparseChangeSetKeyedTempRebaseEmitter
                     "__ct.Value",
                     "__e"
                 )
-                + " __tcorder"
+                + " __tpos"
                 + id
-                + ".Add(__ct.Value); __corder"
+                + "[__ct.Value] = __tcorder"
+                + id
+                + ".Count; __tcorder"
+                + id
+                + ".Add(__ct.Value); __cpos"
+                + id
+                + "[__ck] = __corder"
+                + id
+                + ".Count; __corder"
                 + id
                 + ".Add(__ck); } else { "
                 + SparseKeyedCollectionEmitter.AddUniqueEntry("__cmap" + id, "__ck", "__e")
-                + " __corder"
+                + " __cpos"
+                + id
+                + "[__ck] = __corder"
+                + id
+                + ".Count; __corder"
                 + id
                 + ".Add(__ck); } }"
         );
@@ -191,9 +212,9 @@ internal static class SparseChangeSetKeyedTempRebaseEmitter
             6,
             "else { __any"
                 + id
-                + " = true; int __tbi = __tcorder"
+                + " = true; int __tbi = __tpos"
                 + id
-                + ".IndexOf(__tt); __rlist"
+                + "[__tt]; __rlist"
                 + id
                 + ".Add(new "
                 + trans
@@ -262,7 +283,7 @@ internal static class SparseChangeSetKeyedTempRebaseEmitter
                 + optElement
                 + ".Present(__tum);"
         );
-        code.AppendLineAt(8, "int __tbi2 = __tcorder" + id + ".IndexOf(__tt);");
+        code.AppendLineAt(8, "int __tbi2 = __tpos" + id + "[__tt];");
         code.AppendLineAt(
             8,
             "__rlist"
@@ -286,9 +307,9 @@ internal static class SparseChangeSetKeyedTempRebaseEmitter
                 + id
                 + ".ContainsKey(__tt)) { __any"
                 + id
-                + " = true; int __tbi3 = __tcorder"
+                + " = true; int __tbi3 = __tpos"
                 + id
-                + ".IndexOf(__tt); __rlist"
+                + "[__tt]; __rlist"
                 + id
                 + ".Add(new "
                 + trans
@@ -322,11 +343,19 @@ internal static class SparseChangeSetKeyedTempRebaseEmitter
         );
         code.AppendLineAt(
             5,
+            "var __rtaOseen"
+                + id
+                + " = new global::System.Collections.Generic.HashSet<global::System.Guid>(__tcorder"
+                + id
+                + ");"
+        );
+        code.AppendLineAt(
+            5,
             "foreach (var __it in __rlist"
                 + id
-                + ") if (__it.IsAdded && __it.TemporaryKey.HasValue && !__rtaO"
+                + ") if (__it.IsAdded && __it.TemporaryKey.HasValue && __rtaOseen"
                 + id
-                + ".Contains(__it.TemporaryKey.Value)) __rtaO"
+                + ".Add(__it.TemporaryKey.Value)) __rtaO"
                 + id
                 + ".Add(__it.TemporaryKey.Value);"
         );

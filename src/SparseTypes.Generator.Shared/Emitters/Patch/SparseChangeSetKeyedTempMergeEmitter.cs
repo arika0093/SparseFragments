@@ -463,13 +463,25 @@ internal static class SparseChangeSetKeyedTempMergeEmitter
                 + id
                 + ");"
         );
+        // Membership set over the same source order keeps net-addition
+        // assembly linear; the list stays the authoritative output order.
+        // The __slotted set below intentionally re-reads the original
+        // second order so newly appended IDs still earn sentinel slots.
+        code.AppendLineAt(
+            6,
+            "var __cb"
+                + id
+                + "_taOseen = new global::System.Collections.Generic.HashSet<global::System.Guid>(__secondTempAfter"
+                + id
+                + ");"
+        );
         code.AppendLineAt(
             6,
             "foreach (var __tkv in __tnet"
                 + id
-                + ") if (__tkv.Value.IsAdded && !__cb"
+                + ") if (__tkv.Value.IsAdded && __cb"
                 + id
-                + "_taOlist.Contains(__tkv.Key)) __cb"
+                + "_taOseen.Add(__tkv.Key)) __cb"
                 + id
                 + "_taOlist.Add(__tkv.Key);"
         );

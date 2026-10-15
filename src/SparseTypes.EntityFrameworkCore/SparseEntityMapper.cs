@@ -205,13 +205,20 @@ public sealed class SparseEntityMapper<TEntity, TDto>
             nestedScopes: nestedScopes
         );
         var actions = new List<Action>();
-        try
+        // Read-only preflight detects once up front instead of scanning per
+        // collection; execution below restores the caller policy first so
+        // user callbacks keep their detection behavior. Empty change sets
+        // read nothing, so they keep the caller's policy throughout.
+        using (OpenPreflightScope(context, changes))
         {
-            Plan.Prepare(state, actions);
-        }
-        catch (SparseEntityMappingException exception)
-        {
-            throw ScopeToMapper(exception);
+            try
+            {
+                Plan.Prepare(state, actions);
+            }
+            catch (SparseEntityMappingException exception)
+            {
+                throw ScopeToMapper(exception);
+            }
         }
 
         PlanApplyState.AttachSingle(context, entity);
@@ -236,6 +243,12 @@ public sealed class SparseEntityMapper<TEntity, TDto>
             )
             : null;
     }
+
+    /// <summary>Opens the preflight detection scope unless the change set is empty.</summary>
+    private static IDisposable? OpenPreflightScope(
+        DbContext context,
+        ISparseChangeSet<TDto> changes
+    ) => changes.IsEmpty ? null : ChangeTrackerDetectionScope.BeginPreflight(context);
 
     private SparseEntityMappingException ScopeToMapper(SparseEntityMappingException exception)
     {

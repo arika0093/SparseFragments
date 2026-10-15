@@ -183,6 +183,18 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                 + keyType
                 + ">();"
         );
+        // Current-position index built in the same pass as the map/order so
+        // per-item position lookups below stay indexed instead of scanning.
+        code.AppendLineAt(
+            5,
+            "var __cpos"
+                + id
+                + " = new global::System.Collections.Generic.Dictionary<"
+                + keyType
+                + ", int>("
+                + comparer
+                + ");"
+        );
         if (hasTempRebase)
         {
             SparseChangeSetKeyedTempRebaseEmitter.AppendTempCurrentWalk(
@@ -211,7 +223,11 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                             : ""
                     )
                     + SparseKeyedCollectionEmitter.AddUniqueEntry("__cmap" + id, "__ck", "__e")
-                    + " __corder"
+                    + " __cpos"
+                    + id
+                    + "[__ck] = __corder"
+                    + id
+                    + ".Count; __corder"
                     + id
                     + ".Add(__ck); }"
             );
@@ -321,7 +337,11 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                     + id
                     + ".Count, true, false, false, false, __nedit, false)); __cmap"
                     + id
-                    + "[__it.Key] = __it.After.Value!; __corder"
+                    + "[__it.Key] = __it.After.Value!; __cpos"
+                    + id
+                    + "[__it.Key] = __corder"
+                    + id
+                    + ".Count; __corder"
                     + id
                     + ".Add(__it.Key); }"
             );
@@ -356,7 +376,11 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                     + id
                     + ".Count, true, false, false, false, __nedit, false)); __cmap"
                     + id
-                    + "[__it.Key] = __it.After.Value!; __corder"
+                    + "[__it.Key] = __it.After.Value!; __cpos"
+                    + id
+                    + "[__it.Key] = __corder"
+                    + id
+                    + ".Count; __corder"
                     + id
                     + ".Add(__it.Key); }"
             );
@@ -446,9 +470,9 @@ internal static class SparseChangeSetKeyedRebaseEmitter
             6,
             "else { __any"
                 + id
-                + " = true; int __bi = __corder"
+                + " = true; int __bi = __cpos"
                 + id
-                + ".IndexOf(__it.Key, 0); __rlist"
+                + "[__it.Key]; __rlist"
                 + id
                 + ".Add(new "
                 + trans
@@ -529,7 +553,7 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                 + elementType
                 + ">.Present(__um);"
         );
-        code.AppendLineAt(8, "int __bi2 = __corder" + id + ".IndexOf(__it.Key, 0);");
+        code.AppendLineAt(8, "int __bi2 = __cpos" + id + "[__it.Key];");
         code.AppendLineAt(
             8,
             "__rlist"
@@ -554,9 +578,9 @@ internal static class SparseChangeSetKeyedRebaseEmitter
                 + id
                 + ".ContainsKey(__it.Key)) { __any"
                 + id
-                + " = true; int __bi3 = __corder"
+                + " = true; int __bi3 = __cpos"
                 + id
-                + ".IndexOf(__it.Key, 0); __rlist"
+                + "[__it.Key]; __rlist"
                 + id
                 + ".Add(new "
                 + trans

@@ -39,7 +39,7 @@ internal static class CollectionSync
             return;
         }
 
-        var collection = CollectionEntryAccess.Read(
+        var collection = CollectionEntryAccess.ReadNoDetect(
             state.Context,
             state.Entity,
             runtime.NavigationName

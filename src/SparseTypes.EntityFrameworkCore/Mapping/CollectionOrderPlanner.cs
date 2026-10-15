@@ -128,9 +128,25 @@ internal static class CollectionOrderPlanner
 
         if (runtime.RemoveKind == SparseEntityRemoveKind.SoftDelete)
         {
+            var retentionCandidates = plan.Removed.Count + survivors.Count;
+            HashSet<TEntityChild>? retained = null;
+            if (retentionCandidates > 0)
+            {
+                // List.Contains scans the growing output per retained row;
+                // one membership set keeps retention linear instead.
+                retained = new HashSet<TEntityChild>(
+                    merged,
+                    System.Collections.Generic.EqualityComparer<TEntityChild>.Default
+                );
+            }
+
             // Soft-deleted rows stay in the collection: removals are excluded
             // from the survivor map, so re-add them from the removal plan.
-            foreach (var removal in plan.Removed.Where(removal => !merged.Contains(removal.Entity)))
+            foreach (
+                var removal in plan.Removed.Where(removal =>
+                    retained is null || retained.Add(removal.Entity)
+                )
+            )
             {
                 merged.Add(removal.Entity);
             }
@@ -146,7 +162,7 @@ internal static class CollectionOrderPlanner
                     !afterSet.Contains(candidate.Key)
                     && runtime.IsDeletedPredicate is not null
                     && runtime.IsDeletedPredicate(candidate.Value)
-                    && !merged.Contains(candidate.Value)
+                    && (retained is null || retained.Add(candidate.Value))
                 )
             )
             {
