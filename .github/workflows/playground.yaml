@@ -49,11 +49,7 @@ jobs:
 
       - name: Prepare Pages site
         shell: bash
-        run: |
-          set -euo pipefail
-          sed -i 's|<base href="/" />|<base href="/SparseTypes/" />|' dist/wwwroot/index.html
-          cp dist/wwwroot/index.html dist/wwwroot/404.html
-          touch dist/wwwroot/.nojekyll
+        run: PLAYGROUND_SITE_DIR=dist/wwwroot node tests/e2e/playground/scripts/prepare-site.mjs
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5

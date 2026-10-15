@@ -55,9 +55,51 @@ jobs:
         working-directory: tests/e2e/playground
         run: npx playwright install --with-deps chromium
 
+      # Each stage below runs separately so its stderr and exit code identify
+      # the failing stage. Previously `npm run serve` chained publish, prepare,
+      # and serve inside the Playwright webServer, and any failure surfaced
+      # only as "Process from config.webServer was not able to start."
+      # The E2E job republishes instead of reusing the Pages artifact because
+      # upload-pages-artifact output is not addressable from this called
+      # workflow, and this job also runs standalone on pull requests. Both
+      # paths prepare the site with the same prepare-site.mjs script.
+      - name: Publish playground
+        working-directory: tests/e2e/playground
+        run: npm run build
+
+      - name: Prepare E2E site
+        working-directory: tests/e2e/playground
+        run: npm run prepare
+
+      - name: Verify E2E site
+        working-directory: tests/e2e/playground
+        run: npm run verify
+
       - name: Run browser tests
         working-directory: tests/e2e/playground
+        env:
+          PLAYGROUND_PREBUILT: "1"
         run: npm test
+
+      - name: Collect E2E site diagnostics
+        if: failure()
+        working-directory: tests/e2e/playground
+        run: |
+          mkdir -p e2e-diagnostics
+          {
+            echo "node: $(node --version)"
+            echo "dotnet: $(dotnet --version)"
+            echo "site: $PWD/artifacts/wwwroot"
+            echo "--- wwwroot (top level) ---"
+            ls -la artifacts/wwwroot 2>&1 | head -30 || echo "wwwroot listing failed"
+            echo "--- base tag ---"
+            grep -o '<base[^>]*>' artifacts/wwwroot/index.html 2>&1 || echo "index.html base tag unreadable"
+            echo "--- required files ---"
+            test -f artifacts/wwwroot/404.html && echo "404.html: present" || echo "404.html: MISSING"
+            test -f artifacts/wwwroot/.nojekyll && echo ".nojekyll: present" || echo ".nojekyll: MISSING"
+            echo "--- port 4173 ---"
+            (ss -ltn 2>/dev/null | grep ':4173 ' || echo "nothing listening on 4173")
+          } | tee e2e-diagnostics/summary.txt
 
       - name: Upload Playwright results
         if: failure()
@@ -67,5 +109,6 @@ jobs:
           path: |
             tests/e2e/playground/playwright-report/
             tests/e2e/playground/test-results/
+            tests/e2e/playground/e2e-diagnostics/
           if-no-files-found: ignore
           retention-days: 7

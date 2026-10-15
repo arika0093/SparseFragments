@@ -1,9 +1,16 @@
 import { createReadStream } from "node:fs";
-import { stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, resolve, sep } from "node:path";
 
-const siteDirectory = resolve(import.meta.dirname, "../artifacts/wwwroot");
+// Serves a previously published and prepared site directory under
+// /SparseTypes/, mirroring the GitHub Pages layout. This script never builds:
+// CI publishes, prepares, and verifies in earlier workflow steps, so a
+// startup failure here means serving itself failed rather than an earlier
+// stage hiding behind a Playwright webServer exit code.
+const siteDirectory = resolve(
+  process.env.PLAYGROUND_SITE_DIR ?? resolve(import.meta.dirname, "../artifacts/wwwroot"),
+);
 const basePath = "/SparseTypes";
 const port = Number(process.env.PORT ?? 4173);
 const contentTypes = new Map([
@@ -18,6 +25,36 @@ const contentTypes = new Map([
   [".woff", "font/woff"],
   [".woff2", "font/woff2"],
 ]);
+
+// Preflight the publish output so a missing or unprepared site fails here
+// with an actionable message instead of serving 404s to every browser route.
+try {
+  if (!(await stat(siteDirectory)).isDirectory()) {
+    throw new Error("not a directory");
+  }
+} catch {
+  console.error(
+    `[serve-site] site directory ${siteDirectory} is missing. Run 'npm run build && npm run prepare' first.`,
+  );
+  process.exit(1);
+}
+
+let indexHtml;
+try {
+  indexHtml = await readFile(resolve(siteDirectory, "index.html"), "utf8");
+} catch {
+  console.error(
+    `[serve-site] index.html is missing in ${siteDirectory}. Run 'npm run build && npm run prepare' first.`,
+  );
+  process.exit(1);
+}
+
+if (!indexHtml.includes('<base href="/SparseTypes/" />')) {
+  console.error(
+    `[serve-site] index.html in ${siteDirectory} has no <base href="/SparseTypes/" />. Run 'npm run prepare' to rewrite the base path.`,
+  );
+  process.exit(1);
+}
 
 const server = createServer(async (request, response) => {
   let pathname;
@@ -61,6 +98,17 @@ const server = createServer(async (request, response) => {
   createReadStream(filePath).pipe(response);
 });
 
+server.on("error", error => {
+  if (error?.code === "EADDRINUSE") {
+    console.error(
+      `[serve-site] port ${port} is already in use. Stop the other server or set PORT to a free port.`,
+    );
+  } else {
+    console.error(`[serve-site] failed to start: ${error?.message ?? error}`);
+  }
+  process.exit(1);
+});
+
 server.listen(port, "127.0.0.1", () => {
-  console.log(`Serving the Playground at http://127.0.0.1:${port}${basePath}/`);
+  console.log(`[serve-site] serving ${siteDirectory} at http://127.0.0.1:${port}${basePath}/`);
 });

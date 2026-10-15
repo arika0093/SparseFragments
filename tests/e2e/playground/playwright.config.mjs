@@ -2,6 +2,12 @@ import { defineConfig } from "@playwright/test";
 
 const baseURL = "http://127.0.0.1:4173/SparseTypes/";
 
+// CI publishes, prepares, and verifies the site in earlier workflow steps and
+// sets PLAYGROUND_PREBUILT=1, so the webServer only serves that prebuilt
+// output and a startup failure points at serving itself. Local runs keep the
+// one-command `npm run serve` chain that builds on demand.
+const webServerCommand = process.env.PLAYGROUND_PREBUILT === "1" ? "npm run serve:site" : "npm run serve";
+
 export default defineConfig({
   testDir: "./specs",
   fullyParallel: true,
@@ -21,7 +27,7 @@ export default defineConfig({
     video: "retain-on-failure",
   },
   webServer: {
-    command: "npm run serve",
+    command: webServerCommand,
     cwd: import.meta.dirname,
     url: baseURL,
     reuseExistingServer: !process.env.CI,

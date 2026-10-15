@@ -3,7 +3,11 @@
   "private": true,
   "scripts": {
     "test": "playwright test",
-    "serve": "dotnet publish ../../../playground/SparseTypes.Playground/SparseTypes.Playground.csproj --configuration Release --output artifacts && node ./scripts/prepare-site.mjs && node ./scripts/serve-site.mjs"
+    "build": "dotnet publish ../../../playground/SparseTypes.Playground/SparseTypes.Playground.csproj --configuration Release --output artifacts",
+    "prepare": "node ./scripts/prepare-site.mjs",
+    "verify": "node ./scripts/verify-site.mjs",
+    "serve:site": "node ./scripts/serve-site.mjs",
+    "serve": "npm run build && npm run prepare && npm run serve:site"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1"
