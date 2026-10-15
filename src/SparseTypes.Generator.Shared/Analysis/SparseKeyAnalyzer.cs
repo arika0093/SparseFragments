@@ -23,7 +23,8 @@ internal sealed record SparseKeyInfo(
     ImmutableArray<string> PropertyNames,
     string KeyTypeName,
     string? UnassignedKeyExpression = null,
-    string? TemporaryKeyProperty = null
+    string? TemporaryKeyProperty = null,
+    bool KeyTypeIsReferenceType = false
 );
 
 /// <summary>Discovers and validates SparseTypes key metadata on element types.</summary>
@@ -90,7 +91,8 @@ internal static class SparseKeyAnalyzer
             ImmutableArray.Create(property.Name),
             NonNullableTypeName(property.Type),
             sentinel,
-            TemporaryKeyProperty(element, config, cancellationToken)
+            TemporaryKeyProperty(element, config, cancellationToken),
+            property.Type.IsReferenceType
         );
         return true;
     }

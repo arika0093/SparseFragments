@@ -54,7 +54,8 @@ internal readonly record struct SparseCollectionInfo(
     string? KeyTypeName = null,
     SparseKeyKind KeyKind = default,
     string? UnassignedKeyExpression = null,
-    string? TemporaryKeyPropertyName = null
+    string? TemporaryKeyPropertyName = null,
+    bool KeyTypeIsReferenceType = false
 )
 {
     public bool Equals(SparseCollectionInfo other) =>

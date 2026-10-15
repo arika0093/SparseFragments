@@ -98,6 +98,10 @@ internal static class SparseTemporaryKeyCollectEmitter
     {
         var elementType = member.Collection.ElementType.NonNullableName;
         var keyType = member.Collection.KeyTypeName ?? "object?";
+        var keyCanBeNull =
+            member.Collection.KeyTypeIsReferenceType
+            || keyType.EndsWith("?")
+            || keyType.Contains("Nullable<");
         // Element shape drives null handling.
         var elementRef = member.Collection.ElementType.IsReferenceType;
         var elementName = member.Collection.ElementType.Name.TrimEnd();
@@ -119,13 +123,6 @@ internal static class SparseTemporaryKeyCollectEmitter
                 + ">.Default.Equals(__sk, "
                 + unassigned
                 + ")";
-        var persistedIsUnassigned = unassigned is null
-            ? "false"
-            : "global::System.Collections.Generic.EqualityComparer<"
-                + keyType
-                + ">.Default.Equals(__pk, "
-                + unassigned
-                + ")";
         code.AppendLineAt(
             2,
             "if (submitted." + prop + " is not null && persisted." + prop + " is not null)"
@@ -143,6 +140,39 @@ internal static class SparseTemporaryKeyCollectEmitter
                 + prop
                 + "\";"
         );
+        if (keyProp is not null)
+        {
+            code.AppendLineAt(3, "var __persistedIndexesBuilt" + member.Id + " = false;");
+            code.AppendLineAt(
+                3,
+                "global::System.Collections.Generic.Dictionary<"
+                    + keyType
+                    + ", "
+                    + elementType
+                    + "?> __persistedByKey"
+                    + member.Id
+                    + " = null!;"
+            );
+            if (keyCanBeNull)
+            {
+                code.AppendLineAt(3, "var __hasNullPersistedKey" + member.Id + " = false;");
+                code.AppendLineAt(
+                    3,
+                    elementType + "? __firstNullPersistedKey" + member.Id + " = default;"
+                );
+            }
+            if (tempProp is not null)
+            {
+                code.AppendLineAt(
+                    3,
+                    "global::System.Collections.Generic.Dictionary<global::System.Guid, ("
+                        + elementType
+                        + "? Element, bool Duplicate)> __persistedByTemp"
+                        + member.Id
+                        + " = null!;"
+                );
+            }
+        }
         if (tempProp is not null && keyProp is not null)
         {
             // Submitted temporary elements correlate with persisted assigned
@@ -166,43 +196,60 @@ internal static class SparseTemporaryKeyCollectEmitter
                 4,
                 "if (__st.Value == global::System.Guid.Empty) return \"The submitted element has a reserved temporary identity.\";"
             );
-            code.AppendLineAt(4, elementType + "? __found = null;");
-            AppendElementLoopHead(
+            code.AppendLineAt(4, "if (!__persistedIndexesBuilt" + member.Id + ")");
+            code.AppendLineAt(4, "{");
+            AppendBuildPersistedIndexes(
                 code,
-                "persisted." + prop,
-                "__p",
+                member,
+                prop,
+                elementType,
+                keyType,
+                keyProp,
+                tempProp,
+                true,
+                keyCanBeNull,
                 elementRef,
                 elementNullableStruct,
-                4
+                5
             );
-            code.AppendLineAt(5, "if (__p." + tempProp + " != __st.Value) continue;");
-            if (elementRef)
-            {
-                code.AppendLineAt(
-                    5,
-                    "if (__found is not null) return \"The server response duplicates a temporary identity.\";"
-                );
-            }
-            else
-            {
-                code.AppendLineAt(
-                    5,
-                    "if (__found.HasValue) return \"The server response duplicates a temporary identity.\";"
-                );
-            }
-            code.AppendLineAt(5, "__found = __p;");
+            code.AppendLineAt(5, "__persistedIndexesBuilt" + member.Id + " = true;");
             code.AppendLineAt(4, "}");
-            var foundUse = elementRef ? "__found" : "__found.Value";
-            var foundMissing = elementRef ? "if (__found is null)" : "if (!__found.HasValue)";
             code.AppendLineAt(
                 4,
-                foundMissing + " return \"The server response omits a temporary identity.\";"
+                "if (!__persistedByTemp"
+                    + member.Id
+                    + ".TryGetValue(__st.Value, out var __tempMatch"
+                    + member.Id
+                    + ")) return \"The server response omits a temporary identity.\";"
             );
-            code.AppendLineAt(4, "var __pk = " + foundUse + "." + keyProp + ";");
+            code.AppendLineAt(
+                4,
+                "if (__tempMatch"
+                    + member.Id
+                    + ".Duplicate) return \"The server response duplicates a temporary identity.\";"
+            );
+            code.AppendLineAt(
+                4,
+                "var __found" + member.Id + " = __tempMatch" + member.Id + ".Element;"
+            );
+            var foundUse = elementRef
+                ? "__found" + member.Id + "!"
+                : "__found" + member.Id + ".Value";
+            code.AppendLineAt(4, "var __pk" + member.Id + " = " + foundUse + "." + keyProp + ";");
             code.AppendLineAt(
                 4,
                 "if ("
-                    + persistedIsUnassigned
+                    + (
+                        unassigned is null
+                            ? "false"
+                            : "global::System.Collections.Generic.EqualityComparer<"
+                                + keyType
+                                + ">.Default.Equals(__pk"
+                                + member.Id
+                                + ", "
+                                + unassigned
+                                + ")"
+                    )
                     + ") return \"The server response leaves a temporary identity unassigned.\";"
             );
             code.AppendLineAt(
@@ -253,27 +300,67 @@ internal static class SparseTemporaryKeyCollectEmitter
             {
                 code.AppendLineAt(4, "if (" + isUnassigned + ") continue;");
             }
-            code.AppendLineAt(4, elementType + "? __match = null;");
-            AppendElementLoopHead(
+            code.AppendLineAt(4, "if (!__persistedIndexesBuilt" + member.Id + ")");
+            code.AppendLineAt(4, "{");
+            AppendBuildPersistedIndexes(
                 code,
-                "persisted." + prop,
-                "__p",
+                member,
+                prop,
+                elementType,
+                keyType,
+                keyProp,
+                tempProp,
+                false,
+                keyCanBeNull,
                 elementRef,
                 elementNullableStruct,
-                4
+                5
             );
-            code.AppendLineAt(
-                5,
-                "if (!global::System.Collections.Generic.EqualityComparer<"
-                    + keyType
-                    + ">.Default.Equals(__p."
-                    + keyProp
-                    + ", __sk)) continue;"
-            );
-            code.AppendLineAt(5, "__match = __p; break;");
+            code.AppendLineAt(5, "__persistedIndexesBuilt" + member.Id + " = true;");
             code.AppendLineAt(4, "}");
-            var matchUse = elementRef ? "__match" : "__match.Value";
-            var matchMissing = elementRef ? "if (__match is null)" : "if (!__match.HasValue)";
+            code.AppendLineAt(4, elementType + "? __match" + member.Id + " = default;");
+            if (keyCanBeNull)
+            {
+                code.AppendLineAt(4, "if (__sk is null)");
+                code.AppendLineAt(4, "{");
+                code.AppendLineAt(
+                    5,
+                    "if (__hasNullPersistedKey"
+                        + member.Id
+                        + ") __match"
+                        + member.Id
+                        + " = __firstNullPersistedKey"
+                        + member.Id
+                        + ";"
+                );
+                code.AppendLineAt(4, "}");
+                code.AppendLineAt(4, "else");
+                code.AppendLineAt(4, "{");
+                code.AppendLineAt(
+                    5,
+                    "__persistedByKey"
+                        + member.Id
+                        + ".TryGetValue(__sk, out __match"
+                        + member.Id
+                        + ");"
+                );
+                code.AppendLineAt(4, "}");
+            }
+            else
+            {
+                code.AppendLineAt(
+                    4,
+                    "__persistedByKey"
+                        + member.Id
+                        + ".TryGetValue(__sk, out __match"
+                        + member.Id
+                        + ");"
+                );
+            }
+            var matchUse = elementRef ? "__match" + member.Id : "__match" + member.Id + ".Value";
+            var matchMissing = elementRef
+                ? "if (__match" + member.Id + " is null)"
+                : "if (!__match" + member.Id + ".HasValue)";
             code.AppendLineAt(4, matchMissing + " continue;");
             code.AppendLineAt(
                 4,
@@ -305,6 +392,108 @@ internal static class SparseTemporaryKeyCollectEmitter
             code.AppendLineAt(3, "}");
         }
         code.AppendLineAt(2, "}");
+    }
+
+    private static void AppendBuildPersistedIndexes(
+        SharedIndentedBuilder code,
+        SparseMemberModel member,
+        string prop,
+        string elementType,
+        string keyType,
+        string keyProp,
+        string? tempProp,
+        bool includeTemporaryIndex,
+        bool keyCanBeNull,
+        bool elementRef,
+        bool elementNullableStruct,
+        int indent
+    )
+    {
+        code.AppendLineAt(
+            indent,
+            "__persistedByKey"
+                + member.Id
+                + " = new global::System.Collections.Generic.Dictionary<"
+                + keyType
+                + ", "
+                + elementType
+                + "?>();"
+        );
+        if (tempProp is not null && includeTemporaryIndex)
+        {
+            code.AppendLineAt(
+                indent,
+                "__persistedByTemp"
+                    + member.Id
+                    + " = new global::System.Collections.Generic.Dictionary<global::System.Guid, ("
+                    + elementType
+                    + "? Element, bool Duplicate)>();"
+            );
+        }
+        AppendElementLoopHead(
+            code,
+            "persisted." + prop,
+            "__p",
+            elementRef,
+            elementNullableStruct,
+            indent
+        );
+        code.AppendLineAt(indent + 1, "var __persistedKey = __p." + keyProp + ";");
+        if (keyCanBeNull)
+        {
+            code.AppendLineAt(indent + 1, "if (__persistedKey is null)");
+            code.AppendLineAt(indent + 1, "{");
+            code.AppendLineAt(indent + 2, "if (!__hasNullPersistedKey" + member.Id + ")");
+            code.AppendLineAt(indent + 2, "{");
+            code.AppendLineAt(indent + 3, "__hasNullPersistedKey" + member.Id + " = true;");
+            code.AppendLineAt(indent + 3, "__firstNullPersistedKey" + member.Id + " = __p;");
+            code.AppendLineAt(indent + 2, "}");
+            code.AppendLineAt(indent + 1, "}");
+            code.AppendLineAt(
+                indent + 1,
+                "else if (!__persistedByKey" + member.Id + ".ContainsKey(__persistedKey))"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                indent + 1,
+                "if (!__persistedByKey" + member.Id + ".ContainsKey(__persistedKey))"
+            );
+        }
+        code.AppendLineAt(
+            indent + 2,
+            "__persistedByKey" + member.Id + ".Add(__persistedKey, __p);"
+        );
+        if (tempProp is not null && includeTemporaryIndex)
+        {
+            code.AppendLineAt(indent + 1, "var __persistedTemp = __p." + tempProp + ";");
+            code.AppendLineAt(indent + 1, "if (__persistedTemp.HasValue)");
+            code.AppendLineAt(indent + 1, "{");
+            code.AppendLineAt(
+                indent + 2,
+                "if (__persistedByTemp"
+                    + member.Id
+                    + ".TryGetValue(__persistedTemp.Value, out var __existingTemp))"
+            );
+            code.AppendLineAt(indent + 2, "{");
+            code.AppendLineAt(
+                indent + 3,
+                "__persistedByTemp"
+                    + member.Id
+                    + "[__persistedTemp.Value] = (__existingTemp.Element, true);"
+            );
+            code.AppendLineAt(indent + 2, "}");
+            code.AppendLineAt(indent + 2, "else");
+            code.AppendLineAt(indent + 2, "{");
+            code.AppendLineAt(
+                indent + 3,
+                "__persistedByTemp" + member.Id + ".Add(__persistedTemp.Value, (__p, false));"
+            );
+            code.AppendLineAt(indent + 2, "}");
+            code.AppendLineAt(indent + 1, "}");
+        }
+        code.AppendLineAt(indent, "}");
     }
 
     /// <summary>Emits a null-safe element loop head with a normalized non-null variable.</summary>
