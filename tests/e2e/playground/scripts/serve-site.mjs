@@ -34,7 +34,7 @@ try {
   }
 } catch {
   console.error(
-    `[serve-site] site directory ${siteDirectory} is missing. Run 'npm run build && npm run prepare' first.`,
+    `[serve-site] site directory ${siteDirectory} is missing. Run 'npm run build && npm run prepare-site' first.`,
   );
   process.exit(1);
 }
@@ -44,14 +44,14 @@ try {
   indexHtml = await readFile(resolve(siteDirectory, "index.html"), "utf8");
 } catch {
   console.error(
-    `[serve-site] index.html is missing in ${siteDirectory}. Run 'npm run build && npm run prepare' first.`,
+    `[serve-site] index.html is missing in ${siteDirectory}. Run 'npm run build && npm run prepare-site' first.`,
   );
   process.exit(1);
 }
 
 if (!indexHtml.includes('<base href="/SparseTypes/" />')) {
   console.error(
-    `[serve-site] index.html in ${siteDirectory} has no <base href="/SparseTypes/" />. Run 'npm run prepare' to rewrite the base path.`,
+    `[serve-site] index.html in ${siteDirectory} has no <base href="/SparseTypes/" />. Run 'npm run prepare-site' to rewrite the base path.`,
   );
   process.exit(1);
 }

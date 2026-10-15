@@ -4,10 +4,10 @@
   "scripts": {
     "test": "playwright test",
     "build": "dotnet publish ../../../playground/SparseTypes.Playground/SparseTypes.Playground.csproj --configuration Release --output artifacts",
-    "prepare": "node ./scripts/prepare-site.mjs",
+    "prepare-site": "node ./scripts/prepare-site.mjs",
     "verify": "node ./scripts/verify-site.mjs",
     "serve:site": "node ./scripts/serve-site.mjs",
-    "serve": "npm run build && npm run prepare && npm run serve:site"
+    "serve": "npm run build && npm run prepare-site && npm run serve:site"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1"

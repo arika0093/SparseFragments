@@ -34,7 +34,7 @@ try {
 }
 
 if (index && !index.includes(basePathHref)) {
-  failures.push(`index.html does not contain ${basePathHref}; run 'npm run prepare'`);
+  failures.push(`index.html does not contain ${basePathHref}; run 'npm run prepare-site'`);
 }
 
 if (failures.length > 0) {

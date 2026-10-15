@@ -69,7 +69,7 @@ jobs:
 
       - name: Prepare E2E site
         working-directory: tests/e2e/playground
-        run: npm run prepare
+        run: npm run prepare-site
 
       - name: Verify E2E site
         working-directory: tests/e2e/playground
