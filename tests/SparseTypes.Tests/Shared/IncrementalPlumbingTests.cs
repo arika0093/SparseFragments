@@ -8,6 +8,58 @@ namespace SparseTypes.Tests.Shared;
 /// <summary>Location snapshots, multi-argument diagnostic payloads and IsExternalInit.</summary>
 public sealed class IncrementalPlumbingTests
 {
+    private static SparseCollectionInfo KeyedCollection(
+        ImmutableArray<string> keyPropertyNames = default
+    ) =>
+        new(
+            SparseCollectionKind.List,
+            SparseCloneCollectionKind.List,
+            new SparseTypeModel("Item", "Item", "Item", true, false, null),
+            null,
+            "System.Collections.Generic.List<T>",
+            SparseCollectionSemantic.KeyedSequence,
+            keyPropertyNames.IsDefault ? ImmutableArray.Create("Id") : keyPropertyNames,
+            "int",
+            SparseKeyKind.Property,
+            "0",
+            "TemporaryId"
+        );
+
+    [Test]
+    public void KeyedCollectionInfo_ComparesKeyMetadataStructurally()
+    {
+        var left = KeyedCollection(ImmutableArray.Create("Id"));
+        var equal = KeyedCollection(ImmutableArray.Create("Id"));
+
+        left.ShouldBe(equal);
+        left.GetHashCode().ShouldBe(equal.GetHashCode());
+
+        left.ShouldNotBe(KeyedCollection(ImmutableArray.Create("OtherId")));
+        left.ShouldNotBe(KeyedCollection(ImmutableArray.Create("Id", "TenantId")));
+        left.ShouldNotBe(KeyedCollection(ImmutableArray.Create("TenantId", "Id")));
+        left.ShouldNotBe(left with { Kind = SparseCollectionKind.Array });
+        left.ShouldNotBe(left with { CloneKind = SparseCloneCollectionKind.Array });
+        left.ShouldNotBe(left with { ElementType = left.ElementType with { Name = "OtherItem" } });
+        left.ShouldNotBe(
+            left with
+            {
+                ValueType = new SparseTypeModel("Value", "Value", "Value", true, false, null),
+            }
+        );
+        left.ShouldNotBe(left with { NamedTypeDefinition = "OtherList<T>" });
+        left.ShouldNotBe(left with { Semantic = SparseCollectionSemantic.ScalarSequence });
+        left.ShouldNotBe(left with { KeyTypeName = "long" });
+        left.ShouldNotBe(left with { KeyKind = SparseKeyKind.None });
+        left.ShouldNotBe(left with { UnassignedKeyExpression = "1" });
+        left.ShouldNotBe(left with { TemporaryKeyPropertyName = "PendingId" });
+
+        var defaultKeys = left with { KeyPropertyNames = default };
+        var emptyKeys = left with { KeyPropertyNames = ImmutableArray<string>.Empty };
+        defaultKeys.ShouldBe(left with { KeyPropertyNames = default });
+        defaultKeys.ShouldNotBe(emptyKeys);
+        emptyKeys.ShouldBe(left with { KeyPropertyNames = ImmutableArray<string>.Empty });
+    }
+
     [Test]
     public void Snapshot_CapturesSourceLocation()
     {

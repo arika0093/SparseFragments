@@ -126,6 +126,31 @@ public sealed class PromotedIncrementalTests
             }
             """;
 
+    private static string KeyedRootSource(string rootName) =>
+        $$"""
+            using System.Collections.Generic;
+            using SparseTypes;
+            [SparseModel]
+            public partial class {{rootName}}
+            {
+                public List<PromotedLine> Lines { get; set; } = new();
+            }
+            """;
+
+    private static string KeyedLineSource(string keyName = "Id") =>
+        $$"""
+            using System;
+            using SparseTypes;
+            public partial class PromotedLine
+            {
+                [SparseKey(Unassigned = 0)]
+                public int {{keyName}} { get; set; }
+                [SparseTemporaryKey]
+                public Guid? TemporaryId { get; set; }
+                public string Name { get; set; } = "";
+            }
+            """;
+
     private static string PromotedHintFor(Dictionary<string, string> sources, string typeName)
     {
         var match = sources.Keys.SingleOrDefault(key =>
@@ -242,6 +267,78 @@ public sealed class PromotedIncrementalTests
                     $"expected '{stage}' to stay cached after an unrelated edit, got: {string.Join(", ", reasons)}"
                 );
         }
+    }
+
+    [Test]
+    public void KeyedCollectionReanalysis_ReusesAnalysisAndPromotedRender()
+    {
+        var files = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["Line.cs"] = KeyedLineSource(),
+            ["Root1.cs"] = KeyedRootSource("InvKeyedRoot1"),
+            ["Root2.cs"] = KeyedRootSource("InvKeyedRoot2"),
+        };
+        var before = Run(files);
+        before.SpfDiagnostics().ShouldBeEmpty();
+        var beforeSources = before.Sources();
+        var promotedHint = PromotedHintFor(beforeSources, "PromotedLine");
+        beforeSources[promotedHint].ShouldContain("TemporaryId");
+        beforeSources[promotedHint].ShouldContain("Id");
+
+        var after = Rerun(
+            before,
+            "Root1.cs",
+            KeyedRootSource("InvKeyedRoot1")
+                .Replace(
+                    "public List<PromotedLine>",
+                    "public  List<PromotedLine>",
+                    StringComparison.Ordinal
+                )
+        );
+        after.SpfDiagnostics().ShouldBeEmpty();
+        after.Sources()[promotedHint].ShouldBe(beforeSources[promotedHint]);
+
+        var analysisReasons = TrackedReasons(
+            after.GeneratorResult,
+            "SparseTypesGenerator.Analysis"
+        );
+        analysisReasons.ShouldNotBeEmpty("expected tracked analysis results");
+        analysisReasons
+            .All(static reason =>
+                reason is IncrementalStepRunReason.Cached or IncrementalStepRunReason.Unchanged
+            )
+            .ShouldBeTrue(
+                $"expected keyed collection analysis to remain value-equal after a semantic no-op, got: {string.Join(", ", analysisReasons)}"
+            );
+
+        foreach (
+            var stage in new[] { "SparseTypesGenerator.Output", "SparseTypesGenerator.Promoted" }
+        )
+        {
+            var reasons = TrackedReasons(after.GeneratorResult, stage);
+            reasons.ShouldNotBeEmpty($"expected tracking data for '{stage}'");
+            reasons
+                .All(static reason => reason == IncrementalStepRunReason.Cached)
+                .ShouldBeTrue(
+                    $"expected keyed collection '{stage}' to stay cached after a semantic no-op, got: {string.Join(", ", reasons)}"
+                );
+        }
+
+        var changedKey = Rerun(before, "Line.cs", KeyedLineSource("LineId"));
+        changedKey.SpfDiagnostics().ShouldBeEmpty();
+        var changedSources = changedKey.Sources();
+        changedSources[promotedHint].ShouldNotBe(beforeSources[promotedHint]);
+        changedSources[promotedHint].ShouldContain("LineId");
+        var changedReasons = TrackedReasons(
+            changedKey.GeneratorResult,
+            "SparseTypesGenerator.Output"
+        );
+        changedReasons.ShouldNotBeEmpty();
+        changedReasons
+            .Any(static reason => reason != IncrementalStepRunReason.Cached)
+            .ShouldBeTrue(
+                $"expected key metadata changes to invalidate output, got: {string.Join(", ", changedReasons)}"
+            );
     }
 
     [Test]

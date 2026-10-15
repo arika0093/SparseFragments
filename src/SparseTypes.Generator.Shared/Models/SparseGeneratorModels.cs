@@ -57,6 +57,34 @@ internal readonly record struct SparseCollectionInfo(
     string? TemporaryKeyPropertyName = null
 )
 {
+    public bool Equals(SparseCollectionInfo other) =>
+        Kind == other.Kind
+        && CloneKind == other.CloneKind
+        && ElementType == other.ElementType
+        && ValueType == other.ValueType
+        && NamedTypeDefinition == other.NamedTypeDefinition
+        && Semantic == other.Semantic
+        && SparseSequence.Equal(KeyPropertyNames, other.KeyPropertyNames)
+        && KeyTypeName == other.KeyTypeName
+        && KeyKind == other.KeyKind
+        && UnassignedKeyExpression == other.UnassignedKeyExpression
+        && TemporaryKeyPropertyName == other.TemporaryKeyPropertyName;
+
+    public override int GetHashCode()
+    {
+        var hash = (int)Kind;
+        hash = unchecked(hash * 31 + (int)CloneKind);
+        hash = unchecked(hash * 31 + ElementType.GetHashCode());
+        hash = unchecked(hash * 31 + (ValueType?.GetHashCode() ?? 0));
+        hash = unchecked(hash * 31 + (NamedTypeDefinition?.GetHashCode() ?? 0));
+        hash = unchecked(hash * 31 + (int)Semantic);
+        hash = unchecked(hash * 31 + SparseSequence.Hash(KeyPropertyNames));
+        hash = unchecked(hash * 31 + (KeyTypeName?.GetHashCode() ?? 0));
+        hash = unchecked(hash * 31 + (int)KeyKind);
+        hash = unchecked(hash * 31 + (UnassignedKeyExpression?.GetHashCode() ?? 0));
+        return unchecked(hash * 31 + (TemporaryKeyPropertyName?.GetHashCode() ?? 0));
+    }
+
     public static SparseCollectionInfo Unsupported { get; } =
         new(
             SparseCollectionKind.Unsupported,
