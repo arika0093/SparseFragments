@@ -183,7 +183,6 @@ public sealed class SparseObservableDictionary<TKey, TModel, TView>
             return false;
         }
 
-        var oldView = Wrap(oldValue);
         var before = _notificationVersion;
         var removed = _model.Remove(key);
         if (!removed)
@@ -195,6 +194,7 @@ public sealed class SparseObservableDictionary<TKey, TModel, TView>
         {
             // Only the evicted value can go stale; a duplicate reference still
             // present under another key keeps its proxy alive.
+            var oldView = Wrap(oldValue);
             PruneRemoved(oldValue);
             RaiseCollectionChanged(
                 new NotifyCollectionChangedEventArgs(
@@ -287,11 +287,11 @@ public sealed class SparseObservableDictionary<TKey, TModel, TView>
             return;
         }
 
-        var oldView = existed ? Wrap(oldValue!) : default;
         var before = _notificationVersion;
         _model[key] = value;
         if (before == _notificationVersion)
         {
+            var oldView = existed ? Wrap(oldValue!) : default;
             if (existed)
             {
                 PruneRemoved(oldValue!);
@@ -342,37 +342,42 @@ public sealed class SparseObservableDictionary<TKey, TModel, TView>
             return new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset);
         }
 
-        var newItems = ConvertItems(args.NewItems);
-        var oldItems = ConvertItems(args.OldItems);
         return args.Action switch
         {
-            NotifyCollectionChangedAction.Add when newItems is { Count: 1 } => new(
+            NotifyCollectionChangedAction.Add when args.NewItems is { Count: 1 } => new(
                 NotifyCollectionChangedAction.Add,
-                newItems[0]
+                ConvertPair((KeyValuePair<TKey, TModel>)args.NewItems[0]!)
             ),
-            NotifyCollectionChangedAction.Add => new(NotifyCollectionChangedAction.Add, newItems!),
-            NotifyCollectionChangedAction.Remove when oldItems is { Count: 1 } => new(
-                NotifyCollectionChangedAction.Remove,
-                oldItems[0]
+            NotifyCollectionChangedAction.Add when args.NewItems is { Count: > 1 } => new(
+                NotifyCollectionChangedAction.Add,
+                ConvertItems(args.NewItems)!
             ),
-            NotifyCollectionChangedAction.Remove => new(
+            NotifyCollectionChangedAction.Remove when args.OldItems is { Count: 1 } => new(
                 NotifyCollectionChangedAction.Remove,
-                oldItems!
+                ConvertPair((KeyValuePair<TKey, TModel>)args.OldItems[0]!)
+            ),
+            NotifyCollectionChangedAction.Remove when args.OldItems is { Count: > 1 } => new(
+                NotifyCollectionChangedAction.Remove,
+                ConvertItems(args.OldItems)!
             ),
             NotifyCollectionChangedAction.Replace
-                when newItems is { Count: 1 } && oldItems is { Count: 1 } => new(
+                when args.NewItems is { Count: 1 } && args.OldItems is { Count: 1 } => new(
                 NotifyCollectionChangedAction.Replace,
-                newItems[0],
-                oldItems[0]
+                ConvertPair((KeyValuePair<TKey, TModel>)args.NewItems[0]!),
+                ConvertPair((KeyValuePair<TKey, TModel>)args.OldItems[0]!)
             ),
-            NotifyCollectionChangedAction.Replace => new(
+            NotifyCollectionChangedAction.Replace
+                when args.NewItems is { Count: > 1 } && args.OldItems is { Count: > 1 } => new(
                 NotifyCollectionChangedAction.Replace,
-                newItems!,
-                oldItems!
+                ConvertItems(args.NewItems)!,
+                ConvertItems(args.OldItems)!
             ),
             _ => new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset),
         };
     }
+
+    private KeyValuePair<TKey, TView> ConvertPair(KeyValuePair<TKey, TModel> pair) =>
+        new(pair.Key, Wrap(pair.Value));
 
     private List<KeyValuePair<TKey, TView>>? ConvertItems(System.Collections.IList? items)
     {
@@ -384,7 +389,7 @@ public sealed class SparseObservableDictionary<TKey, TModel, TView>
         var converted = new List<KeyValuePair<TKey, TView>>(items.Count);
         foreach (KeyValuePair<TKey, TModel> pair in items)
         {
-            converted.Add(new KeyValuePair<TKey, TView>(pair.Key, Wrap(pair.Value)));
+            converted.Add(ConvertPair(pair));
         }
 
         return converted;

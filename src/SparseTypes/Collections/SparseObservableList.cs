@@ -98,13 +98,13 @@ public sealed class SparseObservableList<TModel, TView>
             var newModel = _unwrap(value);
             Mutate(
                 () => _model[index] = newModel,
-                new NotifyCollectionChangedEventArgs(
+                new MutationNotification(
                     NotifyCollectionChangedAction.Replace,
-                    Wrap(newModel),
-                    Wrap(oldModel),
+                    newModel,
+                    oldModel,
+                    index,
                     index
-                ),
-                () => PruneRemoved(oldModel)
+                )
             );
         }
     }
@@ -116,13 +116,13 @@ public sealed class SparseObservableList<TModel, TView>
         var oldModel = _model[index];
         Mutate(
             () => _model[index] = item,
-            new NotifyCollectionChangedEventArgs(
+            new MutationNotification(
                 NotifyCollectionChangedAction.Replace,
-                Wrap(item),
-                Wrap(oldModel),
+                item,
+                oldModel,
+                index,
                 index
-            ),
-            () => PruneRemoved(oldModel)
+            )
         );
     }
 
@@ -179,12 +179,13 @@ public sealed class SparseObservableList<TModel, TView>
         // Pure addition cannot orphan cached proxies, so no prune is needed.
         Mutate(
             () => _model.Add(item),
-            new NotifyCollectionChangedEventArgs(
+            new MutationNotification(
                 NotifyCollectionChangedAction.Add,
-                Wrap(item),
-                _model.Count
-            ),
-            prune: null
+                item,
+                default!,
+                _model.Count,
+                -1
+            )
         );
     }
 
@@ -202,8 +203,13 @@ public sealed class SparseObservableList<TModel, TView>
 
         Mutate(
             _model.Clear,
-            new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset),
-            DeactivateAll
+            new MutationNotification(
+                NotifyCollectionChangedAction.Reset,
+                default!,
+                default!,
+                -1,
+                -1
+            )
         );
     }
 
@@ -253,12 +259,7 @@ public sealed class SparseObservableList<TModel, TView>
         // Pure insertion cannot orphan cached proxies, so no prune is needed.
         Mutate(
             () => _model.Insert(index, item),
-            new NotifyCollectionChangedEventArgs(
-                NotifyCollectionChangedAction.Add,
-                Wrap(item),
-                index
-            ),
-            prune: null
+            new MutationNotification(NotifyCollectionChangedAction.Add, item, default!, index, -1)
         );
     }
 
@@ -280,15 +281,15 @@ public sealed class SparseObservableList<TModel, TView>
     {
         ThrowIfDisposed();
         var removedModel = _model[index];
-        var removed = Wrap(removedModel);
         Mutate(
             () => _model.RemoveAt(index),
-            new NotifyCollectionChangedEventArgs(
+            new MutationNotification(
                 NotifyCollectionChangedAction.Remove,
-                removed,
+                default!,
+                removedModel,
+                -1,
                 index
-            ),
-            () => PruneRemoved(removedModel)
+            )
         );
     }
 
@@ -488,14 +489,15 @@ public sealed class SparseObservableList<TModel, TView>
         _proxies.Clear();
     }
 
-    private void Mutate(Action mutation, NotifyCollectionChangedEventArgs args, Action? prune)
+    private void Mutate(Action mutation, MutationNotification notification)
     {
         ThrowIfDisposed();
         var before = _notificationVersion;
         mutation();
         if (before == _notificationVersion)
         {
-            prune?.Invoke();
+            var args = notification.Create(this);
+            notification.Prune(this);
             RaiseCollectionChanged(args);
         }
     }
@@ -533,46 +535,45 @@ public sealed class SparseObservableList<TModel, TView>
             return new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset);
         }
 
-        var newItems = ConvertItems(args.NewItems);
-        var oldItems = ConvertItems(args.OldItems);
         return args.Action switch
         {
-            NotifyCollectionChangedAction.Add when newItems is { Count: 1 } => new(
+            NotifyCollectionChangedAction.Add when args.NewItems is { Count: 1 } => new(
                 NotifyCollectionChangedAction.Add,
-                newItems[0],
+                Wrap((TModel)args.NewItems[0]!),
                 args.NewStartingIndex
             ),
-            NotifyCollectionChangedAction.Add => new(
+            NotifyCollectionChangedAction.Add when args.NewItems is { Count: > 1 } => new(
                 NotifyCollectionChangedAction.Add,
-                newItems!,
+                ConvertItems(args.NewItems)!,
                 args.NewStartingIndex
             ),
-            NotifyCollectionChangedAction.Remove when oldItems is { Count: 1 } => new(
+            NotifyCollectionChangedAction.Remove when args.OldItems is { Count: 1 } => new(
                 NotifyCollectionChangedAction.Remove,
-                oldItems[0],
+                Wrap((TModel)args.OldItems[0]!),
                 args.OldStartingIndex
             ),
-            NotifyCollectionChangedAction.Remove => new(
+            NotifyCollectionChangedAction.Remove when args.OldItems is { Count: > 1 } => new(
                 NotifyCollectionChangedAction.Remove,
-                oldItems!,
+                ConvertItems(args.OldItems)!,
                 args.OldStartingIndex
             ),
             NotifyCollectionChangedAction.Replace
-                when newItems is { Count: 1 } && oldItems is { Count: 1 } => new(
+                when args.NewItems is { Count: 1 } && args.OldItems is { Count: 1 } => new(
                 NotifyCollectionChangedAction.Replace,
-                newItems[0],
-                oldItems[0],
+                Wrap((TModel)args.NewItems[0]!),
+                Wrap((TModel)args.OldItems[0]!),
                 args.NewStartingIndex
             ),
-            NotifyCollectionChangedAction.Replace => new(
+            NotifyCollectionChangedAction.Replace
+                when args.NewItems is { Count: > 1 } && args.OldItems is { Count: > 1 } => new(
                 NotifyCollectionChangedAction.Replace,
-                newItems!,
-                oldItems!,
+                ConvertItems(args.NewItems)!,
+                ConvertItems(args.OldItems)!,
                 args.NewStartingIndex
             ),
-            NotifyCollectionChangedAction.Move when newItems is { Count: 1 } => new(
+            NotifyCollectionChangedAction.Move when args.NewItems is { Count: 1 } => new(
                 NotifyCollectionChangedAction.Move,
-                newItems[0],
+                Wrap((TModel)args.NewItems[0]!),
                 args.NewStartingIndex,
                 args.OldStartingIndex
             ),
@@ -693,5 +694,44 @@ public sealed class SparseObservableList<TModel, TView>
     {
         public TView View = default!;
         public bool Active = true;
+    }
+
+    private readonly struct MutationNotification(
+        NotifyCollectionChangedAction action,
+        TModel newModel,
+        TModel oldModel,
+        int newIndex,
+        int oldIndex
+    )
+    {
+        public NotifyCollectionChangedEventArgs Create(SparseObservableList<TModel, TView> owner) =>
+            action switch
+            {
+                NotifyCollectionChangedAction.Add => new(action, owner.Wrap(newModel), newIndex),
+                NotifyCollectionChangedAction.Remove => new(action, owner.Wrap(oldModel), oldIndex),
+                NotifyCollectionChangedAction.Replace => new(
+                    action,
+                    owner.Wrap(newModel),
+                    owner.Wrap(oldModel),
+                    newIndex
+                ),
+                _ => new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset),
+            };
+
+        public void Prune(SparseObservableList<TModel, TView> owner)
+        {
+            if (
+                action
+                is NotifyCollectionChangedAction.Remove
+                    or NotifyCollectionChangedAction.Replace
+            )
+            {
+                owner.PruneRemoved(oldModel);
+            }
+            else if (action == NotifyCollectionChangedAction.Reset)
+            {
+                owner.DeactivateAll();
+            }
+        }
     }
 }
