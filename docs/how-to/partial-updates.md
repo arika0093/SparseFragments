@@ -1,19 +1,8 @@
 # Partial updates
 
-This guide serves one endpoint that accepts two kinds of input: a
-baseline-free patch command from a caller that never saw the current state,
-and a baseline-aware change set from an editor that did. It assumes the
-[first sparse edit](../tutorial/first-sparse-edit.md) flow already reads
-familiar. The wire envelope and reconciliation rules stay in their
-references: [ChangePayload](../reference/change-payload.md) for the JSON layout and
-[ChangeSet rebase](../explanation/rebase.md) for the server-side save, including the
-row-version guard. This page chooses the input and shows where information
-is lost on purpose.
+This guide shows how to accept two kinds of updates in a Web API: baseline-free patch commands and baseline-aware change sets.
 
 ## Endpoint model
-
-The profile carries a display name and a phone number. The phone number
-redacts its before-state on the wire, which matters in the last section.
 
 <!-- sample: partial-models -->
 ```csharp
@@ -31,12 +20,9 @@ public partial class PartialProfile
 ```
 <!-- /sample -->
 
-## Accept a Patch command with no preconditions
+## Apply a baseline-free Patch command
 
-A caller that never read the row sends what it wants changed. The patch
-carries no before-state, so the endpoint applies it without a conflict
-check. Use this shape for callers that own their target outright, such as an
-admin command or a webhook that sets one field.
+When callers send desired values without having seen the current state (e.g. webhook or admin update), use `Patch`. It applies directly without conflict checking:
 
 <!-- sample: partial-patch -->
 ```csharp
@@ -51,13 +37,9 @@ var commanded = command.ApplyTo(stored);
 ```
 <!-- /sample -->
 
-## Accept a ChangeSet from an editor that saw the baseline
+## Apply a baseline-aware ChangeSet with conflict detection
 
-An editor that read the row sends the transition it observed. The change
-set keeps the before-state, so the endpoint can rebase it onto the current
-row and report a conflict instead of overwriting a concurrent edit. The
-rebase itself runs on the server as shown in
-[ChangeSet rebase](../explanation/rebase.md#disconnected-editing).
+When an editor has seen the current baseline, capture and send a `ChangeSet`. The server uses the before-state to detect concurrent collisions:
 
 <!-- sample: partial-changeset -->
 ```csharp
@@ -73,16 +55,9 @@ var editorChanges = editorBase.CreateChangeSet(editorEdited);
 ```
 <!-- /sample -->
 
-## Convert both inputs to ChangePayload
+## Wire transport with ChangePayload
 
-Both inputs cross the process boundary through the same envelope. A change
-set enters it with `ToPayload()`; a patch enters it with
-`ChangePayload.FromPatch`, which redacts every before-state by construction.
-
-`ToPatch()` is the information-loss boundary between them. It discards the
-before-state and returns the equivalent desired operations. The projection
-replays the same after-state from the same baseline, but it can no longer
-be inverted, composed, or rebased. There is no silent path back.
+Both inputs cross process boundaries using the unified `ChangePayload` envelope:
 
 <!-- sample: partial-payload -->
 ```csharp
@@ -104,12 +79,9 @@ var replayed = replay.ApplyTo(payloadBase);
 ```
 <!-- /sample -->
 
-## Audit and undo only complete change sets
+## Audit and Undo
 
-Undo replays the before-state, so only the complete change set inverts. A
-projected patch has nothing to walk back to. Keep the change set where the
-audit trail or the undo stack needs it, and project to a patch at the last
-moment before a blind apply.
+Only complete `ChangeSet` instances can be inverted. Projecting to a `Patch` discards before-state:
 
 <!-- sample: partial-audit -->
 ```csharp
@@ -124,14 +96,9 @@ var restored = undo.ToPatch().ApplyTo(auditEdited);
 ```
 <!-- /sample -->
 
-## Treat a redacted rotation as a command, not history
+## Redacted members
 
-The phone rotation redacts its before-state on the wire: the payload carries
-the new number and never the old one. The redacted payload still projects
-to a baseline-free command that applies cleanly. It cannot become a
-baseline-aware change set again, because the before-state needed for
-reversible history is gone by design. Endpoint code that needs the old value
-for audit must capture it before redaction, not recover it after.
+Members marked with `[SparseRedactBefore]` omit before-values on the wire. They apply cleanly as commands, but cannot be inverted or converted back to a reversible `ChangeSet`:
 
 <!-- sample: partial-redacted -->
 ```csharp
@@ -162,6 +129,4 @@ catch (ArgumentException)
 ```
 <!-- /sample -->
 
-The `JsonSerializer` lines need `using System.Text.Json;` at the top of the
-file. The redaction attribute and the mixed-request endpoints that accept
-both shapes in one call stay in the [ChangePayload reference](../reference/change-payload.md).
+For serialization format details, see [ChangePayload reference](../reference/change-payload.md). For server rebase rules, see [ChangeSet rebase](../explanation/rebase.md).

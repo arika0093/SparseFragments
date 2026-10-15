@@ -30,7 +30,20 @@ public partial class NestedClass
 }
 ```
 
-That's all you need to do!
+That's all you need to do! Start editing reactively with dirty tracking and Undo/Redo:
+
+<!-- illustrative: edit session usage -->
+```csharp
+var settings = new Settings { Theme = "light" };
+var session = settings.CreateEditSession();
+
+session.Observable.Theme = "dark";
+Console.WriteLine(session.HasChanges); // True
+
+var changes = session.CreateChangeSet();
+Console.WriteLine(changes.Theme.Before.Value); // light
+Console.WriteLine(changes.Theme.After.Value);  // dark
+```
 
 ### Where it helps in real systems
 
@@ -72,7 +85,7 @@ The package contains the source generator, so no additional generation step is r
 
 ## Quick Start
 
-With the .NET 10 SDK or later, the whole example fits in a single file. It layers an environment override over defaults, applies one user edit, and prints the effective values with the typed transition.
+With the .NET 10 SDK or later, the whole example fits in a single file. It starts a reactive edit session, modifies values through an observable proxy, inspects dirty state and typed transitions, and reverts changes.
 
 <!-- sample: readme-quickstart -->
 ```csharp
@@ -80,35 +93,31 @@ With the .NET 10 SDK or later, the whole example fits in a single file. It layer
 
 using SparseTypes;
 
-// 1. Snapshot complete defaults
-var defaults = Settings.Fragment.From(new Settings
+var settings = new Settings
 {
     Label = "default",
     Database = new() { Host = "db.local", Port = 5432 },
-});
-
-// 2. Define an override with only Port specified
-var environment = new Settings.Fragment
-{
-    Database = new DatabaseSettings.Fragment { Port = 6432 },
 };
 
-// 3. Merge layers (unspecified members fall through)
-var effective = defaults.Merge(environment);
+// 1. Start a reactive edit session
+var session = settings.CreateEditSession();
 
-// 4. Apply a targeted patch
-var patch = new Settings.Patch { Label = "production" };
-patch.Database.Port = 7432;
-var updated = effective.Apply(patch);
+// 2. Edit through the observable proxy
+session.Observable.Label = "production";
+session.Observable.Database!.Port = 7432;
 
-// 5. Inspect the transition between states
-var changes = Settings.ChangeSet.Between(effective, updated);
+// 3. Inspect dirty state and typed transitions
+var changes = session.CreateChangeSet();
 
-Console.WriteLine(updated.ToModel().Label);            // production
-Console.WriteLine(updated.ToModel().Database!.Host);   // db.local, preserved by the patch
-Console.WriteLine(changes.Label.IsChanged);            // True
-Console.WriteLine(changes.Database.Port.Before.Value); // 6432
-Console.WriteLine(changes.Database.Port.After.Value);  // 7432
+Console.WriteLine(session.HasChanges); // True
+Console.WriteLine(changes.Label.IsChanged); // True
+Console.WriteLine(changes.Database.Port.Before.Value); // 5432
+Console.WriteLine(changes.Database.Port.After.Value); // 7432
+
+// 4. Revert edits when needed
+session.RevertChanges();
+Console.WriteLine(session.HasChanges); // False
+Console.WriteLine(settings.Label); // default
 
 [SparseModel]
 public partial class Settings
@@ -131,8 +140,9 @@ Save it as `quickstart.cs` and run:
 dotnet run --file quickstart.cs
 ```
 
-Unassigned members fall through on `Merge`. `Patch` applies targeted edits without requiring a baseline.
+`session.Observable` tracks edits with notifications while caching dirty state.
 `ChangeSet` captures typed before-to-after transitions with exact `IsChanged` flags.
+For layered configuration and patch algebra, see [Tutorial: First sparse edit](docs/tutorial/first-sparse-edit.md).
 
 ### Wire transport and concurrent rebase
 
@@ -169,17 +179,9 @@ The source generator emits companion types designed to work together across the 
 ### Presence tracking with Optional<T>
 
 A `Fragment` represents your model where every member is wrapped in `Optional<T>`.
-This enables three distinct states that standard C# properties cannot distinguish at once:
-
-<!-- sample: readme-optional-states -->
-```csharp
-Optional<string?> missing = Optional<string?>.Missing;
-Optional<string?> value = "hello";
-Optional<string?> explicitNull = Optional<string?>.Present(null);
-```
-<!-- /sample -->
-
-Missing means unassigned (falling through during merge), present `null` explicitly clears a value, and present value updates it.
+This enables three distinct states: unassigned (missing, which falls through during `Merge`),
+explicit `null` (present `null`, which overrides a value), and present values.
+See [Fragments and patches](docs/explanation/fragments-and-patches.md) for details.
 
 Additionally, helper types like `DeepClone()` and `Descriptors` are generated for convenience.
 
@@ -211,6 +213,7 @@ Do you want to know more? See the [Documentation](#documentation) section below.
 * [ChangePayload wire format](docs/reference/change-payload.md): JSON schema and serialization specification.
 * [Descriptors reference](docs/reference/descriptors.md): Reflection-free runtime metadata and dynamic accessors.
 * [Edit session state & observers](docs/reference/edit-session-state.md): Point-in-time state queries and reactive field observers.
+* [EF Core mapping reference](docs/reference/efcore-mapping.md): Mapper configuration, metadata handling, and execution lifecycle.
 * [Model shapes](docs/reference/model-shapes.md): Supported C# shapes, modifiers, and constructor requirements.
 * [Diagnostics](docs/reference/analyzer.md): Roslyn analyzer rules (`SPF001`-`SPF035`).
 

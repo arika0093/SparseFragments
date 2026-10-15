@@ -1,19 +1,10 @@
 # Blazor headless components
 
-`SparseEdit` and `SparseField` render a form without imposing markup,
-styling, or a component vendor. `SparseEdit` takes only `Session`;
-`TModel` and the concrete generated path builder infer from it. Each
-`SparseField` takes only `Path`; `TModel` and `TValue` infer from the
-builder. This guide assumes the [first sparse edit](../tutorial/first-sparse-edit.md)
-flow and the [Blazor UI contract](../explanation/ui-frameworks.md#blazor) read familiar,
-and the [Blazor edit form](blazor-edit-form.md) guide covers the equivalent
-save lifecycle with hand-written bindings.
+`SparseEdit` and `SparseField` render forms without coupling your code to any specific UI component vendor or HTML layout.
 
-The listings below run in the `package-sparse-blazor` consumer fixture. The
-Razor shapes compile as `SparseHeadless.razor` in the same project; that file
-is compile-only, while the C# listing carries the runtime assertions.
+## Render a headless form
 
-## Render one form
+Wrap your form in `<SparseEdit>` and bind individual fields using `<SparseField>`:
 
 <!-- illustrative: razor markup shape; the compilable component is SparseHeadless.razor in the Blazor consumer fixture -->
 ```razor
@@ -33,15 +24,9 @@ is compile-only, while the C# listing carries the runtime assertions.
 </SparseEdit>
 ```
 
-`MyInput` stands for an ordinary third-party control with
-`Value`/`ValueChanged`. The `edit` context exposes the concrete `Path`
-builder, the original-model `EditContext`, live `HasChanges`, and the
-session-owned history. Each field context exposes the live typed `Value`
-with a setter into the binding, `SetAsync`, `IsChanged`, presence
-endpoints, `IsModified`, validation messages, and root-preserving
-navigation (`Select`, `Key`, `At`, `TemporaryKey`).
+## Drive binding contracts in code
 
-## Drive the same contracts in code
+You can also bind paths directly in C# without Razor components using `session.Bind()`:
 
 <!-- sample: blazor-headless -->
 ```csharp
@@ -129,21 +114,10 @@ headlessSession.DisableHistory();
 ```
 <!-- /sample -->
 
-## History belongs to the session
+## Bind inputs
 
-Call `EnableHistory` on the session before rendering when the form needs
-undo and redo. The edit context reads the session-owned control live, so
-`CanUndo` and `CanRedo` refresh through history stack notifications without
-further calls. The components never enable, reconfigure, or dispose the
-history: unmounting and remounting with the same session keeps the retained
-stacks, and `DisableHistory` stays the single release path.
-
-## Bind third-party and framework inputs
-
-Use `@bind-Value="field.Value"` on controls that only need value and change
-notification. For `InputText`, `InputNumber`, and other `InputBase<TValue>`
-controls, pass the triple explicitly so validation targets the original
-model.
+* **Standard / third-party controls**: Bind directly with `@bind-Value="field.Value"`.
+* **Blazor `InputBase` controls (`InputText`, `InputNumber`)**: Pass `Value`, `ValueChanged`, and `ValueExpression` explicitly so validation messages bind to the underlying model:
 
 <!-- illustrative: razor markup shape; the compilable component is SparseHeadless.razor in the Blazor consumer fixture -->
 ```razor
@@ -158,39 +132,19 @@ model.
 </SparseField>
 ```
 
-Do not use `@bind-Value` on `InputBase` controls. Its generated expression
-targets the field context instead of the original model, so field-level
-validation would misattribute. Keyed, temporary-key, and indexed paths
-expose a null `ValueExpression`, and `InputBase` rejects a null expression,
-so those paths edit through value and callback inputs with errors surfaced
-explicitly.
+## Navigate nested and collection paths
 
-## Follow nested and collection paths
+Use `Select` to navigate into child models, and `Key` or `At` to navigate into collections:
 
-`Select` navigates a field value to a child member, and `Key`, `At`, and
-`TemporaryKey` navigate a collection field to one entry member. Every form
-keeps the root model type, so the result feeds a nested `SparseField`
-directly. Reads resolve live on every access: row replacement and keyed
-reorder are followed, and removed entries report stale instead of writing
-to an orphan.
+<!-- illustrative: nested path navigation -->
+```razor
+<SparseField Path="edit.Path.Customer" Context="customer">
+    <SparseField Path="customer.Select(c => c.Email)" Context="email">
+        <MyInput @bind-Value="email.Value" />
+    </SparseField>
+</SparseField>
+```
 
-Collection-root fields report the default semantic state because member
-transitions cannot be boxed as the collection value. Query
-`TryGetCollectionState` on those fields for row states instead.
+When switching the active `Session` instance, key the `<EditForm>` by session or generation (e.g. `@key="session"`) so inputs recreate against the updated context.
 
-## Replace sessions without leaks
-
-Assigning a new `Session` unsubscribes the previous session and history,
-builds a fresh original-model `EditContext`, and subscribes the next
-session. Key the `EditForm` on the session so inputs rebuild against the
-new context; reused inputs keep the old cascaded context. Validation
-subscriptions rewire to the new context and release on disposal. In-flight
-callbacks captured from a previous tree complete against their own binding
-and never cross into the replacement model.
-
-One session notification refreshes the subtree once, and one `BatchEdit`
-raises one notification however many edits it holds. Each field snapshots
-its semantic state once per render from a fresh session diff. For hot
-subtrees that need less, keep using the low-level `Bind` and
-`SparseSessionScope` APIs around explicit actions instead of rendering on
-every keystroke.
+For detailed session observer specifications, see [Edit session state and observers reference](../reference/edit-session-state.md).

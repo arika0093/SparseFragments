@@ -1,23 +1,10 @@
 # Blazor edit form
 
-This guide wires one order form from first keystroke to saved row. It
-assumes the [first sparse edit](../tutorial/first-sparse-edit.md) flow
-already reads familiar and the
-[UI frameworks](../explanation/ui-frameworks.md#blazor) contract makes sense. The
-persistence and rebase rules behind the save stay in
-[ChangeSet rebase](../explanation/rebase.md); this page shows the form around them.
-
-The listings below run in the `package-sparse-blazor` consumer fixture, and
-the Razor shape around them compiles as `OrderEditForm.razor` in the same
-project. The service is a fake owned by the application; transport stays
-with the application in production too.
+This guide shows how to wire an editable Blazor `EditForm` using an `EditSession`, submit changes, handle concurrency conflicts, and retry failed requests without losing user edits.
 
 ## Model and save boundary
 
-The order carries a required number, a note, and two server-managed members:
-a version and an update timestamp. The fake endpoint answers with one of
-three results: the persisted row, the current server row on conflict, or an
-`HttpRequestException` when transport fails before anything is persisted.
+Define your model with `[SparseModel]` and DataAnnotations:
 
 <!-- sample: blazor-form-models -->
 ```csharp
@@ -96,27 +83,9 @@ public sealed class FakeOrderSaveService
 ```
 <!-- /sample -->
 
-`CreateEditSession()` captures the model as baseline and live instance, and
-`CreateEditContext()` binds that same original model to the `EditContext`.
-The observable proxy is never the context model, so validation metadata
-such as `[Required]` keeps applying to the model. The listings use a manual
-`OnValidationRequested` handler where a real component drops in
-`<DataAnnotationsValidator />`; both feed the same `ValidationMessageStore`.
+## Bind inputs through Observable and notify EditContext
 
-## Edit through Observable, notify the EditContext
-
-The text input writes through `session.Observable` and then tells the
-context which field changed. Those are two separate channels with two
-separate jobs: the proxy edits the live model with notifications and drives
-`HasChanges`, while `NotifyFieldChanged` drives Blazor field tracking
-(modified flags) and validation display. Touching a field and changing a
-value stay distinct: an edit that is restored to its baseline leaves the
-field marked modified but `HasChanges` false.
-
-Never bind an `InputText` expression to the proxy. The expression picks the
-validation model, and the proxy is the wrong one. Bind the value expression
-to the live model and route the changed value through the proxy, as the
-component below does.
+Write input changes through `session.Observable` and notify the `EditContext` via `session.Field()`:
 
 <!-- illustrative: razor markup shape; the compilable component is OrderEditForm.razor in the Blazor consumer fixture -->
 ```razor
@@ -133,9 +102,6 @@ component below does.
 </EditForm>
 
 @code {
-    // formGeneration increments on every adopted session, so the input
-    // subtree is recreated with the new EditContext instead of reusing
-    // inputs bound to the old one.
     private int formGeneration;
 
     private void OnNumberChanged(string value)
@@ -145,11 +111,6 @@ component below does.
     }
 }
 ```
-
-The fixture drives the same adapter without a renderer: one edit marks the
-field modified and passes validation, and clearing the required number
-fails validation with the required message. A failed `Validate()` stops the
-submit before any change set is captured.
 
 <!-- sample: blazor-form-input -->
 ```csharp
@@ -183,15 +144,9 @@ inputContext.NotifyFieldChanged(inputSession.Field(nameof(BlazorEditFormOrder.Nu
 ```
 <!-- /sample -->
 
-## Submit one change set and adopt the persisted row
+## Submit and adopt the persisted row
 
-The submit disables editing while the request runs, validates first, then
-captures exactly one change set and sends its payload. The four outcomes
-stay apart: validation failure never reaches the service, success adopts
-the server row, conflict surfaces field errors, and transport failure keeps
-everything for a retry. The listing shows the success path with a normalised
-number and server-assigned version and timestamp. The conflict and transport
-sections below run the same handler shape against the other two modes.
+On successful save, create a fresh session from the returned authoritative row. Re-keying the `<EditForm>` (`@key="formGeneration"`) ensures input components rebuild cleanly against the new context:
 
 <!-- sample: blazor-form-save -->
 ```csharp
@@ -268,40 +223,9 @@ finally
 ```
 <!-- /sample -->
 
-The fresh session is the recommended acknowledgement whenever the server
-returns state: it picks up key assignments, timestamps, and normalisation
-without reconciliation code. The old validation handler is detached before
-the context is replaced, so the dead context keeps no references to the new
-session. `HasChanges` is false because the baseline is the persisted row.
+## Surface conflicts on fields
 
-Adopting a new `EditContext` must also recreate the rendered inputs. An
-`InputText` caches its cascaded context and rejects a different one on the
-same instance, so the component keys the `EditForm` by an explicit session
-generation that increments on every adoption. The key forces Blazor to tear
-down the old input subtree (disposing its validation subscriptions) and
-create inputs bound to the new context with no stale modified flags or
-messages. The rendered-component tests cover two save cycles through this
-recreation, plus a probe proving the old validation subscription is gone.
-
-Two neighboring calls serve narrower cases. `BatchEdit` groups one user
-action that needs several observable mutations into one notification; it
-never rolls back, so discarding still goes through `RevertChanges`. For
-forms that keep editing enabled while the save runs and the server changes
-nothing structural, `AcceptChanges(submitted)` advances only the baseline
-and later edits stay pending; the context clears only when the session is
-clean. Prefer the fresh session above it whenever IDs, timestamps, or
-normalisation are in play.
-
-## Show conflicts and resolve them explicitly
-
-When the server kept a newer value, each structured conflict already
-carries its member path, so `AddValidationError` with the path overload
-addresses the message at the disputed field. The original session, its
-pending changes, and the current `EditContext` all stay: no clean session
-is created before an actual save or an explicit user decision. Reloading
-the conflicting state reports the same conflict and leaves the live model
-and the baseline untouched. Resolution is a user action; here the user
-takes the server value, which clears the pending change.
+When concurrent modifications clash, project the structured conflicts directly to field validation errors using `AddValidationError`:
 
 <!-- sample: blazor-form-conflict -->
 ```csharp
@@ -365,20 +289,9 @@ var resolved = conflictSession.Reload(serverState);
 ```
 <!-- /sample -->
 
-A conflict-free `Reload` with disjoint server changes merges instead: it
-writes the merged result into the live model instance and keeps the pending
-edits as changes against the new baseline, as shown in
-[UI frameworks](../explanation/ui-frameworks.md#reload-with-fresh-server-state). The
-component turns that into two explicit choices rather than an automatic
-accept or a silent return. A row-version mismatch with disjoint changes
-merges the server state, clears the conflict, and asks for an explicit
-retry with a notice; overlapping field conflicts keep the session, surface
-field errors, and offer a visible **Use server value** button that discards
-the local edit by adopting the authoritative row as a fresh session.
-
 ### Managing conflicts with dedicated validation stores
 
-In larger forms with deleted keyed items or removed child members, exact member paths may no longer resolve in the client model graph. Use `session.AddConflicts()` with a dedicated conflict `ValidationMessageStore` to handle path fallbacks cleanly:
+In complex forms with deleted child elements, use `session.AddConflicts()` with a dedicated `ValidationMessageStore` to route errors to parent paths cleanly:
 
 <!-- illustrative: conflict projection helper usage -->
 ```csharp
@@ -391,15 +304,9 @@ var options = new SparseConflictValidationOptions
 conflictSession.AddConflicts(conflictStore, conflictContext, surfacingConflicts, options);
 ```
 
-* **Store isolation**: Keeping a dedicated `conflictStore` ensures that `conflictSession.ClearConflicts(conflictStore, conflictContext)` clears conflict messages without wiping DataAnnotations validation errors managed by a separate store.
-* **Fallback targets**: `SparseConflictFallbackMode.NearestParent` resolves unresolvable paths (such as removed keyed elements) to the nearest surviving parent member, whereas `SparseConflictFallbackMode.Model` targets the root model. Foreign roots always fall back to model-level errors.
-* **Context replacement**: When adopting a fresh authoritative model after conflict resolution, detach handlers from the stale context, create a fresh session, and call `freshSession.ReplaceEditContext(staleContext)`. Key the containing `<EditForm>` (e.g. `@key="generation"`) so Blazor tears down input components bound to the stale context.
+## Retry transport failures without losing draft state
 
-## Retry transport failure without data loss
-
-A throw before persistence never ran acknowledgement, so the baseline is
-unchanged and the pending change is intact. The `finally` unblocks editing,
-and the retry sends the original change set through the same session.
+Network errors do not advance the session baseline. Re-enabling the form preserves all dirty fields for a retry:
 
 <!-- sample: blazor-form-transport -->
 ```csharp
@@ -463,3 +370,5 @@ retrySession = persisted.CreateEditSession();
 // retrySession.HasChanges == false
 ```
 <!-- /sample -->
+
+For deeper background on edit sessions and UI framework adapters, see [UI frameworks explanation](../explanation/ui-frameworks.md).

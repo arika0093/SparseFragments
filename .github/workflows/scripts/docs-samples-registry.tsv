@@ -13,7 +13,6 @@
 # docs scope and verify-sparsetypes-readme.sh covers README.md, both
 # from this file; the id lists must not be duplicated anywhere else.
 README.md	readme-quickstart	tests/fixtures/consumers/package-sparse-readme/Program.cs
-README.md	readme-optional-states	tests/fixtures/consumers/package-sparse-readme/Program.cs
 docs/explanation/fragments-and-patches.md	core-models	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/explanation/fragments-and-patches.md	core-create	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs
 docs/explanation/fragments-and-patches.md	core-layering	tests/fixtures/consumers/package-sparse-docs/VerifiedSamples.cs

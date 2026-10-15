@@ -10,67 +10,48 @@ using SparseTypes;
 // with the README so CI fails when the public generated API drifts from the
 // documented samples.
 
-// Presence Tracking: the three states of Optional<T>.
-// sample: readme-optional-states
-Optional<string?> missing = Optional<string?>.Missing;
-Optional<string?> value = "hello";
-Optional<string?> explicitNull = Optional<string?>.Present(null);
-// /sample
-Require(!missing.IsPresent, "Optional missing");
-Require(value.IsPresent && value.Value == "hello", "Optional present value");
-Require(explicitNull.IsPresent && explicitNull.Value is null, "Optional present null");
-
-// Quick Start: typed Patch editing (source fragment is never mutated), then
-// the ChangeSet transition. Comment lines stay outside the sample region so
-// the region matches the README block exactly.
+// Quick Start: reactive editing through EditSession, inspecting changes, and reverting.
 // sample: readme-quickstart
-// 1. Snapshot complete defaults
-var defaults = Settings.Fragment.From(new Settings
+var settings = new Settings
 {
     Label = "default",
     Database = new() { Host = "db.local", Port = 5432 },
-});
-
-// 2. Define an override with only Port specified
-var environment = new Settings.Fragment
-{
-    Database = new DatabaseSettings.Fragment { Port = 6432 },
 };
 
-// 3. Merge layers (unspecified members fall through)
-var effective = defaults.Merge(environment);
-Require(effective.Database.Value!.Port.Value == 6432, "merge higher priority wins");
-Require(effective.Database.Value.Host.Value == "db.local", "merge falls through nested missing members");
-Require(effective.Label.Value == "default", "merge keeps lower value for missing members");
+// 1. Start a reactive edit session
+var session = settings.CreateEditSession();
 
-// 4. Apply a targeted patch
-var patch = new Settings.Patch { Label = "production" };
-patch.Database.Port = 7432;
-var updated = effective.Apply(patch);
-Require(updated.ToModel().Label == "production", "typed patch applies");
-Require(updated.Database.Value!.Port.Value == 7432, "typed nested set");
+// 2. Edit through the observable proxy
+session.Observable.Label = "production";
+session.Observable.Database!.Port = 7432;
 
-// 5. Inspect the transition between states
-var changes = Settings.ChangeSet.Between(effective, updated);
-Console.WriteLine(updated.ToModel().Label);            // production
-Console.WriteLine(updated.ToModel().Database!.Host);   // db.local, preserved by the patch
-Console.WriteLine(changes.Label.IsChanged);            // True
-Console.WriteLine(changes.Database.Port.Before.Value); // 6432
-Console.WriteLine(changes.Database.Port.After.Value);  // 7432
+// 3. Inspect dirty state and typed transitions
+var changes = session.CreateChangeSet();
+
+Console.WriteLine(session.HasChanges); // True
+Console.WriteLine(changes.Label.IsChanged); // True
+Console.WriteLine(changes.Database.Port.Before.Value); // 5432
+Console.WriteLine(changes.Database.Port.After.Value); // 7432
+
+// 4. Revert edits when needed
+session.RevertChanges();
+Console.WriteLine(session.HasChanges); // False
+Console.WriteLine(settings.Label); // default
+
 // /sample
-Require(changes.Label.IsChanged, "typed transition reports the Label change");
-Require(changes.Label.Before.Value == "default", "typed transition Before");
-Require(changes.Label.After.Value == "production", "typed transition After");
-Require(changes.Database.Port.IsChanged, "typed nested transition reports the Port change");
-Require(changes.Database.Port.Before.Value == 6432, "typed nested transition Before");
-Require(changes.Database.Port.After.Value == 7432, "typed nested transition After");
-var replayed = effective.Apply(changes.ToPatch());
-Require(replayed.ToModel().Label == "production", "ChangeSet.ToPatch replays the transition");
+Require(!session.HasChanges, "session reverted has no changes");
+Require(settings.Label == "default", "revert restored Label");
+
+// Re-apply edit for wire transport demonstration
+session.Observable.Label = "production";
+session.Observable.Database!.Port = 7432;
+var outgoing = session.CreateChangeSet();
 
 // Client/Server Edits: the typed payload crosses process boundaries as ordinary System.Text.Json.
-var json = JsonSerializer.Serialize(changes.ToPayload());
+var json = JsonSerializer.Serialize(outgoing.ToPayload());
 var incoming = JsonSerializer.Deserialize<Settings.ChangePayload>(json)!.ToChangeSet();
 Require(incoming.Label.IsChanged, "ChangeSet payload JSON round-trip preserves transitions");
+var updated = Settings.Fragment.From(settings).Apply(incoming.ToPatch());
 var rebased = incoming.RebaseOnto(updated);
 Require(!rebased.HasConflicts, "rebase onto current has no conflicts");
 

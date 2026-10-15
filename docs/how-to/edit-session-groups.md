@@ -78,21 +78,9 @@ group.AcceptChanges(submission, profileHandle);
 
 ## Working with section submissions
 
-### Retrieving section changes
-Call `submission.Get(handle)` with the typed handle returned during registration. It returns an `EditSessionGroupSectionSubmission<TModel, TChangeSet>` containing:
-* `Changes`: The typed `ChangeSet` snapshot for that section.
-* `ChangedPaths`: Canonical paths modified within the section.
-* `BaselineRevision`: Group revision captured when the session was registered or last acknowledged.
+* **Retrieve section changes**: Call `submission.Get(handle).Changes` to access the typed `ChangeSet` snapshot for that registered model.
+* **Acknowledge saved sections independently**: Call `group.AcceptChanges(submission, handle)` when a specific section is persisted. Only that section's baseline advances; unpersisted sections remain dirty (`HasChanges == true`).
+* **Preserve concurrent user typing**: Edits made to a session after `group.Prepare()` remain pending after `AcceptChanges` completes.
+* **Server normalization**: Call `group.TryReconcile(submission, handle, persistedModel, out error)` to adopt server-modified properties without overwriting pending client edits.
 
-### Independent acknowledgement
-Call `group.AcceptChanges(submission, handle)` when a specific backend service successfully persists that section's changes.
-* Acknowledging one section advances only its baseline and revision.
-* Unacknowledged sections remain dirty (`HasChanges == true`).
-* Edits made to a session after `group.Prepare()` remain pending after `AcceptChanges` completes, preserving concurrent user typing.
-
-### Server normalization and reconciliation
-When the persistence layer mutates submitted entities (e.g. generating server timestamps or normalizing values), call `group.TryReconcile(submission, handle, persistedModel, out error)` to update the session baseline without clobbering subsequent uncommitted client edits.
-
-### Child sessions and stale submissions
-* `group.Prepare()` captures each registered session's change set. Generated sessions accept pending child sessions and descendants while creating that change set; a child-session conflict makes preparation fail with a validation issue.
-* `AcceptChanges` and `TryReconcile` throw `EditSessionStaleSubmissionException` if called with a previously acknowledged or outdated submission.
+For deep dive into session group coordination and migration rules, see [Edit-session groups explanation](../explanation/edit-session-groups.md).

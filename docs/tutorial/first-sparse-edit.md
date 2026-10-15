@@ -19,10 +19,8 @@ dotnet add SparseTutorial package SparseTypes
 
 ## Define one settings model
 
-The model is an ordinary C# class. Place this declaration at the bottom of
-`Program.cs`. The attribute asks the generator for the sparse companions
-(`Fragment`, `Patch`, `ChangeSet`) around it. The full generation rules stay in
-the [model shapes reference](../reference/model-shapes.md).
+The model is an ordinary C# `partial` class. Place this declaration at the bottom of
+`Program.cs`.
 
 <!-- sample: tutorial-models -->
 ```csharp
@@ -37,6 +35,17 @@ public partial class TutorialSiteSettings
 }
 ```
 <!-- /sample -->
+
+### What the generator emits
+
+Decorating the class with `[SparseModel]` prompts the Roslyn source generator to emit companion types nested directly inside `TutorialSiteSettings`:
+
+* `TutorialSiteSettings.Fragment`: A sparse snapshot representing partial state. Every property is wrapped in `Optional<T>` to distinguish between unassigned (missing), present values, and explicit `null`.
+* `TutorialSiteSettings.Patch`: A command object holding target edits or removals without requiring a baseline.
+* `TutorialSiteSettings.ChangeSet`: An immutable record of a transition between two states, reporting what changed (`IsChanged`, `Before`, `After`).
+* `TutorialSiteSettings.EditSession`: A reactive draft session providing live change notifications, dirty flags (`HasChanges`), and Undo/Redo.
+
+You never declare these types manually; they are emitted alongside your model at compile time. Rules for supported class shapes live in [model shapes reference](../reference/model-shapes.md).
 
 ## Snapshot the baseline
 
@@ -191,12 +200,9 @@ public partial class TutorialSiteSettings
 
 ## Where to go next
 
-The transition above is also the unit that travels: convert it with
-`ToPayload()` and reconcile it with `RebaseOnto` when another writer moves
-first. For those steps, read [ChangeSet rebase](../explanation/rebase.md) for the
-reconciliation flow and [ChangePayload](../reference/change-payload.md) for the wire
-envelope. For task-sized follow-ups, see
-[layered settings](../how-to/layered-settings.md) for multi-layer overrides
-and [partial updates](../how-to/partial-updates.md) for commands versus
-baseline-aware changes. The full operation list stays in
-[fragments and patches](../explanation/fragments-and-patches.md).
+Now that you have built a basic pipeline from baseline to transition, you can explore the workflow relevant to your application:
+
+* **Interactive UI and Undo/Redo**: Use `model.CreateEditSession()` to track field edits reactively. See [Blazor edit form](../how-to/blazor-edit-form.md) and [Blazor headless components](../how-to/blazor-headless-components.md).
+* **Multi-tier configuration**: Layer system defaults, host files, and user preferences cleanly. See [Layered settings](../how-to/layered-settings.md).
+* **Web APIs and persistence**: Transport changes over JSON using `ToPayload()` and save modified properties to databases. See [Partial updates](../how-to/partial-updates.md) and [EF Core mapping](../how-to/efcore-mapping.md).
+* **Concurrent editing**: Merge independent edits or detect property conflicts using three-way reconciliation. See [ChangeSet rebase](../explanation/rebase.md).

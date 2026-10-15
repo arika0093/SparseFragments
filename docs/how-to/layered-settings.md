@@ -1,17 +1,10 @@
 # Layered settings
 
-This guide stacks library, application, and user fragments over one model and
-removes overrides layer by layer. It assumes the
-[first sparse edit](../tutorial/first-sparse-edit.md) flow already reads
-familiar: snapshots, sparse construction, and `Merge` direction. The merge
-rules themselves stay in the [merge strategies reference](../explanation/merge-strategies.md);
-this page shows what they do to a concrete three-layer setup.
+This guide shows how to compose multi-layer configuration (defaults, application overrides, and user settings) and remove overrides to reveal the layer beneath.
 
 ## Model and contributions
 
-One model carries a scalar, a nullable scalar, and a nested contribution. The
-nested default merges member by member; the scalar replaces. That split is
-why one layer can rename the panel without touching its page size.
+Define a model with scalar and nested properties:
 
 <!-- sample: layered-models -->
 ```csharp
@@ -34,10 +27,9 @@ public partial class LayeredPanel
 ```
 <!-- /sample -->
 
-The library ships full defaults. The application renames the panel and says
-nothing about the theme or the page size. The user clears the theme with an
-explicit `null`, which is present and beats the library value. The table
-after the block names each outcome.
+## Merge layers
+
+Combine fragments with `Merge()`. The argument takes precedence over the receiver; omitted members remain missing and fall through to lower layers:
 
 <!-- sample: layered-precedence -->
 ```csharp
@@ -60,23 +52,13 @@ var effective = library.Merge(application).Merge(user);
 ```
 <!-- /sample -->
 
-| Member | Library | Application | User | Effective |
-| --- | --- | --- | --- | --- |
-| `Theme` | `"light"` | omitted | explicit `null` | present `null` |
-| `Panel.Title` | `"Home"` | `"Dashboard"` | omitted | `"Dashboard"` |
-| `Panel.PageSize` | `10` | omitted | omitted | `10` |
+* **Provided value**: Overrides lower layers.
+* **Explicit `null`**: Present and overrides lower values with `null`.
+* **Omitted (missing)**: Falls through to the next lower layer.
 
-Omitted means missing and falls through. Explicit `null` is present and
-wins over a lower-layer value. A provided value wins over both.
+## Remove overrides to reveal lower layers
 
-## Remove one contribution to reveal the layer below
-
-`Remove()` on a patch member drops that contribution back to missing. Apply
-the removal to the layer that owns the contribution, then merge again: the
-next lower present value becomes effective. It never assigns the C# default
-or runs a constructor. The scalar case drops the user theme and reveals the
-library theme; the nested case drops the whole application panel and reveals
-the library panel with its page size intact.
+To clear an override and reveal the lower layer, call `Remove()` on a patch and apply it to that layer:
 
 <!-- sample: layered-remove -->
 ```csharp
@@ -109,14 +91,9 @@ var nestedRevealed = library.Merge(applicationWithoutPanel).Merge(userWithoutThe
 ```
 <!-- /sample -->
 
-## Edit the materialised model without touching the layers
+## Materialize to an ordinary model
 
-`ToModel()` renders the merged contribution as an ordinary model root. Reassigning
-properties on that model changes only the materialised instance; the fragment
-layers keep their presence state. Note that reference-type members (such as lists)
-are aliased from the fragment; use `DeepClone()` when independent mutable copies
-of child objects are required. Keep the two apart: change a contribution by
-patching its layer, and edit the rendering for local display or handoff.
+Call `ToModel()` to convert the merged fragment into a standard C# model instance for display or consumption:
 
 <!-- sample: layered-materialize -->
 ```csharp
@@ -131,10 +108,7 @@ material.Theme = "edited";
 ```
 <!-- /sample -->
 
-`Fragment.Diff` and `ChangeSet.Between` answer different questions about two
-models. `Diff` returns a sparse fragment of after-values for persistence and
-defaults comparison; it carries no before-state and cannot invert. A change
-set from `CreateChangeSet` keeps both endpoints for audit, undo, and rebase.
+To persist differences against defaults, use `Fragment.Diff(before, after)`. To track transitions with before/after state for audit or undo, use `before.CreateChangeSet(after)`:
 
 <!-- sample: layered-diff -->
 ```csharp
@@ -150,3 +124,5 @@ var transition = beforeModel.CreateChangeSet(afterModel);
 // transition.Theme.After.Value == "b"
 ```
 <!-- /sample -->
+
+For detailed merge modes and collection behaviors, see [Merge strategies](../explanation/merge-strategies.md).
