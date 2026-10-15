@@ -28,7 +28,7 @@ public sealed class IncludeForTests
         var incoming = new OrderDto { Name = "Bob" };
         var changes = current.CreateChangeSet(incoming);
         var mapper = SparseEntityMapper<OrderEntity, OrderDto>.Create(
-            new OrderMapper(),
+            new ProjectionOrderMapper(),
             context.Model
         );
         counter.Reset();
@@ -189,11 +189,13 @@ public sealed class IncludeForTests
         var editedId = current.Lines.Single(line => line.Quantity == 2).Id;
         var changes = current.CreateChangeSet(incoming);
         var mapper = SparseEntityMapper<OrderEntity, OrderDto>.Create(
-            new OrderMapper(),
+            new ProjectionOrderMapper(),
             context.Model
         );
 
         using var fresh = TestDatabases.CreateSample(connection, counter);
+        var db = fresh;
+        var orderId = entity.Id;
         counter.Reset();
         var query = fresh.Orders.Where(order => order.Id == entity.Id).IncludeFor(mapper, changes);
         var sql = query.ToQueryString();
@@ -207,6 +209,18 @@ public sealed class IncludeForTests
         mapper.Apply(fresh, loaded, changes);
         loaded.Lines[0].Quantity.ShouldBe(5);
         counter.Commands.ShouldBe(0);
+        await fresh.SaveChangesAsync();
+        fresh.ChangeTracker.Clear();
+
+        // sample: efcore-authoritative-reload
+        var authoritative = await db
+            .Orders.AsNoTracking()
+            .Where(order => order.Id == orderId)
+            .Select(mapper.Projection)
+            .SingleAsync();
+        // /sample
+        authoritative.Lines.Count.ShouldBe(2);
+        authoritative.Lines.Single(line => line.Id == editedId).Quantity.ShouldBe(5);
     }
 
     [Test]

@@ -4,11 +4,11 @@
 
 @if (Index >= 0)
 {
-    <div class="@RowClass pg-task-row">
+    <div class="@RowClass pg-task-row" @ondragover:preventDefault @ondrop="OnDrop">
         <div class="pg-task-line-ef">
             <div class="pg-roster-field">
-                <span class="pg-mini notranslate" translate="no">Id <small>@(Line.Id.HasValue ? "int" : "new")</small></span>
-                <FluentTextInput Value="@(Line.Id.HasValue ? $"#{Line.Id.Value}" : "#new")" ReadOnly="true" />
+                <span class="pg-mini notranslate" translate="no">Id <small>@(IsAdded ? "new" : "int")</small></span>
+                <FluentTextInput Value="@(IsAdded ? "#new" : $"#{Line.Key}")" ReadOnly="true" />
             </div>
             <SparseField Path="ProductPath" Context="product">
                 <div class="pg-roster-field @(product.IsChanged ? "pg-changed" : "")">
@@ -19,7 +19,7 @@
                         }
                         Product
                     </span>
-                    <FluentTextInput Value="@product.Value"
+                    <FluentTextInput Value="@product.Value" Disabled="@Disabled"
                         ValueChanged="@(value => UpdateLineAsync(product, value))" />
                 </div>
             </SparseField>
@@ -32,18 +32,20 @@
                         }
                         Qty
                     </span>
-                    <FluentNumberInput TValue="int" Value="@qty.Value"
+                    <FluentNumberInput TValue="int" Value="@qty.Value" Disabled="@Disabled"
                         ValueChanged="@(value => UpdateLineAsync(qty, value))" />
                 </div>
             </SparseField>
             <div class="pg-roster-actions pg-task-actions">
-                <span class="pg-drag sortable-grab" title="Drag to reorder">⠿</span>
+                <span class="pg-drag sortable-grab" draggable="@(!Disabled)"
+                    @ondragstart="OnDragStart" @ondragend="OnDragEnd"
+                    style="@(Disabled ? "pointer-events: none;" : null)" title="Drag to reorder">⠿</span>
                 <FluentButton Appearance="ButtonAppearance.Default" Title="Move up"
-                    Disabled="@(Index == 0)" @onclick="() => MoveAsync(-1)">↑</FluentButton>
+                    Disabled="@(Disabled || Index == 0)" @onclick="() => MoveAsync(-1)">↑</FluentButton>
                 <FluentButton Appearance="ButtonAppearance.Default" Title="Move down"
-                    Disabled="@(Index == Draft.Lines.Count - 1)" @onclick="() => MoveAsync(1)">↓</FluentButton>
+                    Disabled="@(Disabled || Index == LineCount - 1)" @onclick="() => MoveAsync(1)">↓</FluentButton>
                 <FluentButton Appearance="ButtonAppearance.Default" Title="Remove"
-                    @onclick="RemoveAsync">✕</FluentButton>
+                    Disabled="@Disabled" @onclick="RemoveAsync">✕</FluentButton>
             </div>
         </div>
     </div>
@@ -51,85 +53,66 @@
 
 @code {
     [Parameter, EditorRequired]
-    public PlaygroundOrderLineDto Line { get; set; } = null!;
+    public SparseCollectionRow<PlaygroundOrderDto, PlaygroundOrderLineDto> Row { get; set; } = null!;
 
-    [Parameter, EditorRequired]
-    public PlaygroundOrderDto Draft { get; set; } = null!;
-
-    // Collection field captured by the parent list.
-    [Parameter, EditorRequired]
-    public SparseFieldContext<PlaygroundOrderDto, List<PlaygroundOrderLineDto>> Lines { get; set; } = null!;
-
-    // Render-scoped collection snapshot captured once by the parent list, so
-    // rows share one view instead of diffing per row.
     [Parameter]
-    public SparseCollectionState? Roster { get; set; }
+    public int LineCount { get; set; }
 
-    [Parameter, EditorRequired]
-    public PlaygroundOrderDto.EditSession Session { get; set; } = null!;
+    [Parameter]
+    public bool Disabled { get; set; }
 
     [Parameter, EditorRequired]
     public EventCallback<string> OnEditError { get; set; }
 
-    // Field writes go through the SparseField bindings above; the parent
-    // refreshes its retained ChangeSet when this fires.
     [Parameter, EditorRequired]
     public EventCallback OnEdited { get; set; }
 
-    private int Index => Draft.Lines.IndexOf(Line);
+    [Parameter]
+    public EventCallback<Guid> OnDragStarted { get; set; }
 
-    // AddLine always assigns a temporary identity, so the fallback below only
-    // fails fast on a programming error instead of misaddressing a row.
+    [Parameter]
+    public EventCallback OnDragEnded { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnDropAt { get; set; }
+
+    private PlaygroundOrderLineDto Line => Row.Item;
+    private int Index => Row.Index;
     private ISparseTypedPath<PlaygroundOrderDto, string> ProductPath =>
-        Line.Id is int id
-            ? Lines.Key(id, (PlaygroundOrderLineDto line) => line.Product)
-            : Lines.TemporaryKey<PlaygroundOrderLineDto, string>(
-                Line.TemporaryId ?? Guid.Empty,
-                static line => line.Product);
-
+        Row.Select(static line => line.Product);
     private ISparseTypedPath<PlaygroundOrderDto, int> QtyPath =>
-        Line.Id is int id
-            ? Lines.Key(id, (PlaygroundOrderLineDto line) => line.Qty)
-            : Lines.TemporaryKey<PlaygroundOrderLineDto, int>(
-                Line.TemporaryId ?? Guid.Empty,
-                static line => line.Qty);
+        Row.Select(static line => line.Qty);
+    private SparseCollectionItemState ItemState => Row.RequireItemState();
+    private bool IsAdded => ItemState.IsAdded;
+    private bool IsMoved => !IsAdded && ItemState.IsReordered;
+    private string RowClass => IsAdded
+        ? "pg-roster-row pg-added"
+        : IsMoved
+            ? "pg-roster-row pg-moved"
+            : "pg-roster-row";
 
-    // Row and field highlights reuse the shared collection state.
-    private SparseCollectionItemState ItemState =>
-        Roster is { } roster
-            ? Line.Id is int id
-                ? roster.GetItemState(id)
-                : Line.TemporaryId is { } temporaryId
-                    ? roster.GetTemporaryState(temporaryId)
-                    : default
-            : default;
-
-    private bool IsAdded => !Line.Id.HasValue || ItemState.IsAdded;
-
-    private bool IsMoved =>
-        !IsAdded
-        && Line.Id is int
-        && ItemState is { IsRemoved: false, IsReordered: true };
-
-    private string RowClass => IsAdded ? "pg-roster-row pg-added" : IsMoved ? "pg-roster-row pg-moved" : "pg-roster-row";
-
-    // The field owns the session write; the parent only refreshes its
-    // retained save snapshot afterwards.
-    private async Task UpdateLineAsync<TValue>(SparseFieldContext<PlaygroundOrderDto, TValue> field, TValue? value)
+    private async Task UpdateLineAsync<TValue>(
+        SparseFieldContext<PlaygroundOrderDto, TValue> field,
+        TValue? value
+    )
     {
+        if (Disabled)
+        {
+            return;
+        }
+
         await field.SetAsync(value);
         await OnEdited.InvokeAsync();
     }
 
     private async Task RemoveAsync()
     {
-        var editor = Session.EditCollection<PlaygroundOrderLineDto, int>(
-            PlaygroundOrderDto.SparsePath.Lines
-        );
-        var removed = Line.Id is int id
-            ? editor.TryRemoveByKey(id, out var error)
-            : editor.TryRemoveByTemporaryKey(Line.TemporaryId ?? Guid.Empty, out error);
-        if (!removed)
+        if (Disabled)
+        {
+            return;
+        }
+
+        if (!Row.TryRemove(out var error))
         {
             await OnEditError.InvokeAsync($"Could not remove line: {error}.");
             return;
@@ -140,19 +123,18 @@
 
     private async Task MoveAsync(int direction)
     {
-        var editor = Session.EditCollection<PlaygroundOrderLineDto, int>(
-            PlaygroundOrderDto.SparsePath.Lines
-        );
-        var index = Line.Id is int id
-            ? editor.IndexOfKey(id)
-            : editor.IndexOfTemporaryKey(Line.TemporaryId ?? Guid.Empty);
-        var target = index + direction;
-        if (index < 0 || target < 0 || target >= Draft.Lines.Count)
+        if (Disabled)
         {
             return;
         }
 
-        if (!editor.TryMove(index, target, out var error))
+        var target = Index + direction;
+        if (target < 0 || target >= LineCount)
+        {
+            return;
+        }
+
+        if (!Row.TryMoveTo(target, out var error))
         {
             await OnEditError.InvokeAsync($"Could not move line: {error}.");
             return;
@@ -160,4 +142,20 @@
 
         await OnEdited.InvokeAsync();
     }
+
+    private Task OnDragStart()
+    {
+        if (Disabled)
+        {
+            return Task.CompletedTask;
+        }
+
+        return OnDragStarted.InvokeAsync(Row.UiKey);
+    }
+
+    private Task OnDragEnd() => OnDragEnded.InvokeAsync();
+
+    private Task OnDrop() => Disabled
+        ? Task.CompletedTask
+        : OnDropAt.InvokeAsync(Index);
 }

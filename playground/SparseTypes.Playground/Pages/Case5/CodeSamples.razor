@@ -49,6 +49,7 @@
         """;
 
     private const string EfFlowCode = """
+        var draftBaseRevision = tracked.Revision; // Keep the revision paired with this draft baseline.
         var session = draft.CreateEditSession(); // The draft is the live model; the session retains the baseline.
         // Edit draft.
         var submitted = session.CreateChangeSet(); // Exact immutable snapshot before the awaited save.
@@ -72,10 +73,14 @@
         try
         {
             if (simulateConflict) PlaygroundConcurrency.SimulateConcurrentEdit(SharedOptions, tracked.Id);
-            PlaygroundConcurrency.EnsureCurrentRevision(SharedOptions, tracked.Id, tracked.Revision);
+            PlaygroundConcurrency.EnsureCurrentRevision(SharedOptions, tracked.Id, draftBaseRevision);
             tracked.Revision++;
             await db.SaveChangesAsync(); // The concurrency token also protects the write after the preflight check.
-            var persisted = mapper.ToDto(await ReloadOrderAsync(tracked.Id));
+            var persisted = await db.Orders
+                .AsNoTracking()
+                .Where(order => order.Id == tracked.Id)
+                .Select(mapper.Projection)
+                .SingleAsync();
             // Generated keys land on the authoritative projection;
             // acknowledgement routes by what the server returned, never by list
             mapper.AssignTemporaryKeys(db, result, submittedDraft, persisted);
@@ -108,7 +113,11 @@
         {
             db.ChangeTracker.Clear();
             var currentEntity = await ReloadOrderAsync(tracked.Id);
-            var current = mapper.ToDto(currentEntity);
+            var current = await db.Orders
+                .AsNoTracking()
+                .Where(order => order.Id == currentEntity.Id)
+                .Select(mapper.Projection)
+                .SingleAsync();
             if (selectedMode == ConflictHandlingMode.Strict)
             {
                 session = current.CreateEditSession(draft); // Reject the save; the live draft stays pending.
@@ -137,7 +146,12 @@
                 await db.SaveChangesAsync();
             }
 
-            var merged = mapper.ToDto(await ReloadOrderAsync(tracked.Id));
+            var mergedEntity = await ReloadOrderAsync(tracked.Id);
+            var merged = await db.Orders
+                .AsNoTracking()
+                .Where(order => order.Id == mergedEntity.Id)
+                .Select(mapper.Projection)
+                .SingleAsync();
             mapper.AssignTemporaryKeys(db, retry, submittedDraft, merged);
             var postSubmit = submittedDraft.CreateChangeSet(draft);
             var postRebase = postSubmit.RebaseOnto(merged);

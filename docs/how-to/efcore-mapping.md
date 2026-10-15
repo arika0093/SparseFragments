@@ -59,32 +59,56 @@ public sealed partial class DefaultsOnlyMapper
 
 ## Load navigations and apply changes
 
-Use `IncludeFor` to load only the navigations touched by the incoming change set. Then apply the changes directly to the tracked entity and save:
+Use `IncludeFor` to load the navigations needed to apply the incoming change set. Some edit-only collection changes produce a filtered Include containing only the matching rows. That tracked navigation is suitable for applying the change set, but it is not a complete DTO projection.
+
+When rebasing or returning the saved state, query the full `Projection` separately. Do not use `ToDto` on an entity whose collection was loaded through a filtered Include; omitted rows would be absent from that DTO.
 
 <!-- illustrative: controller or endpoint apply flow -->
 ```csharp
 // 1. Create the mapper instance from your DbContext model
 var mapper = OrderMapper.Create(db.Model);
 
-// 2. Load the tracked entity with only necessary navigations
-var trackedOrder = await db.Orders
-    .IncludeFor(mapper, incomingChanges)
-    .SingleAsync(o => o.Id == orderId);
-
-// 3. Optional: reconcile concurrent changes if needed
-var current = mapper.ToDto(trackedOrder);
+// 2. Read the complete current DTO for conflict detection
+var current = await db.Orders
+    .AsNoTracking()
+    .Where(order => order.Id == orderId)
+    .Select(mapper.Projection)
+    .SingleAsync();
 var rebase = incomingChanges.RebaseOnto(current);
 if (rebase.HasConflicts)
 {
     return Results.Conflict(rebase.Conflicts);
 }
 
+// 3. Load only the navigations required to apply the accepted changes
+var trackedOrder = await db.Orders
+    .IncludeFor(mapper, rebase.Rebased)
+    .SingleAsync(order => order.Id == orderId);
+
 // 4. Apply changes directly to the tracked entity
 mapper.Apply(db, trackedOrder, rebase.Rebased);
 
 // 5. Persist to database
 await db.SaveChangesAsync();
+
+// 6. Read the complete authoritative DTO for the response
+var authoritative = await db.Orders.AsNoTracking()
+    .Where(order => order.Id == orderId)
+    .Select(mapper.Projection)
+    .SingleAsync();
 ```
+
+The same full projection is needed after saving a collection edit. This query is the canonical response read:
+
+<!-- sample: efcore-authoritative-reload -->
+```csharp
+var authoritative = await db
+    .Orders.AsNoTracking()
+    .Where(order => order.Id == orderId)
+    .Select(mapper.Projection)
+    .SingleAsync();
+```
+<!-- /sample -->
 
 ## Handle client-assigned temporary keys
 
@@ -95,7 +119,6 @@ When clients create new child collection items before database primary keys exis
 var result = mapper.ApplyWithResult(db, trackedOrder, rebase.Rebased);
 await db.SaveChangesAsync();
 
-var authoritative = mapper.ToDto(trackedOrder);
 mapper.AssignTemporaryKeys(db, result, current, authoritative);
 ```
 

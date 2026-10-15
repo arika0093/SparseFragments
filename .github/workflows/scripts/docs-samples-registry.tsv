@@ -108,6 +108,7 @@ docs/how-to/blazor-edit-form.md	blazor-form-transport	tests/fixtures/consumers/p
 docs/how-to/blazor-headless-components.md	blazor-headless	tests/fixtures/consumers/package-sparse-blazor/Program.cs
 docs/how-to/edit-session-groups.md	edit-session-group-models	tests/fixtures/consumers/package-sparse-docs/EditSessionGroupsDocs.cs
 docs/how-to/edit-session-groups.md	edit-session-group-flow	tests/fixtures/consumers/package-sparse-docs/EditSessionGroupsDocs.cs
+docs/how-to/efcore-mapping.md	efcore-authoritative-reload	tests/SparseTypes.EntityFrameworkCore.Tests/IncludeForTests.cs
 docs/reference/edit-session-state.md	edit-session-field-state	tests/fixtures/consumers/package-sparse-docs/EditSessionStateDocs.cs
 docs/reference/edit-session-state.md	edit-session-collection-state	tests/fixtures/consumers/package-sparse-docs/EditSessionStateDocs.cs
 docs/reference/edit-session-state.md	edit-session-observe-field	tests/fixtures/consumers/package-sparse-docs/EditSessionStateDocs.cs

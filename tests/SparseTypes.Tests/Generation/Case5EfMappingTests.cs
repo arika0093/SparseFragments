@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SparseTypes.Playground.Models;
+using SparseTypes.Playground.Pages.Case5;
 
 namespace SparseTypes.Tests.Generation;
 
@@ -159,12 +160,21 @@ public sealed class Case5EfMappingTests
         initial.Customer = "Submitted customer";
         initial.Notes = "Submitted note";
         initial.Total = 20m;
-        var submitted = session.CreateChangeSet();
-        var submittedDraft = initial.DeepClone();
+        var snapshot = PlaygroundSaveSnapshot.Capture(session, initial, order.Revision);
         initial.Total = 21m;
 
         SetCurrentValue(options, orderId, true, "Current customer").ShouldBe(2);
         SetCurrentValue(options, orderId, false, "Current note").ShouldBe(3);
+        snapshot.SubmittedDraft.Total.ShouldBe(20m);
+        using (var refreshedDisplayDb = new PlaygroundEfContext(options))
+        {
+            refreshedDisplayDb.Orders.Single(item => item.Id == orderId).Revision.ShouldBe(3);
+        }
+
+        snapshot.BaseRevision.ShouldBe(1);
+        Should.Throw<DbUpdateConcurrencyException>(() =>
+            PlaygroundConcurrency.EnsureCurrentRevision(options, orderId, snapshot.BaseRevision)
+        );
         initial.Customer.ShouldBe("Submitted customer");
         initial.Notes.ShouldBe("Submitted note");
 
@@ -174,7 +184,7 @@ public sealed class Case5EfMappingTests
             .Include(static item => item.Lines)
             .Single(item => item.Id == orderId);
         var current = mapper.ToDto(currentEntity);
-        var rebase = submitted.RebaseOnto(current);
+        var rebase = snapshot.Submitted.RebaseOnto(current);
         rebase.HasConflicts.ShouldBeTrue();
         rebase.Conflicts.Select(static conflict => conflict.PathText).ShouldContain("Customer");
         rebase.Conflicts.Select(static conflict => conflict.PathText).ShouldContain("Notes");
@@ -196,28 +206,16 @@ public sealed class Case5EfMappingTests
             .Include(static item => item.Lines)
             .Single(item => item.Id == orderId);
         var persisted = mapper.ToDto(persistedEntity);
-        mapper.AssignTemporaryKeys(applyDb, result, submittedDraft, persisted);
+        mapper.AssignTemporaryKeys(applyDb, result, snapshot.SubmittedDraft, persisted);
 
-        var postSubmit = submittedDraft.CreateChangeSet(initial);
-        var postSubmitRebase = postSubmit.RebaseOnto(persisted);
-        var targetDraft = postSubmitRebase
-            .Rebased.ToPatch()
-            .Apply(
-                Optional<PlaygroundOrderDto.Fragment?>.Present(
-                    PlaygroundOrderDto.Fragment.From(persisted)
-                )
-            )
-            .Value!.ToModel();
-        var syncDraft = PlaygroundOrderDto.ChangeSet.Between(initial, targetDraft);
-        session
-            .TryApplyInPlace(syncDraft, out var syncConflicts)
+        session.TryReconcileAndApply(snapshot.Submitted, persisted, out var syncConflicts)
             .ShouldBeTrue($"sync conflicts: {syncConflicts?.Count ?? 0}");
-        session
-            .TryReconcile(submitted, persisted, out var reconcileError)
-            .ShouldBeTrue($"reconcile error: {reconcileError}");
+        syncConflicts.ShouldBeNull();
         initial.Customer.ShouldBe("Current customer");
         initial.Notes.ShouldBe("Submitted note");
         initial.Total.ShouldBe(21m);
+        persisted.Customer.ShouldBe("Current customer");
+        persisted.Notes.ShouldBe("Submitted note");
         session.CreateChangeSet().IsChanged.ShouldBeTrue();
         persisted.Total.ShouldBe(20m);
         persistedEntity.Revision.ShouldBe(4);
@@ -256,8 +254,17 @@ public sealed class Case5EfMappingTests
 
         var session = baseline.CreateEditSession();
         baseline.Customer = "Local customer";
-        var submitted = session.CreateChangeSet();
+        var snapshot = PlaygroundSaveSnapshot.Capture(session, baseline, order.Revision);
         SetCurrentValue(options, orderId, false, "Current note").ShouldBe(2);
+        using (var refreshedDisplayDb = new PlaygroundEfContext(options))
+        {
+            refreshedDisplayDb.Orders.Single(item => item.Id == orderId).Revision.ShouldBe(2);
+        }
+
+        snapshot.BaseRevision.ShouldBe(1);
+        Should.Throw<DbUpdateConcurrencyException>(() =>
+            PlaygroundConcurrency.EnsureCurrentRevision(options, orderId, snapshot.BaseRevision)
+        );
 
         using var applyDb = new PlaygroundEfContext(options);
         var currentEntity = applyDb
@@ -265,7 +272,7 @@ public sealed class Case5EfMappingTests
             .Include(static item => item.Lines)
             .Single(item => item.Id == orderId);
         var current = mapper.ToDto(currentEntity);
-        var rebase = submitted.RebaseOnto(current);
+        var rebase = snapshot.Submitted.RebaseOnto(current);
         rebase.HasConflicts.ShouldBeFalse();
 
         mapper.Apply(applyDb, currentEntity, rebase.Rebased);
