@@ -1,4 +1,6 @@
-using SparseTypes.Playground.Models;
+extern alias Playground;
+
+using Playground::SparseTypes.Playground.Models;
 
 namespace SparseTypes.Tests.Generation;
 
@@ -130,6 +132,52 @@ public sealed class Case5EditSessionLifecycleTests
     }
 
     [Test]
+    public void ReconcileAndApplyKeepsPostSubmitCollectionChangesAcrossMultipleKeyAssignments()
+    {
+        var live = Draft(Existing(1), Existing(2, "Croissant"));
+        var session = live.CreateEditSession();
+        live.Lines.Add(Added(TempA, "alpha"));
+        live.Lines.Add(Added(TempB, "beta"));
+        var submitted = session.CreateChangeSet();
+
+        live.Lines.Single(line => line.TemporaryId == TempA).Product = "alpha edited after submit";
+        live.Lines.Remove(live.Lines.Single(line => line.Id == 2));
+        live.Lines.Add(Added(TempLate, "late"));
+        var first = live.Lines[0];
+        live.Lines.RemoveAt(0);
+        live.Lines.Add(first);
+
+        var persisted = Draft(
+            Existing(1),
+            Existing(2, "Croissant"),
+            Assigned(TempB, 20, "beta"),
+            Assigned(TempA, 10, "alpha")
+        );
+
+        session.TryReconcileAndApply(submitted, persisted, out var conflicts).ShouldBeTrue();
+
+        conflicts.ShouldBeNull();
+        live.Lines.Select(static line =>
+                line.TemporaryId is { } temporaryId
+                    ? temporaryId == TempA
+                        ? "alpha"
+                        : temporaryId == TempB
+                            ? "beta"
+                            : "late"
+                    : line.Id!.Value.ToString()
+            )
+            .ShouldBe(["alpha", "beta", "late", "1"]);
+        live.Lines.Single(line => line.Id == 10).Product.ShouldBe("alpha edited after submit");
+        live.Lines.Single(line => line.Id == 20).Product.ShouldBe("beta");
+        live.Lines.Single(line => line.TemporaryId == TempLate).Id.ShouldBeNull();
+
+        var pending = session.CreateChangeSet();
+        pending.Lines.GetChange(2).IsRemoved.ShouldBeTrue();
+        pending.Lines.GetChange(10).IsEdited.ShouldBeTrue();
+        pending.Lines.GetTemporaryChange(TempLate).IsAdded.ShouldBeTrue();
+    }
+
+    [Test]
     public void ReconcileAdoptsServerNormalizationForUntouchedRows()
     {
         var live = Draft(Existing(1, "espresso"));
@@ -193,8 +241,8 @@ public sealed class Case5EditSessionLifecycleTests
         // absent.
         var persisted = Draft(Existing(1), Assigned(TempA, 10));
 
-        session.TryReconcile(submitted, persisted, out var error).ShouldBeFalse();
-        error.ShouldNotBeNullOrEmpty();
+        session.TryReconcileAndApply(submitted, persisted, out var conflicts).ShouldBeFalse();
+        conflicts.ShouldNotBeNull();
 
         // No partial key writeback: neither row was assigned and the submission
         // stays pending.
@@ -213,8 +261,8 @@ public sealed class Case5EditSessionLifecycleTests
         var submitted = session.CreateChangeSet();
         var persisted = Draft(Assigned(TempA, 10), Assigned(TempA, 11, "beta"));
 
-        session.TryReconcile(submitted, persisted, out var error).ShouldBeFalse();
-        error.ShouldNotBeNullOrEmpty();
+        session.TryReconcileAndApply(submitted, persisted, out var conflicts).ShouldBeFalse();
+        conflicts.ShouldNotBeNull();
         live.Lines.Single().Id.ShouldBeNull();
         live.Lines.Single().TemporaryId.ShouldBe(TempA);
     }
@@ -251,8 +299,8 @@ public sealed class Case5EditSessionLifecycleTests
         session.AcceptChanges(session.CreateChangeSet());
 
         var persisted = Draft(Existing(1), Assigned(TempA, 10));
-        session.TryReconcile(submitted, persisted, out var error).ShouldBeFalse();
-        error.ShouldNotBeNullOrEmpty();
+        session.TryReconcileAndApply(submitted, persisted, out var conflicts).ShouldBeFalse();
+        conflicts.ShouldNotBeNull();
     }
 
     [Test]

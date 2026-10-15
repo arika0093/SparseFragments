@@ -43,6 +43,60 @@ public sealed class IncludeForTests
     }
 
     [Test]
+    public async Task ScalarSaveReconcilesCompleteProjectionWithoutLoadedNavigations()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        using var seed = TestDatabases.CreateSample(connection, new QueryCounter());
+        var entity = seed
+            .Orders.Add(
+                new OrderEntity
+                {
+                    CustomerName = "Ann",
+                    Code = "ABC",
+                    Address = new AddressEntity { City = "Osaka" },
+                    Lines = [new OrderLineEntity { Quantity = 1, UnitPrice = 2m }],
+                }
+            )
+            .Entity;
+        await seed.SaveChangesAsync();
+        var mapper = SparseEntityMapper<OrderEntity, OrderDto>.Create(
+            new ProjectionOrderMapper(),
+            seed.Model
+        );
+        var draft = await seed
+            .Orders.AsNoTracking()
+            .Where(order => order.Id == entity.Id)
+            .Select(mapper.Projection)
+            .SingleAsync();
+        var session = draft.CreateEditSession();
+        draft.Name = "Bob";
+        var submitted = session.CreateChangeSet();
+
+        using var fresh = TestDatabases.CreateSample(connection, new QueryCounter());
+        var loaded = await fresh.Orders.SingleAsync(order => order.Id == entity.Id);
+        fresh.Entry(loaded).Collection(order => order.Lines).IsLoaded.ShouldBeFalse();
+        mapper.Apply(fresh, loaded, submitted);
+        await fresh.SaveChangesAsync();
+        fresh.ChangeTracker.Clear();
+        var persisted = await fresh
+            .Orders.AsNoTracking()
+            .Where(order => order.Id == entity.Id)
+            .Select(mapper.Projection)
+            .SingleAsync();
+
+        session.TryReconcileAndApply(submitted, persisted, out var conflicts).ShouldBeTrue();
+
+        conflicts.ShouldBeNull();
+        draft.Name.ShouldBe("Bob");
+        draft.Code.ShouldBe("ABC");
+        draft.ShipCity.ShouldBe("Osaka");
+        draft.Lines.ShouldHaveSingleItem();
+        draft.Lines[0].Quantity.ShouldBe(1);
+        draft.Lines[0].UnitPrice.ShouldBe(2m);
+        (await fresh.Orders.SelectMany(order => order.Lines).CountAsync()).ShouldBe(1);
+    }
+
+    [Test]
     public void UntypedChangeSetFromAnotherDtoIsRejected()
     {
         using var connection = TestDatabases.OpenMemory();

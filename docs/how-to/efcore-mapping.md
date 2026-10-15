@@ -110,6 +110,12 @@ var authoritative = await db
 ```
 <!-- /sample -->
 
+## Reconcile the client session after saving
+
+Choose the reconciliation method based on which values the client must adopt. `TryReconcile` acknowledges the submitted change set, advances the session baseline to the authoritative model, and retargets temporary identities in the live model. It does not replace the live model with authoritative property values, so use it when the client already has the submitted values and only needs identity correlation.
+
+`TryReconcileAndApply` adopts the authoritative model and rebases edits made after the submitted snapshot onto it. Use it when persistence can normalize values or when editing remains enabled while a save is in flight. A planning, correlation, or rebase conflict returns `false` without changing the live model or retained baseline. These conflict guarantees do not make arbitrary setters, property notifications, or callbacks transactional if they throw during the final in-place write.
+
 ## Handle client-assigned temporary keys
 
 When clients create new child collection items before database primary keys exist, use `ApplyWithResult` and `AssignTemporaryKeys` to correlate client IDs with newly generated database keys:
@@ -121,5 +127,11 @@ await db.SaveChangesAsync();
 
 mapper.AssignTemporaryKeys(db, result, current, authoritative);
 ```
+
+## Coordinate an optional save pipeline
+
+`SparseEntitySavePipeline.ExecuteAsync` is an optional orchestration helper for consumers that want the same explicit phase ordering outside the playground. The consumer supplies preparation (including its revision check, read, rebase, and mapper application), the single persistence attempt, the authoritative readback (including temporary-key assignment), and client synchronization (including `TryReconcileAndApply`). The helper performs no query, persistence, transaction, rollback, or retry on its own, and it never repeats a custom callback.
+
+The returned stage distinguishes preparation failure, a concurrency conflict, an unknown save outcome, a failed authoritative readback, and a failed client synchronization after persistence. Treat the last three as requiring recovery rather than resubmitting the same change set: the write may already exist, and newly generated keys may already have been assigned. The pipeline reports callback exceptions but does not undo arbitrary EF writes or client-side setter effects; define transaction and recovery policy in the application.
 
 For full mapper configuration options, custom write handlers, and metadata constraints, see [EF Core mapping reference](../reference/efcore-mapping.md).
