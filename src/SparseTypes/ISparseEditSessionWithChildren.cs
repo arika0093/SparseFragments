@@ -17,6 +17,7 @@ public interface ISparseEditSessionWithChildren<TModel, TConflict>
     /// <summary>Attempts to merge all pending child sessions into this session.</summary>
     /// <param name="conflicts">Structured conflicts when a child merge fails.</param>
     /// <returns>True when all pending child sessions were merged; otherwise false.</returns>
+    /// <remarks>Generated sessions that also implement <see cref="ISparseEditSessionWithChildStatus{TModel, TConflict}"/> preflight every child and descendant before committing. Arbitrary setter or callback exceptions during commit are not transactional.</remarks>
     bool TryAcceptChildSessions(out IReadOnlyList<TConflict>? conflicts);
 
     /// <summary>Discards pending edits in every registered child session.</summary>

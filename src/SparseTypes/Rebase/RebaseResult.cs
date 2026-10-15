@@ -33,6 +33,9 @@ public enum SparseConflictKind
 
     /// <summary>A changed member is immutable and cannot be written to an existing model.</summary>
     InPlaceWriteUnavailable,
+
+    /// <summary>A submitted change could not be reconciled with persisted state.</summary>
+    Reconciliation,
 }
 
 /// <summary>Structured, domain-neutral information about one rebase conflict.</summary>

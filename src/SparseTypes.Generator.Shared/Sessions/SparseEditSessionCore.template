@@ -714,6 +714,252 @@ namespace __SESSION_NAMESPACE__
             return true;
         }
 
+        /// <summary>Reconciles a submission, adopts authoritative values, and preserves post-submit edits.</summary>
+        /// <remarks>Temporary identities are correlated before the pending transition is rebased onto persisted state. Conflicting transitions leave the live model and retained baseline unchanged.</remarks>
+        /// <param name="submitted">The transition sent to persistence.</param>
+        /// <param name="persisted">The authoritative persisted model.</param>
+        /// <param name="buildMap">Correlates submitted and persisted models into an opaque map or reports the first mismatch.</param>
+        /// <param name="retarget">Applies temporary-key correlation to a staged model.</param>
+        /// <param name="createReconcileConflict">Creates a structured conflict for a reconciliation planning failure.</param>
+        /// <param name="conflicts">Typed-path conflicts when reconciliation cannot be applied.</param>
+        /// <typeparam name="TMap">The opaque temporary-to-permanent correlation.</typeparam>
+        /// <returns><see langword="true"/> when persisted values were adopted; otherwise <see langword="false"/>.</returns>
+        public bool TryReconcileAndApply<TMap>(
+            TChangeSet submitted,
+            TModel persisted,
+            Func<TModel, TModel, (TMap? Map, string? Error)> buildMap,
+            Func<TModel, TModel, TModel, TMap?, TChangeSet?, string?> retarget,
+            Func<string, __CONFLICT_TYPE__> createReconcileConflict,
+            out IReadOnlyList<__CONFLICT_TYPE__>? conflicts
+        )
+            where TMap : class
+        {
+            if (submitted is null)
+                throw new ArgumentNullException(nameof(submitted));
+            if (persisted is null)
+                throw new ArgumentNullException(nameof(persisted));
+            if (buildMap is null)
+                throw new ArgumentNullException(nameof(buildMap));
+            if (retarget is null)
+                throw new ArgumentNullException(nameof(retarget));
+            if (createReconcileConflict is null)
+                throw new ArgumentNullException(nameof(createReconcileConflict));
+            if (
+                _baselineToModel is null
+                || _writeModel is null
+                || _tryApplyTo is null
+                || _rebase is null
+            )
+            {
+                throw new NotSupportedException(
+                    "This edit session cannot reconcile submissions because it was built without baseline materialization, rebase, or in-place write support."
+                );
+            }
+
+            conflicts = null;
+            var persistedBaseline = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(persisted));
+
+            TModel submittedAfter;
+            try
+            {
+                var advanced = _advanceBaseline(submitted, _baseline);
+                if (!advanced.IsPresent || advanced.Value is null)
+                {
+                    return Fail(
+                        "Advancing the baseline did not produce a valid model state.",
+                        out conflicts
+                    );
+                }
+
+                submittedAfter = _baselineToModel(advanced.Value);
+                _ = _between(_baseline, persistedBaseline);
+            }
+            catch (InvalidOperationException exception)
+            {
+                return Fail(
+                    "The submitted change set or persisted model is stale or incompatible: "
+                        + exception.Message,
+                    out conflicts
+                );
+            }
+
+            TChangeSet pending;
+            try
+            {
+                pending = _between(
+                    __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(submittedAfter)),
+                    __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model))
+                );
+            }
+            catch (InvalidOperationException exception)
+            {
+                return Fail(
+                    "The current model cannot be diffed against the submitted state: "
+                        + exception.Message,
+                    out conflicts
+                );
+            }
+
+            var (map, mapError) = buildMap(submittedAfter, persisted);
+            if (mapError is not null || map is null)
+            {
+                return Fail(
+                    mapError ?? "Temporary correlation did not produce a mapping.",
+                    out conflicts
+                );
+            }
+
+            TModel mappedSubmitted;
+            TModel mappedCurrent;
+            try
+            {
+                mappedSubmitted = CloneLiveModel(submittedAfter);
+                mappedCurrent = CloneLiveModel(_model);
+                var submittedError = retarget(
+                    mappedSubmitted,
+                    submittedAfter,
+                    persisted,
+                    map,
+                    null
+                );
+                if (submittedError is not null)
+                {
+                    return Fail(submittedError, out conflicts);
+                }
+
+                var currentError = retarget(
+                    mappedCurrent,
+                    submittedAfter,
+                    persisted,
+                    map,
+                    pending
+                );
+                if (currentError is not null)
+                {
+                    return Fail(currentError, out conflicts);
+                }
+            }
+            catch (InvalidOperationException exception)
+            {
+                return Fail(
+                    "Temporary identities could not be reconciled: " + exception.Message,
+                    out conflicts
+                );
+            }
+
+            TChangeSet mappedPending;
+            try
+            {
+                mappedPending = _between(
+                    __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(mappedSubmitted)),
+                    __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(mappedCurrent))
+                );
+            }
+            catch (InvalidOperationException exception)
+            {
+                return Fail(
+                    "The retargeted model cannot be diffed: " + exception.Message,
+                    out conflicts
+                );
+            }
+
+            __REBASE_RESULT_TYPE__ rebased;
+            try
+            {
+                rebased = _rebase(mappedPending, persisted);
+            }
+            catch (InvalidOperationException exception)
+            {
+                return Fail(
+                    "The post-submit changes could not be rebased: " + exception.Message,
+                    out conflicts
+                );
+            }
+
+            if (rebased.HasConflicts)
+            {
+                conflicts = rebased.Conflicts;
+                return false;
+            }
+
+            (TModel? Updated, IReadOnlyList<__CONFLICT_TYPE__>? Conflicts) applied;
+            try
+            {
+                applied = _tryApplyTo(rebased.Rebased, persisted);
+            }
+            catch (InvalidOperationException exception)
+            {
+                return Fail(
+                    "The rebased changes could not be applied: " + exception.Message,
+                    out conflicts
+                );
+            }
+
+            if (applied.Conflicts is not null)
+            {
+                conflicts = applied.Conflicts;
+                return false;
+            }
+
+            if (applied.Updated is null)
+            {
+                return Fail(
+                    "Applying the post-submit changes did not produce a model.",
+                    out conflicts
+                );
+            }
+
+            try
+            {
+                _ = _between(
+                    persistedBaseline,
+                    __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(applied.Updated))
+                );
+            }
+            catch (InvalidOperationException exception)
+            {
+                return Fail(
+                    "The reconciled model cannot serve as a keyed baseline: "
+                        + exception.Message,
+                    out conflicts
+                );
+            }
+
+            var backup = CloneLiveModel(_model);
+            var backupSnapshot = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(backup));
+            try
+            {
+                _writeModel(_model, applied.Updated);
+            }
+            catch
+            {
+                try
+                {
+                    RestoreReconcileBackup(backup, backupSnapshot);
+                }
+                catch
+                {
+                    // Preserve the original setter failure.
+                }
+
+                ResynchronizeAfterFailedMutation();
+                throw;
+            }
+
+            _baseline = persistedBaseline;
+            _lastObserved = persistedBaseline;
+            _lastReconciledSubmission = submitted;
+            RefreshAfterModelMutation();
+            conflicts = null;
+            return true;
+
+            bool Fail(string reason, out IReadOnlyList<__CONFLICT_TYPE__>? result)
+            {
+                result = new[] { createReconcileConflict(reason) };
+                return false;
+            }
+        }
+
         /// <summary>Accepts the current model state as the new baseline.</summary>
         /// <remarks>Rejects sentinels and duplicate keys before retaining the baseline.</remarks>
         public void AcceptChanges()

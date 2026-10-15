@@ -163,7 +163,6 @@ public sealed class Case5EditSessionLifecycleTests
         var session = live.CreateEditSession();
         live.Total = 20m;
         var submitted = session.CreateChangeSet();
-        var submittedDraft = live.DeepClone();
         live.Total = 21m;
 
         var persisted = Draft(Existing(1));
@@ -171,21 +170,7 @@ public sealed class Case5EditSessionLifecycleTests
         persisted.Notes = "Remote note";
         persisted.Total = 20m;
 
-        session.TryReconcile(submitted, persisted, out var error).ShouldBeTrue();
-        error.ShouldBeNull();
-
-        var postSubmit = submittedDraft.CreateChangeSet(live);
-        var postSubmitRebase = postSubmit.RebaseOnto(persisted);
-        var targetDraft = postSubmitRebase
-            .Rebased.ToPatch()
-            .Apply(
-                Optional<PlaygroundOrderDto.Fragment?>.Present(
-                    PlaygroundOrderDto.Fragment.From(persisted)
-                )
-            )
-            .Value!.ToModel();
-        var syncDraft = PlaygroundOrderDto.ChangeSet.Between(live, targetDraft);
-        session.TryApplyInPlace(syncDraft, out var conflicts).ShouldBeTrue();
+        session.TryReconcileAndApply(submitted, persisted, out var conflicts).ShouldBeTrue();
         conflicts.ShouldBeNull();
 
         live.Customer.ShouldBe("Remote customer");

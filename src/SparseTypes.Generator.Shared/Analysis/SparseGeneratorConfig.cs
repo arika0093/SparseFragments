@@ -40,7 +40,10 @@ internal sealed record SparseGeneratorConfig
         string? EditChildPathInterfaceMetadataName = null,
         string? EditChildSessionInterfaceMetadataName = null,
         string? EditChildSessionImplementationType = null,
-        string? EditSessionWithChildrenInterfaceMetadataName = null
+        string? EditSessionWithChildrenInterfaceMetadataName = null,
+        string? EditChildSessionStatusType = null,
+        string? EditSessionWithChildStatusInterfaceMetadataName = null,
+        string? EditSessionWithChangeSetInterfaceMetadataName = null
     )
     {
         this.ModelAttributeMetadataName = ModelAttributeMetadataName;
@@ -81,6 +84,11 @@ internal sealed record SparseGeneratorConfig
         this.EditChildSessionImplementationType = EditChildSessionImplementationType;
         this.EditSessionWithChildrenInterfaceMetadataName =
             EditSessionWithChildrenInterfaceMetadataName;
+        this.EditChildSessionStatusType = EditChildSessionStatusType;
+        this.EditSessionWithChildStatusInterfaceMetadataName =
+            EditSessionWithChildStatusInterfaceMetadataName;
+        this.EditSessionWithChangeSetInterfaceMetadataName =
+            EditSessionWithChangeSetInterfaceMetadataName;
     }
 
     public string ModelAttributeMetadataName { get; init; }
@@ -154,6 +162,15 @@ internal sealed record SparseGeneratorConfig
 
     /// <summary>Nested-session coordination contract implemented by generated sessions, or null when disabled.</summary>
     public string? EditSessionWithChildrenInterfaceMetadataName { get; init; }
+
+    /// <summary>Product-owned child-session status enum, or null when child sessions are disabled.</summary>
+    public string? EditChildSessionStatusType { get; init; }
+
+    /// <summary>Extended child-session contract with typed state and preflight operations.</summary>
+    public string? EditSessionWithChildStatusInterfaceMetadataName { get; init; }
+
+    /// <summary>Optional generic session-and-change-set adapter interface, or null when disabled.</summary>
+    public string? EditSessionWithChangeSetInterfaceMetadataName { get; init; }
 
     /// <summary>Product-owned descriptor contracts and runtime helper names, or null when disabled.</summary>
     public SparseDescriptorDialect? DescriptorDialect { get; init; }

@@ -62,6 +62,23 @@ public sealed class EditSessionGroup
         }
     }
 
+    /// <summary>Registers a generated session with the standard change-set operations.</summary>
+    /// <remarks>Use the registration overload when the section needs readiness, validation, asynchronous validation, or reconciliation hooks.</remarks>
+    /// <param name="sectionId">A non-empty identifier, compared with ordinal case-sensitive rules.</param>
+    /// <param name="session">The generated session that captures and describes its change sets.</param>
+    /// <returns>A typed handle used to read and acknowledge submitted changes.</returns>
+    /// <exception cref="ArgumentException">The identifier is invalid or already registered, or the session is already in use.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="session"/> is null.</exception>
+    public EditSessionSectionHandle<TModel, TChangeSet> Register<TModel, TChangeSet>(
+        string sectionId,
+        ISparseEditSessionWithChangeSet<TModel, TChangeSet> session
+    )
+        where TModel : class
+        where TChangeSet : class
+    {
+        return Register(sectionId, new EditSessionGroupRegistration<TModel, TChangeSet>(session));
+    }
+
     /// <summary>Removes a section using an explicit policy for dirty sessions.</summary>
     /// <param name="handle">The current typed section handle.</param>
     /// <param name="policy">Whether removal must reject dirty state or detach it from the group.</param>

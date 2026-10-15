@@ -19,7 +19,7 @@ public sealed class SparseEditSessionEmitterTests
         );
 
     private static SparseFragmentPatchEmitter.SparsePatchDialect PatchDialect() =>
-        new(
+        new SparseFragmentPatchEmitter.SparsePatchDialect(
             "global::Downstream.",
             "__sparse_whole",
             "__SparseMembersEmpty",
@@ -34,7 +34,11 @@ public sealed class SparseEditSessionEmitterTests
             static _ => "global::Downstream.Patch",
             static _ => "global::Downstream.ChangeSet",
             PayloadImplementationContainerPrefix: "DownstreamInternal"
-        );
+        )
+        {
+            ReconcileConflictExpression = static (_, reason) =>
+                "global::Downstream.Conflict.Reconcile(" + reason + ")",
+        };
 
     [Test]
     public void CoreSources_UseConfiguredSessionAndRuntimeDialects()
@@ -121,7 +125,8 @@ public sealed class SparseEditSessionEmitterTests
             StructuralHostPrefix: "__DownstreamHost_",
             PatchDialect: PatchDialect(),
             EditSessionInterfaceMetadataName: "PackageShared.ISparseEditSession",
-            EditSessionDialect: new SparseEditSessionDialect("Downstream.Generated")
+            EditSessionDialect: new SparseEditSessionDialect("Downstream.Generated"),
+            EditSessionWithChangeSetInterfaceMetadataName: "PackageShared.ISparseEditSessionWithChangeSet"
         );
         using var code = new SharedIndentedBuilder(CancellationToken.None);
 
@@ -140,6 +145,18 @@ public sealed class SparseEditSessionEmitterTests
         source.ShouldNotContain("OpenScope");
         source.ShouldNotContain("HasOpenDrafts");
         source.ShouldNotContain("ISessionOpenDraftState");
+        source.ShouldContain("public bool TryReconcileAndApply(");
+        source.ShouldContain("_session.TryReconcileAndApply(submitted, persisted");
+        source.ShouldContain("global::Downstream.Conflict.Reconcile");
+        source.ShouldContain("PreviewChangeSet()");
+        source.ShouldContain("PrepareChangeSet()");
+        source.ShouldContain("/// <summary>Reconciles an acknowledged submission");
+        source.ShouldContain(
+            "global::PackageShared.ISparseEditSessionWithChangeSet<global::Downstream.Order, global::Downstream.Order.ChangeSet>"
+        );
+        source.ShouldContain(
+            "global::PackageShared.ISparseEditSessionWithChangeSet<global::Downstream.Order, global::Downstream.Order.ChangeSet>.IsEmpty"
+        );
         source.ShouldNotContain("SparseTypes.");
     }
 }

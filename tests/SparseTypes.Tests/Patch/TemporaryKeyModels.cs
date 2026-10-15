@@ -24,6 +24,14 @@ public partial class TempOrderHolder
 }
 
 [SparseModel]
+public partial class TempReconcileScalar
+{
+    public string Customer { get; set; } = string.Empty;
+
+    public int Total { get; set; }
+}
+
+[SparseModel]
 public partial class TempCompositeLine
 {
     public string TenantId { get; set; } = string.Empty;

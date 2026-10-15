@@ -24,6 +24,7 @@ public sealed class SparseEditChildSession<TModel, TPaths, TConflict, TSession>
         TModel,
         (bool Accepted, TModel? Current, IReadOnlyList<TConflict>? Conflicts)
     > _tryAccept;
+    private readonly Func<(bool Accepted, IReadOnlyList<TConflict>? Conflicts)> _preflight;
     private readonly Action _onDiscarded;
     private readonly Action _detach;
     private bool _isDisposed;
@@ -36,6 +37,7 @@ public sealed class SparseEditChildSession<TModel, TPaths, TConflict, TSession>
     /// <param name="tryAccept">Callback that merges the child model into its parent.</param>
     /// <param name="onDiscarded">Callback raised after restoring the child model.</param>
     /// <param name="detach">Callback that disconnects this child session from its parent.</param>
+    /// <param name="preflight">Checks whether the child merge can succeed without changing the parent.</param>
     public SparseEditChildSession(
         TSession session,
         TPaths rootPath,
@@ -46,7 +48,8 @@ public sealed class SparseEditChildSession<TModel, TPaths, TConflict, TSession>
             (bool Accepted, TModel? Current, IReadOnlyList<TConflict>? Conflicts)
         > tryAccept,
         Action onDiscarded,
-        Action detach
+        Action detach,
+        Func<(bool Accepted, IReadOnlyList<TConflict>? Conflicts)>? preflight = null
     )
     {
         Session = session ?? throw new ArgumentNullException(nameof(session));
@@ -54,6 +57,7 @@ public sealed class SparseEditChildSession<TModel, TPaths, TConflict, TSession>
         _baseline = baseline ?? throw new ArgumentNullException(nameof(baseline));
         _clone = clone ?? throw new ArgumentNullException(nameof(clone));
         _tryAccept = tryAccept ?? throw new ArgumentNullException(nameof(tryAccept));
+        _preflight = preflight ?? (static () => (true, null));
         _onDiscarded = onDiscarded ?? throw new ArgumentNullException(nameof(onDiscarded));
         _detach = detach ?? throw new ArgumentNullException(nameof(detach));
     }
@@ -79,6 +83,11 @@ public sealed class SparseEditChildSession<TModel, TPaths, TConflict, TSession>
     {
         ThrowIfDisposed();
         conflicts = null;
+        if (!TryPreflightAcceptChanges(out conflicts))
+        {
+            return false;
+        }
+
         if (
             Session is ISparseEditSessionWithChildren<TModel, TConflict> children
             && !children.TryAcceptChildSessions(out conflicts)
@@ -104,6 +113,30 @@ public sealed class SparseEditChildSession<TModel, TPaths, TConflict, TSession>
         _baseline = _clone(Session.Model);
         conflicts = null;
         return true;
+    }
+
+    /// <summary>Checks whether this child and its descendants can be merged into their parents.</summary>
+    /// <param name="conflicts">Structured conflicts when the merge cannot be prepared.</param>
+    /// <returns>True when the merge is conflict-free; otherwise false.</returns>
+    public bool TryPreflightAcceptChanges(out IReadOnlyList<TConflict>? conflicts)
+    {
+        ThrowIfDisposed();
+        if (
+            Session is ISparseEditSessionWithChildStatus<TModel, TConflict> children
+            && !children.TryPreflightChildSessions(out conflicts)
+        )
+        {
+            return false;
+        }
+
+        var result = _preflight();
+        conflicts = result.Conflicts;
+        if (!result.Accepted && conflicts is null)
+        {
+            Dispose();
+        }
+
+        return result.Accepted;
     }
 
     /// <summary>Merges the child session into its parent, throwing when the merge conflicts.</summary>

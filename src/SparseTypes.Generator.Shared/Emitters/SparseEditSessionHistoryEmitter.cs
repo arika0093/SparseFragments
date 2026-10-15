@@ -69,12 +69,19 @@ internal static class SparseEditSessionHistoryEmitter
         string modelType,
         string conflictType,
         string rebaseResultType,
-        HistoryBinding? history
+        HistoryBinding? history,
+        string? reconcileConflictExpression
     )
     {
         if (history is null)
         {
-            AppendLegacyLifecycleMembers(code, modelType, conflictType, rebaseResultType);
+            AppendLegacyLifecycleMembers(
+                code,
+                modelType,
+                conflictType,
+                rebaseResultType,
+                reconcileConflictExpression
+            );
             return;
         }
 
@@ -205,6 +212,13 @@ internal static class SparseEditSessionHistoryEmitter
         code.AppendLineAt(3, "if (reconciled) __SparseClearHistories();");
         code.AppendLineAt(3, "return reconciled;");
         code.AppendLineAt(2, "}");
+        AppendTryReconcileAndApply(
+            code,
+            modelType,
+            conflictType,
+            reconcileConflictExpression,
+            clearHistories: true
+        );
         AppendHistoryFactory(code, modelType, conflictType, history);
         if (history.HasOwnedHistory)
         {
@@ -515,7 +529,8 @@ internal static class SparseEditSessionHistoryEmitter
         SharedIndentedBuilder code,
         string modelType,
         string conflictType,
-        string rebaseResultType
+        string rebaseResultType,
+        string? reconcileConflictExpression
     )
     {
         code.AppendLineAt(
@@ -613,5 +628,83 @@ internal static class SparseEditSessionHistoryEmitter
                 + modelType
                 + ".__SparseRetargetTemps(live, submittedAfter, persisted, map!, pending, \"\"), out error);"
         );
+        AppendTryReconcileAndApply(
+            code,
+            modelType,
+            conflictType,
+            reconcileConflictExpression,
+            clearHistories: false
+        );
+    }
+
+    private static void AppendTryReconcileAndApply(
+        SharedIndentedBuilder code,
+        string modelType,
+        string conflictType,
+        string? reconcileConflictExpression,
+        bool clearHistories
+    )
+    {
+        if (reconcileConflictExpression is null)
+        {
+            return;
+        }
+
+        code.AppendLineAt(
+            2,
+            "/// <summary>Reconciles an acknowledged submission with persisted values and applies them to the live model.</summary>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <remarks>Temporary identities correlate persisted keys. Persisted values are adopted unless changed locally after submission. Post-submit edits remain pending against the persisted baseline; overlapping remote and local edits return typed-path conflicts. Planning conflicts leave the live model and retained baseline unchanged.</remarks>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"submitted\">The change set sent to persistence.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"persisted\">The authoritative persisted model.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <param name=\"conflicts\">The typed-path reconciliation conflict on failure.</param>"
+        );
+        code.AppendLineAt(
+            2,
+            "/// <returns>True when persisted values were adopted; otherwise false.</returns>"
+        );
+        code.AppendLineAt(
+            2,
+            "public bool TryReconcileAndApply("
+                + modelType
+                + ".ChangeSet submitted, "
+                + modelType
+                + " persisted, out global::System.Collections.Generic.IReadOnlyList<"
+                + conflictType
+                + ">? conflicts)"
+        );
+        code.AppendLineAt(2, "{");
+        code.AppendLineAt(
+            3,
+            "var reconciled = _session.TryReconcileAndApply(submitted, persisted, static (s, p) => "
+                + modelType
+                + ".__SparseBuildTempMap(s, p), static (live, submittedAfter, persisted, map, pending) => "
+                + modelType
+                + ".__SparseRetargetTemps(live, submittedAfter, persisted, map!, pending, \"\"), static error => "
+                + reconcileConflictExpression
+                + ", out conflicts);"
+        );
+        code.AppendLineAt(3, "if (reconciled)");
+        code.AppendLineAt(3, "{");
+        if (clearHistories)
+        {
+            code.AppendLineAt(4, "__SparseClearHistories();");
+        }
+
+        code.AppendLineAt(4, "return true;");
+        code.AppendLineAt(3, "}");
+        code.AppendLineAt(3, "return false;");
+        code.AppendLineAt(2, "}");
     }
 }

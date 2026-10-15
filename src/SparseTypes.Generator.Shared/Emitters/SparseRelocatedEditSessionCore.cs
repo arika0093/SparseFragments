@@ -121,12 +121,26 @@ internal static class SparseRelocatedEditSessionCore
         {
             sessionBases +=
                 ", global::"
-                + config.EditSessionWithChildrenInterfaceMetadataName
+                + config.EditSessionWithChildStatusInterfaceMetadataName
                 + "<"
                 + modelType
                 + ", "
                 + patchDialect.ConflictType
                 + ">";
+        }
+        if (
+            config.EditSessionWithChangeSetInterfaceMetadataName is
+            { Length: > 0 } changeSetInterface
+        )
+        {
+            sessionBases +=
+                ", global::"
+                + changeSetInterface
+                + "<"
+                + modelType
+                + ", "
+                + modelType
+                + ".ChangeSet>";
         }
         sessionBases += SparseEditSessionPathsEmitter.GetPathsInterfaceBase(
             model,
@@ -206,6 +220,14 @@ internal static class SparseRelocatedEditSessionCore
                 )
                 + ";"
         );
+        if (SparseEditSessionEmitter.HasChildSessionSurface(config, patchDialect))
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Gets whether this session has changes apart from its registered child sessions.</summary>"
+            );
+            code.AppendLineAt(2, "public bool HasOwnChanges => _session.HasChanges;");
+        }
         SparseEditSessionPathsEmitter.AppendPathsProperty(
             code,
             model,
@@ -231,82 +253,7 @@ internal static class SparseRelocatedEditSessionCore
                 + modelType
                 + ".ChangeSet>? TransitionObserved { add => _session.TransitionObserved += value; remove => _session.TransitionObserved -= value; }"
         );
-        code.AppendLineAt(
-            2,
-            "/// <summary>Runs observable edits as one transition notification, including nested batches.</summary>"
-        );
-        code.AppendLineAt(2, "/// <param name=\"edit\">The observable edits to run.</param>");
-        code.AppendLineAt(
-            2,
-            "public void BatchEdit(global::System.Action edit) => _session.BatchEdit(edit);"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <summary>Creates a change set describing the pending changes.</summary>"
-        );
-        code.AppendLineAt(
-            2,
-            "/// <returns>The pending change set; empty when there are no changes.</returns>"
-        );
-        if (SparseEditSessionEmitter.HasChildSessionSurface(config, patchDialect))
-        {
-            code.AppendLineAt(
-                2,
-                "/// <summary>Attempts to create a change set after merging pending child sessions.</summary>"
-            );
-            code.AppendLineAt(
-                2,
-                "/// <param name=\"changes\">The change set on success; otherwise null.</param>"
-            );
-            code.AppendLineAt(
-                2,
-                "/// <param name=\"conflicts\">Child-session conflicts on failure.</param>"
-            );
-            code.AppendLineAt(
-                2,
-                "/// <returns>True when the change set was created; otherwise false.</returns>"
-            );
-            code.AppendLineAt(
-                2,
-                "public bool TryCreateChangeSet(out "
-                    + modelType
-                    + ".ChangeSet? changes, out global::System.Collections.Generic.IReadOnlyList<"
-                    + patchDialect.ConflictType
-                    + ">? conflicts)"
-            );
-            code.AppendLineAt(2, "{");
-            code.AppendLineAt(
-                3,
-                "if (!TryAcceptChildSessions(out conflicts)) { changes = null; return false; }"
-            );
-            code.AppendLineAt(3, "changes = _session.CreateChangeSet();");
-            code.AppendLineAt(3, "return true;");
-            code.AppendLineAt(2, "}");
-            code.AppendLineAt(
-                2,
-                "/// <summary>Creates a change set after merging pending child sessions.</summary>"
-            );
-            code.AppendLineAt(2, "/// <returns>The pending change set.</returns>");
-            code.AppendLineAt(
-                2,
-                "/// <exception cref=\"global::System.InvalidOperationException\">A child session conflicts with this session.</exception>"
-            );
-            code.AppendLineAt(
-                2,
-                "public "
-                    + modelType
-                    + ".ChangeSet CreateChangeSet() => TryCreateChangeSet(out var changes, out var conflicts) ? changes! : throw new global::System.InvalidOperationException(conflicts is null ? \"A child edit session could not be accepted.\" : \"A child edit session conflicts with changes in its parent session.\");"
-            );
-        }
-        else
-        {
-            code.AppendLineAt(
-                2,
-                "public "
-                    + modelType
-                    + ".ChangeSet CreateChangeSet() => _session.CreateChangeSet();"
-            );
-        }
+        SparseEditSessionChangeSetEmitter.AppendMembers(code, modelType, config, patchDialect);
         code.AppendLineAt(
             2,
             "/// <summary>Creates a patch describing the pending changes.</summary>"
@@ -364,7 +311,8 @@ internal static class SparseRelocatedEditSessionCore
             modelType,
             conflictType,
             rebaseResultType,
-            historyBinding
+            historyBinding,
+            patchDialect.ReconcileConflictExpression?.Invoke(modelType, "error")
         );
         // Raw model access bypasses the change cache.
         code.AppendLineAt(

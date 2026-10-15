@@ -3,6 +3,131 @@ namespace SparseTypes.Tests;
 public sealed class EditSessionChildTests
 {
     [Test]
+    public void PreviewLeavesChildPendingAndPrepareAcceptsIt()
+    {
+        var model = new ObservableHolder
+        {
+            Child = new ObservableChild { Name = "before", Count = 1 },
+        };
+        var session = model.CreateEditSession();
+        var child = session.OpenChildSession(ObservableHolder.SparsePath.Child);
+        child.Session.Observable.Name = "child edit";
+
+        session.PreviewChangeSet().IsEmpty.ShouldBeTrue();
+        session.HasOwnChanges.ShouldBeFalse();
+        session.HasPendingChildSessions.ShouldBeTrue();
+        child.HasChanges.ShouldBeTrue();
+        model.Child.Name.ShouldBe("before");
+
+        session.TryPrepareChangeSet(out var changes, out var conflicts).ShouldBeTrue();
+
+        conflicts.ShouldBeNull();
+        changes.ShouldNotBeNull();
+        changes!
+            .EnumerateChangedPaths()
+            .Select(static path => path.ToString())
+            .ShouldContain("Child.Name");
+        child.HasChanges.ShouldBeFalse();
+        session.HasOwnChanges.ShouldBeTrue();
+    }
+
+    [Test]
+    public void ChildStatusUsesTypedPathAndIncludesDescendantChanges()
+    {
+        var model = new ClusterHolder
+        {
+            Groups =
+            [
+                new ServerGroup
+                {
+                    Name = "group",
+                    Servers = [new KeyedServer { Id = "server", Name = "before" }],
+                },
+            ],
+        };
+        var session = model.CreateEditSession();
+        var path = ClusterHolder.SparsePath.Groups.Key("group");
+
+        session.GetChildSessionStatus(path).ShouldBe(SparseChildSessionStatus.NotOpen);
+        var group = session.OpenChildSession(path);
+        session.GetChildSessionStatus(path).ShouldBe(SparseChildSessionStatus.OpenUnchanged);
+        var server = group.Session.OpenChildSession(ServerGroup.SparsePath.Servers.Key("server"));
+        server.Session.Observable.Name = "updated";
+
+        session.GetChildSessionStatus(path).ShouldBe(SparseChildSessionStatus.OpenChanged);
+        session.HasOwnChanges.ShouldBeFalse();
+        session.HasPendingChildSessions.ShouldBeTrue();
+        session.HasChanges.ShouldBeTrue();
+
+        group.Dispose();
+        session.GetChildSessionStatus(path).ShouldBe(SparseChildSessionStatus.NotOpen);
+    }
+
+    [Test]
+    public void ChildBatchPreflightsEveryMergeBeforeAcceptingAnyChild()
+    {
+        var model = new ClusterHolder
+        {
+            Groups =
+            [
+                new ServerGroup
+                {
+                    Name = "first",
+                    Servers = [new KeyedServer { Id = "server", Name = "first before" }],
+                },
+                new ServerGroup
+                {
+                    Name = "second",
+                    Servers = [new KeyedServer { Id = "server", Name = "second before" }],
+                },
+            ],
+        };
+        var session = model.CreateEditSession();
+        var first = session.OpenChildSession(ClusterHolder.SparsePath.Groups.Key("first"));
+        var second = session.OpenChildSession(ClusterHolder.SparsePath.Groups.Key("second"));
+        first.Session.Observable.Servers[0].Name = "first child";
+        second.Session.Observable.Servers[0].Name = "second child";
+        session.Observable.Groups[1].Servers[0].Name = "parent edit";
+
+        session.TryAcceptChildSessions(out var conflicts).ShouldBeFalse();
+
+        conflicts.ShouldNotBeNull();
+        first.HasChanges.ShouldBeTrue();
+        second.HasChanges.ShouldBeTrue();
+        session.Observable.Groups[0].Servers[0].Name.ShouldBe("first before");
+        session.Observable.Groups[1].Servers[0].Name.ShouldBe("parent edit");
+    }
+
+    [Test]
+    public void ChildBatchRejectsOverlappingChildScopesBeforeMutation()
+    {
+        var model = new ClusterHolder
+        {
+            Groups =
+            [
+                new ServerGroup
+                {
+                    Name = "group",
+                    Servers = [new KeyedServer { Id = "server", Name = "before" }],
+                },
+            ],
+        };
+        var session = model.CreateEditSession();
+        var path = ClusterHolder.SparsePath.Groups.Key("group");
+        var first = session.OpenChildSession(path);
+        var duplicate = session.OpenChildSession(path);
+        first.Session.Observable.Servers[0].Name = "first draft";
+        duplicate.Session.Observable.Servers[0].Name = "duplicate draft";
+
+        session.TryAcceptChildSessions(out var conflicts).ShouldBeFalse();
+
+        conflicts.ShouldBeNull();
+        first.HasChanges.ShouldBeTrue();
+        duplicate.HasChanges.ShouldBeTrue();
+        session.Observable.Groups[0].Servers[0].Name.ShouldBe("before");
+    }
+
+    [Test]
     public void AcceptingChildMergesDisjointParentChangesAndPreservesIdentity()
     {
         var childModel = new ObservableChild { Name = "before", Count = 1 };
@@ -77,6 +202,24 @@ public sealed class EditSessionChildTests
         conflicts.ShouldBeNull();
         missing.HasChanges.ShouldBeFalse();
         session.Observable.Items.Count.ShouldBe(1);
+    }
+
+    [Test]
+    public void ChildPreflightDisconnectsWhenKeyedTargetIsRemoved()
+    {
+        var model = new KeyedServerHolder
+        {
+            Items = [new KeyedServer { Id = "server", Name = "before" }],
+        };
+        var session = model.CreateEditSession();
+        var child = session.OpenChildSession(KeyedServerHolder.SparsePath.Items.Key("server"));
+        child.Session.Observable.Name = "child edit";
+        session.Observable.Items.Clear();
+
+        session.TryPreflightChildSessions(out var conflicts).ShouldBeFalse();
+
+        conflicts.ShouldBeNull();
+        child.HasChanges.ShouldBeFalse();
     }
 
     [Test]

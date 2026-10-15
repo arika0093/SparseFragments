@@ -27,6 +27,146 @@ public sealed class TemporaryKeyReconcileRegressionTests
         TempCustomerHolder.ChangeSet submitted
     ) => submitted.ToPatch().Apply(TempCustomerHolder.Fragment.From(baseline)).Value!.ToModel();
 
+    [Test]
+    public void ReconcileAndApplyAdoptsRemoteValuesWhenSubmittedValuesArePersisted()
+    {
+        var live = new TempReconcileScalar { Customer = "original", Total = 10 };
+        var session = live.CreateEditSession();
+        live.Total = 20;
+        var submitted = session.CreateChangeSet();
+        var persisted = new TempReconcileScalar { Customer = "remote", Total = 20 };
+
+        session.TryReconcileAndApply(submitted, persisted, out var conflicts).ShouldBeTrue();
+
+        conflicts.ShouldBeNull();
+        live.Customer.ShouldBe("remote");
+        live.Total.ShouldBe(20);
+        session.HasChanges.ShouldBeFalse();
+    }
+
+    [Test]
+    public void ReconcileAndApplyAdoptsRemoteValuesAndKeepsPostSubmitEdits()
+    {
+        var live = new TempReconcileScalar { Customer = "original", Total = 10 };
+        var session = live.CreateEditSession();
+        live.Total = 20;
+        var submitted = session.CreateChangeSet();
+        live.Total = 21;
+        var persisted = new TempReconcileScalar { Customer = "remote", Total = 20 };
+
+        session.TryReconcileAndApply(submitted, persisted, out var conflicts).ShouldBeTrue();
+
+        conflicts.ShouldBeNull();
+        live.Customer.ShouldBe("remote");
+        live.Total.ShouldBe(21);
+        session.HasChanges.ShouldBeTrue();
+    }
+
+    [Test]
+    public void ReconcileAndApplyReturnsTypedOverlapConflictWithoutMutatingState()
+    {
+        var live = new TempReconcileScalar { Customer = "original", Total = 10 };
+        var session = live.CreateEditSession();
+        live.Total = 20;
+        var submitted = session.CreateChangeSet();
+        live.Total = 21;
+        var conflictingPersisted = new TempReconcileScalar { Customer = "remote", Total = 22 };
+
+        session
+            .TryReconcileAndApply(submitted, conflictingPersisted, out var conflicts)
+            .ShouldBeFalse();
+
+        conflicts.ShouldNotBeNull().ShouldHaveSingleItem();
+        conflicts![0].Path.RootType.ShouldBe(typeof(TempReconcileScalar));
+        conflicts[0].PathText.ShouldBe(nameof(TempReconcileScalar.Total));
+        conflicts[0].Kind.ShouldBe(SparseConflictKind.Scalar);
+        live.Customer.ShouldBe("original");
+        live.Total.ShouldBe(21);
+        session.HasChanges.ShouldBeTrue();
+
+        var persistedSubmission = new TempReconcileScalar { Customer = "remote", Total = 20 };
+        session
+            .TryReconcileAndApply(submitted, persistedSubmission, out var retryConflicts)
+            .ShouldBeTrue();
+        retryConflicts.ShouldBeNull();
+        live.Customer.ShouldBe("remote");
+        live.Total.ShouldBe(21);
+    }
+
+    [Test]
+    public void ReconcileAndApplyUsesAuthoritativeKeysAndPreservesPostSubmitEdits()
+    {
+        var temporaryKey = Guid.NewGuid();
+        var baseline = new TempOrderHolder();
+        var session = baseline.CreateEditSession();
+        baseline.Lines.Add(new TempOrderLine { Name = "before", TemporaryId = temporaryKey });
+        var submitted = session.CreateChangeSet();
+
+        baseline.Lines[0].Name = "edited while saving";
+        var persisted = new TempOrderHolder
+        {
+            Lines =
+            [
+                new TempOrderLine
+                {
+                    Id = 31,
+                    Name = "server normalized",
+                    TemporaryId = temporaryKey,
+                },
+            ],
+        };
+
+        session.TryReconcileAndApply(submitted, persisted, out var conflicts).ShouldBeTrue();
+
+        conflicts.ShouldBeNull();
+        baseline.Lines[0].Id.ShouldBe(31);
+        baseline.Lines[0].Name.ShouldBe("edited while saving");
+        session
+            .CreateChangeSet()
+            .Lines.GetChange(31)
+            .Edit.Name.After.Value.ShouldBe("edited while saving");
+    }
+
+    [Test]
+    public void ReconcileAndApplyReturnsTypedRootConflictWithoutMutatingOnIdentityFailure()
+    {
+        var temporaryKey = Guid.NewGuid();
+        var baseline = new TempOrderHolder();
+        var session = baseline.CreateEditSession();
+        baseline.Lines.Add(new TempOrderLine { Name = "before", TemporaryId = temporaryKey });
+        var submitted = session.CreateChangeSet();
+        var liveRow = baseline.Lines[0];
+        var persisted = new TempOrderHolder
+        {
+            Lines =
+            [
+                new TempOrderLine
+                {
+                    Id = 31,
+                    Name = "first",
+                    TemporaryId = temporaryKey,
+                },
+                new TempOrderLine
+                {
+                    Id = 32,
+                    Name = "duplicate",
+                    TemporaryId = temporaryKey,
+                },
+            ],
+        };
+
+        session.TryReconcileAndApply(submitted, persisted, out var conflicts).ShouldBeFalse();
+
+        conflicts.ShouldNotBeNull().ShouldHaveSingleItem();
+        conflicts![0].Path.RootType.ShouldBe(typeof(TempOrderHolder));
+        conflicts[0].Kind.ShouldBe(SparseConflictKind.Reconciliation);
+        conflicts[0].Reason.ShouldNotBeNullOrEmpty();
+        ReferenceEquals(baseline.Lines[0], liveRow).ShouldBeTrue();
+        baseline.Lines[0].Id.ShouldBe(0);
+        baseline.Lines[0].Name.ShouldBe("before");
+        session.HasChanges.ShouldBeTrue();
+    }
+
     // the same Guid reused across two keyed collection paths
     // reconciles independently instead of failing as a global duplicate.
     [Test]

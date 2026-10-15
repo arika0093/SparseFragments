@@ -246,6 +246,14 @@ internal static class SparseFragmentPatchEmitter
         /// <remarks>The scope exposes an empty HashSet&lt;TKey&gt; Keys using default key equality.</remarks>
         public string? KeyValidationScopeFactory { get; init; }
 
+        /// <summary>Creates the configured structured conflict for a failed submission reconciliation.</summary>
+        /// <remarks>The arguments are the generated model type and the source expression naming the failure reason.</remarks>
+        public Func<string, string, string>? ReconcileConflictExpression { get; init; }
+
+        /// <summary>Creates an expression that identifies overlapping child-session paths.</summary>
+        /// <remarks>The arguments are source expressions for two registered paths.</remarks>
+        public Func<string, string, string>? ChildPathOverlapExpression { get; init; }
+
         /// <summary>Probed System.Text.Json surface, or null for the historical full surface.</summary>
         /// <remarks>Null keeps unconditional JSON emission so products that never probe the compilation keep byte-identical output.</remarks>
         // NOTE: positional record property; declared implicitly by the ctor

@@ -22,6 +22,21 @@ public sealed class EditSessionGroupRegistration<TModel, TChangeSet>
     where TModel : class
     where TChangeSet : class
 {
+    /// <summary>Creates an unconfigured registration.</summary>
+    /// <remarks>Set the required session and change-set delegates before registering it.</remarks>
+    public EditSessionGroupRegistration() { }
+
+    /// <summary>Creates a registration with the standard generated session operations.</summary>
+    /// <param name="session">The generated session that captures and describes change sets.</param>
+    public EditSessionGroupRegistration(ISparseEditSessionWithChangeSet<TModel, TChangeSet> session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        Session = session;
+        CreateChangeSet = session.PrepareChangeSet;
+        IsEmpty = session.IsEmpty;
+        EnumerateChangedPaths = session.EnumerateChangedPaths;
+    }
+
     /// <summary>Gets or initializes the edit session.</summary>
     public ISparseEditSession<TModel, TChangeSet> Session { get; init; } = null!;
 
