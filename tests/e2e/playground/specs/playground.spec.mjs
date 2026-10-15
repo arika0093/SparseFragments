@@ -157,6 +157,40 @@ test("case 5 saves an order edit and resets a later draft", async ({ page }) => 
   await expect(notes).toHaveValue("first order");
 });
 
+test("case 5 keeps a focused added row across key assignment", async ({ page }) => {
+  await openCase(page, "case-5", "EF Core: ChangeSet to tracked entity");
+  const rows = page.locator(".pg-task-row");
+  const initialCount = await rows.count();
+
+  await page.locator('fluent-button[title="Add a random line"]').click();
+  await expect(rows).toHaveCount(initialCount + 1);
+  const addedRow = rows.last();
+  const product = addedRow.locator(".pg-roster-field").nth(1).locator("input").first();
+  await enterText(product, "e2e-pending-product");
+  await page.getByText("Wait 10 seconds before applying save", { exact: true }).click();
+
+  await fluentButton(page, "Save").first().click();
+  const saveDialog = page.locator(".pg-submit-preview-dialog");
+  await fluentButton(saveDialog, "Save").click();
+  await expect(page.getByRole("status").getByText("Save is pending")).toBeVisible();
+
+  await product.focus();
+  await product.press("End");
+  await product.pressSequentially("-after-submit");
+  await expect(product).toHaveValue("e2e-pending-product-after-submit");
+  await expect(product).toBeFocused();
+  await expect(addedRow.locator(".pg-roster-field").first().locator("input").first()).toHaveValue("#new");
+
+  await expect
+    .poll(
+      () => addedRow.locator(".pg-roster-field").first().locator("input").first().inputValue(),
+      { timeout: 20_000 },
+    )
+    .not.toBe("#new");
+  await expect(product).toHaveValue("e2e-pending-product-after-submit");
+  await expect(product).toBeFocused();
+});
+
 test("case 6 accepts a section draft and saves the catalog", async ({ page }) => {
   await openCase(page, "case-6", "Enterprise master editing with child sessions");
   const itemCode = page.locator(".pg-edit-fields .pg-row").filter({ hasText: "ItemCode" }).locator("input").first();

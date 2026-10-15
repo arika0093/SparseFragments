@@ -68,6 +68,7 @@ public sealed class CollectionStateTests
         var removed = view.GetItemState("c");
         removed.IsRemoved.ShouldBeTrue();
         removed.Before.Value.ShouldBeOfType<KeyedServer>().Id.ShouldBe("c");
+        view.ChangedItems.Select(static item => item.Key).ShouldContain("c");
         removed.After.IsPresent.ShouldBeFalse();
         removed.BeforeIndex.ShouldBe(1);
         removed.AfterIndex.ShouldBe(-1);

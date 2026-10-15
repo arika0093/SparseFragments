@@ -52,7 +52,7 @@ public sealed class SparseCollectionRow<TModel, TElement>
     /// <summary>Gets the row's current index when the collection was rendered.</summary>
     public int Index { get; }
 
-    /// <summary>Gets the UI identity, which remains stable while this model instance remains in the collection.</summary>
+    /// <summary>Gets the UI identity, which remains stable for a keyed row across model replacement.</summary>
     public Guid UiKey { get; }
 
     /// <summary>Gets the typed, root-preserving path to this row.</summary>
@@ -121,15 +121,56 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
         ReferenceEqualityComparer.Instance
     );
     private readonly HashSet<TElement> _itemsInRender = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<SparsePathSegment, Guid> _identityByPath = [];
+    private readonly HashSet<SparsePathSegment> _pathsInRender = [];
+    private readonly Dictionary<Guid, Guid> _identityByTemporaryKey = [];
+    private readonly HashSet<Guid> _temporaryKeysInRender = [];
     private ISparseEditScope<TModel>? _scope;
     private INotifyPropertyChanged? _notifier;
     private SparseCollectionEditor<TElement>? _editor;
     private SparsePath _path;
     private bool _hasPath;
     private bool _disposed;
+    private SparseCollectionState? _collectionState;
 
     /// <summary>Gets the current typed rows, refreshed for each render.</summary>
     public IReadOnlyList<SparseCollectionRow<TModel, TElement>> Rows { get; private set; } = [];
+
+    /// <summary>Gets the latest collection state snapshot, when the session provides one.</summary>
+    public SparseCollectionState? CollectionState => _collectionState;
+
+    /// <summary>Gets the removed entries from the latest keyed collection state.</summary>
+    /// <exception cref="InvalidOperationException">A removed entry does not contain its typed baseline value.</exception>
+    public IReadOnlyList<TElement> RemovedItems
+    {
+        get
+        {
+            if (_collectionState is not { } state)
+            {
+                return [];
+            }
+
+            var removed = new List<TElement>();
+            foreach (var change in state.ChangedItems)
+            {
+                if (!change.IsRemoved)
+                {
+                    continue;
+                }
+
+                if (!change.Before.IsPresent || change.Before.Value is not TElement item)
+                {
+                    throw new InvalidOperationException(
+                        $"The removed entry at '{state.Path}' has no baseline value of type '{typeof(TElement)}'."
+                    );
+                }
+
+                removed.Add(item);
+            }
+
+            return removed;
+        }
+    }
 
     /// <summary>Gets the latest collection enumeration error, or null when successful.</summary>
     public string? QueryError { get; private set; }
@@ -271,6 +312,8 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
         }
 
         _itemsInRender.Clear();
+        _pathsInRender.Clear();
+        _temporaryKeysInRender.Clear();
         var count = editor.Count;
         var rows = new List<SparseCollectionRow<TModel, TElement>>(count);
         SparseCollectionState? collectionState = null;
@@ -289,6 +332,8 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
             stateQueryError = exception.Message;
         }
 
+        _collectionState = hasCollectionState ? collectionState : null;
+
         for (var index = 0; index < count; index++)
         {
             if (!editor.TryGetAt(index, out var item, out var error) || item is null)
@@ -299,12 +344,6 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
             }
 
             _itemsInRender.Add(item);
-            if (!_identityByItem.TryGetValue(item, out var identity))
-            {
-                identity = Guid.NewGuid();
-                _identityByItem.Add(item, identity);
-            }
-
             if (
                 !SparseSessionInterop.TryGetCollectionRowIdentity(
                     _scope!.Session,
@@ -323,15 +362,18 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
                 return;
             }
 
+            var uiKey = GetUiKey(item, identitySegment, temporaryKey, isKeyed);
             SparseCollectionItemState? itemState = null;
             var rowStateError = stateQueryError;
             if (hasCollectionState && collectionState is { } state)
             {
-                if (isKeyed)
+                if (isKeyed && identitySegment.Kind == SparsePathSegmentKind.TemporaryKey)
                 {
-                    itemState = temporaryKey is { } temporary
-                        ? state.GetTemporaryState(temporary)
-                        : state.GetItemState(key);
+                    itemState = state.GetTemporaryState(temporaryKey!.Value);
+                }
+                else if (isKeyed)
+                {
+                    itemState = state.GetItemState(key);
                 }
             }
             else if (rowStateError is null)
@@ -345,7 +387,7 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
                 new SparseCollectionRow<TModel, TElement>(
                     item,
                     index,
-                    identity,
+                    uiKey,
                     new SparsePath<TModel, TElement>(_path.Append(identitySegment)),
                     itemState,
                     rowStateError,
@@ -362,8 +404,68 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
             _identityByItem.Remove(item);
         }
 
+        foreach (
+            var path in _identityByPath.Keys.Where(path => !_pathsInRender.Contains(path)).ToArray()
+        )
+        {
+            _identityByPath.Remove(path);
+        }
+
+        foreach (
+            var temporaryKey in _identityByTemporaryKey
+                .Keys.Where(key => !_temporaryKeysInRender.Contains(key))
+                .ToArray()
+        )
+        {
+            _identityByTemporaryKey.Remove(temporaryKey);
+        }
+
         Rows = rows;
         QueryError = null;
+    }
+
+    private Guid GetUiKey(
+        TElement item,
+        SparsePathSegment identity,
+        Guid? temporaryKey,
+        bool isKeyed
+    )
+    {
+        if (!isKeyed)
+        {
+            if (!_identityByItem.TryGetValue(item, out var itemIdentity))
+            {
+                itemIdentity = Guid.NewGuid();
+                _identityByItem.Add(item, itemIdentity);
+            }
+
+            return itemIdentity;
+        }
+
+        _pathsInRender.Add(identity);
+        if (temporaryKey is { } temporary)
+        {
+            _temporaryKeysInRender.Add(temporary);
+        }
+
+        var hasIdentity = _identityByPath.TryGetValue(identity, out var uiKey);
+        if (!hasIdentity && temporaryKey is { } temporaryIdentity)
+        {
+            hasIdentity = _identityByTemporaryKey.TryGetValue(temporaryIdentity, out uiKey);
+        }
+
+        if (!hasIdentity)
+        {
+            uiKey = Guid.NewGuid();
+        }
+
+        _identityByPath[identity] = uiKey;
+        if (temporaryKey is { } stableTemporaryKey)
+        {
+            _identityByTemporaryKey[stableTemporaryKey] = uiKey;
+        }
+
+        return uiKey;
     }
 
     private bool RemoveRow(
@@ -378,7 +480,7 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
             return false;
         }
 
-        var index = FindCurrentIndex(editor, row.Item);
+        var index = FindCurrentIndex(editor, row.UiKey);
         if (index < 0)
         {
             error = SparseCollectionEditError.IndexOutOfRange;
@@ -408,7 +510,7 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
             return false;
         }
 
-        var index = FindCurrentIndex(editor, row.Item);
+        var index = FindCurrentIndex(editor, row.UiKey);
         if (index < 0)
         {
             error = SparseCollectionEditError.IndexOutOfRange;
@@ -433,6 +535,19 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
             if (editor.TryGetAt(index, out var current, out _) && ReferenceEquals(current, item))
             {
                 return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private int FindCurrentIndex(SparseCollectionEditor<TElement> editor, Guid uiKey)
+    {
+        foreach (var currentRow in Rows)
+        {
+            if (currentRow.UiKey == uiKey)
+            {
+                return FindCurrentIndex(editor, currentRow.Item);
             }
         }
 

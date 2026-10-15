@@ -150,4 +150,75 @@ public sealed class SparseCollectionTests
             .Drafts.Select(static item => item.Title)
             .ShouldBe(new[] { "Draft", "Other", "Existing" });
     }
+
+    [Test]
+    public async Task ReconcileAndApplyKeepsRowIdentityAndActionsAcrossModelReplacement()
+    {
+        var temporaryId = Guid.NewGuid();
+        var board = new BlazorDraftBoard
+        {
+            Drafts = [new BlazorDraftLine { Id = 7, Title = "Existing" }],
+        };
+        var session = board.CreateEditSession();
+        SparseCollection<BlazorDraftBoard, BlazorDraftLine>? collection = null;
+
+        using var tree = await Headless.Tree.CreateAsync(
+            EditWithCollection(
+                session,
+                BlazorDraftBoard.SparsePath.Drafts,
+                (SparseCollection<BlazorDraftBoard, BlazorDraftLine> captured) =>
+                    collection = captured
+            )
+        );
+
+        var view = collection.ShouldNotBeNull();
+        view.TryAdd(
+                new BlazorDraftLine { TemporaryId = temporaryId, Title = "Pending" },
+                out var addError
+            )
+            .ShouldBeTrue();
+        addError.ShouldBe(SparseCollectionEditError.None);
+        await tree.FlushAsync();
+
+        var pendingRow = view.Rows.Single(row => row.Item.TemporaryId == temporaryId);
+        var submitted = session.CreateChangeSet();
+        var persisted = new BlazorDraftBoard
+        {
+            Drafts =
+            [
+                new BlazorDraftLine
+                {
+                    Id = 7,
+                    Title = "Existing",
+                },
+                new BlazorDraftLine
+                {
+                    Id = 42,
+                    TemporaryId = temporaryId,
+                    Title = "Persisted",
+                },
+            ],
+        };
+
+        session.TryReconcileAndApply(submitted, persisted, out var conflicts).ShouldBeTrue();
+
+        conflicts.ShouldBeNull();
+        await tree.FlushAsync();
+        view.Rows.Count.ShouldBe(2);
+        view.Rows[1].Item.ShouldNotBeSameAs(pendingRow.Item);
+        view.Rows[1].UiKey.ShouldBe(pendingRow.UiKey);
+        view.Rows[1].Path.UntypedPath.ShouldBe(BlazorDraftBoard.SparsePath.Drafts.Key(42).UntypedPath);
+
+        pendingRow.TryMoveTo(0, out var moveError).ShouldBeTrue();
+        moveError.ShouldBe(SparseCollectionEditError.None);
+        await tree.FlushAsync();
+        view.Rows[0].UiKey.ShouldBe(pendingRow.UiKey);
+
+        pendingRow.TryRemove(out var removeError).ShouldBeTrue();
+        removeError.ShouldBe(SparseCollectionEditError.None);
+        await tree.FlushAsync();
+        view.Rows.ShouldHaveSingleItem();
+        board.Drafts.Select(static item => item.Id).ShouldBe([7]);
+        view.RemovedItems.ShouldHaveSingleItem().Title.ShouldBe("Persisted");
+    }
 }

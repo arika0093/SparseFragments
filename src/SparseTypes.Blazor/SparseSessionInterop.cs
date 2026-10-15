@@ -355,21 +355,6 @@ internal static class SparseSessionInterop
             return true;
         }
 
-        key = array.GetItemKey(index);
-        if (key is not null && !array.IsUnassignedKey(key))
-        {
-            var keyType = array.KeyType;
-            if (keyType is null)
-            {
-                error = $"The keyed collection at '{path}' does not expose its key type.";
-                return false;
-            }
-
-            identity = CreateKeySegment(keyType, key);
-            error = null;
-            return true;
-        }
-
         var itemDescriptors = array.GetItemDescriptors(index);
         if (itemDescriptors is not null)
         {
@@ -388,13 +373,32 @@ internal static class SparseSessionInterop
                 if (value is Guid temporaryGuid && temporaryGuid != Guid.Empty)
                 {
                     temporaryKey = temporaryGuid;
-                    identity = SparsePathSegment.TemporaryKeyOf(temporaryGuid);
-                    error = null;
-                    return true;
                 }
 
                 break;
             }
+        }
+
+        key = array.GetItemKey(index);
+        if (key is not null && !array.IsUnassignedKey(key))
+        {
+            var keyType = array.KeyType;
+            if (keyType is null)
+            {
+                error = $"The keyed collection at '{path}' does not expose its key type.";
+                return false;
+            }
+
+            identity = CreateKeySegment(keyType, key);
+            error = null;
+            return true;
+        }
+
+        if (temporaryKey is { } temporary)
+        {
+            identity = SparsePathSegment.TemporaryKeyOf(temporary);
+            error = null;
+            return true;
         }
 
         error =

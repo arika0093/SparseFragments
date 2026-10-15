@@ -79,6 +79,7 @@ public static class SparseStateQueries
             change.IsEmpty,
             change.IsChanged,
             change.OrderChanged,
+            change.EnumerateItems().Select(SparseCollectionItemState.FromKeyed).ToArray(),
             key => GetKeyedItemState(change, key),
             temporaryKey => GetTemporaryItemState(temporary, temporaryKey)
         );
@@ -108,6 +109,7 @@ public static class SparseStateQueries
             change.IsEmpty,
             change.IsChanged,
             false,
+            [],
             key => GetDictionaryEntryState(change, key),
             _ => SparseCollectionItemState.Empty
         );

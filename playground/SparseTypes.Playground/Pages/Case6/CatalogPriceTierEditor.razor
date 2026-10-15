@@ -85,7 +85,8 @@
                     <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddDiscountBand">Add band</FluentButton>
                 </div>
                 <div class="pg-roster-list">
-                    <SparseCollection TModel="CatalogPriceTier" TElement="CatalogDiscountBand"
+                    <SparseCollection @ref="_discountCollection"
+                        TModel="CatalogPriceTier" TElement="CatalogDiscountBand"
                         Path="child.Path.Discounts">
                         <RowTemplate Context="bandRow">
                             <div class="@CatalogCollectionRowState.ClassFor(bandRow.RequireItemState())">
@@ -108,8 +109,7 @@
                             </div>
                         </RowTemplate>
                     </SparseCollection>
-                    @foreach (var removed in _baseline.Discounts.Where(band =>
-                        !Draft.Discounts.Any(current => current.Code == band.Code)))
+                    @foreach (var removed in _discountCollection?.RemovedItems ?? [])
                     {
                         <div class="pg-roster-row pg-removed">
                             <div class="pg-catalog-inline-row">
@@ -162,7 +162,7 @@
 
     private ISparseChildEditContext<CatalogPriceTier, SparseConflict>? _childSession;
     private CatalogPriceTier.EditSession _draftSession = null!;
-    private CatalogPriceTier _baseline = null!;
+    private SparseCollection<CatalogPriceTier, CatalogDiscountBand>? _discountCollection;
     private FluentDialog? _tierDialog;
     private bool _tierDialogHidden = true;
     private bool _openOnLoadHandled;
@@ -184,7 +184,6 @@
         _childSession = context;
         _draftSession = context.Session as CatalogPriceTier.EditSession
             ?? throw new InvalidOperationException("The price-tier edit session is unavailable.");
-        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
         _openOnLoadHandled = false;
         _tierDialogHidden = true;
         _historyError = null;
@@ -204,18 +203,12 @@
 
     private Task ReportStatus(bool _)
     {
-        if (!HasChanges)
-        {
-            _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
-        }
-
         return OnChanged.InvokeAsync(HasChanges);
     }
 
     private async Task DiscardConflictingEdit()
     {
         _childSession!.DiscardChanges();
-        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
         await OnChanged.InvokeAsync(HasChanges);
     }
 

@@ -106,6 +106,7 @@ public readonly record struct SparseCollectionState
         bool isEmpty,
         bool isChanged,
         bool orderChanged,
+        IReadOnlyList<SparseCollectionItemState> changedItems,
         Func<object?, SparseCollectionItemState> getItem,
         Func<Guid, SparseCollectionItemState> getTemporary
     )
@@ -114,6 +115,7 @@ public readonly record struct SparseCollectionState
         IsEmpty = isEmpty;
         IsChanged = isChanged;
         OrderChanged = orderChanged;
+        ChangedItems = changedItems;
         _getItem = getItem;
         _getTemporary = getTemporary;
     }
@@ -132,6 +134,9 @@ public readonly record struct SparseCollectionState
     /// </summary>
     /// <remarks>Keyed collections only; dictionary members always report false.</remarks>
     public bool OrderChanged { get; }
+
+    /// <summary>Gets the changed entries in this collection snapshot.</summary>
+    public IReadOnlyList<SparseCollectionItemState> ChangedItems { get; }
 
     /// <summary>Looks up the state for a stable key; never returns an uninitialized state.</summary>
     /// <param name="key">The stable key to look up.</param>
