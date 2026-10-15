@@ -131,6 +131,15 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
     private SparsePath _path;
     private bool _hasPath;
     private bool _disposed;
+    private bool _mutationActive;
+    private bool _notificationDuringMutation;
+    private bool _parameterRefreshDuringMutation;
+    private bool _skipNextParameterRefresh;
+    private long _rowsVersion = 1;
+    private long _builtRowsVersion;
+    private long _bindingVersion;
+    private long _parameterSetVersion;
+    private int _refreshQueued;
     private SparseCollectionState? _collectionState;
 
     /// <summary>Gets the current typed rows, refreshed for each render.</summary>
@@ -186,10 +195,31 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
     public bool TryAdd(TElement item, out SparseCollectionEditError error)
     {
         ArgumentNullException.ThrowIfNull(item);
-        var added = Editor.TryAdd(item, out error);
+        BeginMutation();
+        bool added;
+        try
+        {
+            added = Editor.TryAdd(item, out error);
+        }
+        finally
+        {
+            _mutationActive = false;
+        }
+
+        if (added || _notificationDuringMutation || _parameterRefreshDuringMutation)
+        {
+            if (!_notificationDuringMutation)
+            {
+                InvalidateRows();
+            }
+
+            RefreshRows();
+            _skipNextParameterRefresh =
+                _notificationDuringMutation && !_parameterRefreshDuringMutation;
+        }
+
         if (added)
         {
-            RefreshRows();
             _ = InvokeAsync(StateHasChanged);
         }
 
@@ -220,6 +250,7 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
     protected override void OnParametersSet()
     {
         base.OnParametersSet();
+        Interlocked.Increment(ref _parameterSetVersion);
         var scope =
             Scope
             ?? throw new InvalidOperationException(
@@ -238,12 +269,29 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
             _scope = scope;
             _path = Path;
             _hasPath = true;
+            Interlocked.Increment(ref _bindingVersion);
+            InvalidateRows();
             _editor = SparseSessionInterop.CreateCollectionEditor<TElement>(scope.Session, Path);
             if (scope.Session is INotifyPropertyChanged notifier)
             {
                 _notifier = notifier;
                 notifier.PropertyChanged += OnSessionChanged;
             }
+
+            _skipNextParameterRefresh = false;
+        }
+        else if (_mutationActive)
+        {
+            _parameterRefreshDuringMutation = true;
+            return;
+        }
+        else if (_skipNextParameterRefresh)
+        {
+            _skipNextParameterRefresh = false;
+        }
+        else
+        {
+            InvalidateRows();
         }
 
         RefreshRows();
@@ -303,6 +351,18 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
 
     private void RefreshRows()
     {
+        var version = Interlocked.Read(ref _rowsVersion);
+        if (_builtRowsVersion == version)
+        {
+            return;
+        }
+
+        RebuildRows();
+        _builtRowsVersion = version;
+    }
+
+    private void RebuildRows()
+    {
         var editor = _editor;
         if (editor is null)
         {
@@ -334,6 +394,7 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
 
         _collectionState = hasCollectionState ? collectionState : null;
 
+        var bindingVersion = Interlocked.Read(ref _bindingVersion);
         for (var index = 0; index < count; index++)
         {
             if (!editor.TryGetAt(index, out var item, out var error) || item is null)
@@ -391,8 +452,15 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
                     new SparsePath<TModel, TElement>(_path.Append(identitySegment)),
                     itemState,
                     rowStateError,
-                    RemoveRow,
-                    MoveRow
+                    (
+                        SparseCollectionRow<TModel, TElement> row,
+                        out SparseCollectionEditError error
+                    ) => RemoveRow(row, bindingVersion, out error),
+                    (
+                        SparseCollectionRow<TModel, TElement> row,
+                        int newIndex,
+                        out SparseCollectionEditError error
+                    ) => MoveRow(row, newIndex, bindingVersion, out error)
                 )
             );
         }
@@ -470,9 +538,16 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
 
     private bool RemoveRow(
         SparseCollectionRow<TModel, TElement> row,
+        long bindingVersion,
         out SparseCollectionEditError error
     )
     {
+        if (_disposed || bindingVersion != Interlocked.Read(ref _bindingVersion))
+        {
+            error = SparseCollectionEditError.UnknownCollection;
+            return false;
+        }
+
         var editor = _editor;
         if (editor is null)
         {
@@ -487,10 +562,31 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
             return false;
         }
 
-        var removed = editor.TryRemoveAt(index, out error);
+        BeginMutation();
+        bool removed;
+        try
+        {
+            removed = editor.TryRemoveAt(index, out error);
+        }
+        finally
+        {
+            _mutationActive = false;
+        }
+
+        if (removed || _notificationDuringMutation || _parameterRefreshDuringMutation)
+        {
+            if (!_notificationDuringMutation)
+            {
+                InvalidateRows();
+            }
+
+            RefreshRows();
+            _skipNextParameterRefresh =
+                _notificationDuringMutation && !_parameterRefreshDuringMutation;
+        }
+
         if (removed)
         {
-            RefreshRows();
             _ = InvokeAsync(StateHasChanged);
         }
 
@@ -500,9 +596,16 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
     private bool MoveRow(
         SparseCollectionRow<TModel, TElement> row,
         int newIndex,
+        long bindingVersion,
         out SparseCollectionEditError error
     )
     {
+        if (_disposed || bindingVersion != Interlocked.Read(ref _bindingVersion))
+        {
+            error = SparseCollectionEditError.UnknownCollection;
+            return false;
+        }
+
         var editor = _editor;
         if (editor is null)
         {
@@ -517,10 +620,31 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
             return false;
         }
 
-        var moved = editor.TryMove(index, newIndex, out error);
+        BeginMutation();
+        bool moved;
+        try
+        {
+            moved = editor.TryMove(index, newIndex, out error);
+        }
+        finally
+        {
+            _mutationActive = false;
+        }
+
+        if (moved || _notificationDuringMutation || _parameterRefreshDuringMutation)
+        {
+            if (!_notificationDuringMutation)
+            {
+                InvalidateRows();
+            }
+
+            RefreshRows();
+            _skipNextParameterRefresh =
+                _notificationDuringMutation && !_parameterRefreshDuringMutation;
+        }
+
         if (moved)
         {
-            RefreshRows();
             _ = InvokeAsync(StateHasChanged);
         }
 
@@ -556,15 +680,53 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
 
     private void OnSessionChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (!_disposed)
+        if (_disposed)
         {
-            _ = InvokeAsync(() =>
-            {
-                RefreshRows();
-                StateHasChanged();
-            });
+            return;
         }
+
+        InvalidateRows();
+        if (_mutationActive)
+        {
+            _notificationDuringMutation = true;
+            return;
+        }
+
+        var bindingVersion = Interlocked.Read(ref _bindingVersion);
+        var parameterSetVersion = Interlocked.Read(ref _parameterSetVersion);
+        if (Interlocked.Exchange(ref _refreshQueued, 1) != 0)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            await Task.Yield();
+            Interlocked.Exchange(ref _refreshQueued, 0);
+            if (_disposed || bindingVersion != Interlocked.Read(ref _bindingVersion))
+            {
+                return;
+            }
+
+            var wasDirty = _builtRowsVersion != Interlocked.Read(ref _rowsVersion);
+            RefreshRows();
+            if (wasDirty && parameterSetVersion == Interlocked.Read(ref _parameterSetVersion))
+            {
+                _skipNextParameterRefresh = true;
+            }
+
+            StateHasChanged();
+        });
     }
+
+    private void BeginMutation()
+    {
+        _mutationActive = true;
+        _notificationDuringMutation = false;
+        _parameterRefreshDuringMutation = false;
+    }
+
+    private void InvalidateRows() => Interlocked.Increment(ref _rowsVersion);
 
     private void Unsubscribe()
     {

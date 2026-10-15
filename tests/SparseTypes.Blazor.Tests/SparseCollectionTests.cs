@@ -91,7 +91,9 @@ public sealed class SparseCollectionTests
             )
             .ShouldBeTrue();
         addDraftError.ShouldBe(SparseCollectionEditError.None);
+        var rowsAfterAdd = view.Rows;
         await tree.FlushAsync();
+        ReferenceEquals(rowsAfterAdd, view.Rows).ShouldBeTrue();
 
         var draft = view.Rows[2];
         draft.UiKey.ShouldNotBe(Guid.Empty);
@@ -186,11 +188,7 @@ public sealed class SparseCollectionTests
         {
             Drafts =
             [
-                new BlazorDraftLine
-                {
-                    Id = 7,
-                    Title = "Existing",
-                },
+                new BlazorDraftLine { Id = 7, Title = "Existing" },
                 new BlazorDraftLine
                 {
                     Id = 42,
@@ -207,7 +205,8 @@ public sealed class SparseCollectionTests
         view.Rows.Count.ShouldBe(2);
         view.Rows[1].Item.ShouldNotBeSameAs(pendingRow.Item);
         view.Rows[1].UiKey.ShouldBe(pendingRow.UiKey);
-        view.Rows[1].Path.UntypedPath.ShouldBe(BlazorDraftBoard.SparsePath.Drafts.Key(42).UntypedPath);
+        view.Rows[1]
+            .Path.UntypedPath.ShouldBe(BlazorDraftBoard.SparsePath.Drafts.Key(42).UntypedPath);
 
         pendingRow.TryMoveTo(0, out var moveError).ShouldBeTrue();
         moveError.ShouldBe(SparseCollectionEditError.None);
@@ -220,5 +219,52 @@ public sealed class SparseCollectionTests
         view.Rows.ShouldHaveSingleItem();
         board.Drafts.Select(static item => item.Id).ShouldBe([7]);
         view.RemovedItems.ShouldHaveSingleItem().Title.ShouldBe("Persisted");
+    }
+
+    [Test]
+    public async Task SessionReplacementRefreshesRowsAndRejectsOldRowCallbacks()
+    {
+        var firstBoard = new BlazorDraftBoard
+        {
+            Drafts = [new BlazorDraftLine { Id = 7, Title = "First" }],
+        };
+        var firstSession = firstBoard.CreateEditSession();
+        SparseCollection<BlazorDraftBoard, BlazorDraftLine>? collection = null;
+
+        using var tree = await Headless.Tree.CreateAsync(
+            EditWithCollection(
+                firstSession,
+                BlazorDraftBoard.SparsePath.Drafts,
+                (SparseCollection<BlazorDraftBoard, BlazorDraftLine> captured) =>
+                    collection = captured
+            )
+        );
+
+        var staleRow = collection.ShouldNotBeNull().Rows[0];
+        var secondBoard = new BlazorDraftBoard
+        {
+            Drafts = [new BlazorDraftLine { Id = 7, Title = "Second" }],
+        };
+        var secondSession = secondBoard.CreateEditSession();
+
+        await tree.ShowAsync(
+            EditWithCollection(
+                secondSession,
+                BlazorDraftBoard.SparsePath.Drafts,
+                (SparseCollection<BlazorDraftBoard, BlazorDraftLine> captured) =>
+                    collection = captured
+            )
+        );
+
+        var view = collection.ShouldNotBeNull();
+        view.Rows.ShouldHaveSingleItem().Item.ShouldBeSameAs(secondBoard.Drafts[0]);
+        staleRow.TryRemove(out var staleError).ShouldBeFalse();
+        staleError.ShouldBe(SparseCollectionEditError.UnknownCollection);
+        secondBoard.Drafts.ShouldHaveSingleItem();
+
+        view.Rows[0].TryRemove(out var removeError).ShouldBeTrue();
+        removeError.ShouldBe(SparseCollectionEditError.None);
+        await tree.FlushAsync();
+        secondBoard.Drafts.ShouldBeEmpty();
     }
 }
