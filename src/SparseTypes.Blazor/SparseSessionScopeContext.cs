@@ -1,7 +1,41 @@
 using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Components.Forms;
 
 namespace SparseTypes.Blazor;
+
+internal static class SparseSessionScopeOwnership
+{
+    private static readonly ConditionalWeakTable<object, object> Owners = new();
+    private static readonly object Gate = new();
+
+    internal static void Register(object session, object owner)
+    {
+        lock (Gate)
+        {
+            if (Owners.TryGetValue(session, out _))
+            {
+                throw new InvalidOperationException(
+                    "An edit session can have only one SparseSessionScope owner. "
+                        + "Reuse its cascaded ScopeContext for all child sessions."
+                );
+            }
+
+            Owners.Add(session, owner);
+        }
+    }
+
+    internal static void Release(object session, object owner)
+    {
+        lock (Gate)
+        {
+            if (Owners.TryGetValue(session, out var current) && ReferenceEquals(current, owner))
+            {
+                Owners.Remove(session);
+            }
+        }
+    }
+}
 
 /// <summary>Creates and owns typed child sessions for one <see cref="SparseSessionScope{TModel}"/>.</summary>
 /// <typeparam name="TModel">The parent session model type.</typeparam>
@@ -22,6 +56,7 @@ public sealed class SparseSessionScopeContext<TModel>
     internal SparseSessionScopeContext(ISparseEditSession<TModel> session, bool autoAccept)
     {
         _session = session;
+        SparseSessionScopeOwnership.Register(session, this);
         AutoAccept = autoAccept;
     }
 
@@ -138,6 +173,9 @@ public sealed class SparseSessionScopeContext<TModel>
     /// <summary>Gets whether any opened child session has pending changes.</summary>
     public bool HasChanges => _children.Values.Any(static entry => entry.HasChanges());
 
+    internal bool OwnsSession(ISparseEditSession<TModel> session) =>
+        !_disposed && ReferenceEquals(_session, session);
+
     internal void SetAutoAccept(bool autoAccept)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -164,19 +202,27 @@ public sealed class SparseSessionScopeContext<TModel>
 
         _disposed = true;
         List<Exception>? failures = null;
-        foreach (var entry in _children.Values)
+        try
         {
-            try
+            foreach (var entry in _children.Values)
             {
-                entry.Dispose();
+                try
+                {
+                    entry.Dispose();
+                }
+                catch (Exception exception)
+                {
+                    (failures ??= []).Add(exception);
+                }
             }
-            catch (Exception exception)
-            {
-                (failures ??= []).Add(exception);
-            }
+
+            _children.Clear();
+        }
+        finally
+        {
+            SparseSessionScopeOwnership.Release(_session, this);
         }
 
-        _children.Clear();
         if (failures is not null)
         {
             throw new AggregateException(
@@ -244,6 +290,7 @@ public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
         }
 
         _autoAccept = autoAccept;
+        DescendantScopeContext = new SparseSessionScopeContext<TModel>(child.Session, autoAccept);
         if (child.Session is INotifyPropertyChanged notifier)
         {
             _notifier = notifier;
@@ -253,6 +300,8 @@ public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
 
     /// <summary>Gets the generated edit session for the child model.</summary>
     public TSession Session => _child.Session;
+
+    internal SparseSessionScopeContext<TModel> DescendantScopeContext { get; }
 
     ISparseEditSession<TModel> ISparseChildEditContext<TModel, TConflict>.Session => Session;
 
@@ -330,11 +379,18 @@ public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
 
         try
         {
-            SparseSessionInterop.DisableHistory(Session);
+            DescendantScopeContext.DisposeChildren();
         }
         finally
         {
-            _child.Dispose();
+            try
+            {
+                SparseSessionInterop.DisableHistory(Session);
+            }
+            finally
+            {
+                _child.Dispose();
+            }
         }
     }
 
@@ -349,6 +405,7 @@ public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
         }
 
         _autoAccept = autoAccept;
+        DescendantScopeContext.SetAutoAccept(autoAccept);
         if (autoAccept)
         {
             TryAutoAccept();

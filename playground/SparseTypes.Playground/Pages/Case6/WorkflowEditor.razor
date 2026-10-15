@@ -2,11 +2,16 @@
 @using SparseTypes.Blazor
 @using SparseTypes.Playground.Models
 @using CatalogSession = global::SparseTypes.Playground.Models.EnterpriseCatalogItem.EditSession;
+@using CatalogWorkflowPaths = global::SparseTypes.Generated.SparseTypes_Playground_Models_CatalogWorkflow_C00C8113.SparsePaths<global::SparseTypes.Playground.Models.CatalogWorkflow>;
 @implements IDisposable
 
-@if (_childSession is not null)
+@if (ParentSession is not null && ScopeContext is not null)
 {
-    <SparseEdit Session="_draftSession" Context="edit">
+    <SparseChildEdit TParent="EnterpriseCatalogItem" TChild="CatalogWorkflow"
+        TChildPaths="CatalogWorkflowPaths" TConflict="SparseConflict"
+        TChildSession="CatalogWorkflow.EditSession"
+        Path="EnterpriseCatalogItem.SparsePath.Workflow" Context="child">
+        @{ CaptureChildContext(child); }
         <FluentCard Class="pg-fluent-card">
             <div class="pg-card-head">
                 <h3>Workflow and work-step order</h3>
@@ -22,7 +27,7 @@
                         <span class="pg-hint">Drag the handle to reorder. Drop a template here to add it.</span>
                     </div>
                     <div class="pg-catalog-workflow-dropzone">
-                        <SparseField Path="edit.Path.Steps" Context="steps">
+                        <SparseField Path="_draftSession.Paths.Steps" Context="steps">
                             @{ var roster = steps.TryGetCollectionState(out var state) ? state : null; }
                             <FluentSortableList @key="(CurrentWorkflow!.Steps.Count, _sortableListsVersion)" TItem="CatalogWorkStep"
                                 Id="case6-workflow" Group="case6-work-steps" Items="CurrentWorkflow!.Steps"
@@ -101,7 +106,7 @@
                     OnStatusChanged="ReportStatus" />
             </div>
         </FluentCard>
-    </SparseEdit>
+    </SparseChildEdit>
 }
 
 @code {
@@ -137,9 +142,6 @@
     [CascadingParameter]
     public SparseSessionScopeContext<EnterpriseCatalogItem>? ScopeContext { get; set; }
 
-    [Parameter, EditorRequired]
-    public CatalogChildSessionCoordinator ChildSessions { get; set; } = null!;
-
     [Parameter]
     public bool SectionDraftsEnabled { get; set; } = true;
 
@@ -155,8 +157,6 @@
     [Parameter]
     public Action? OnAccepted { get; set; }
 
-    private CatalogSession? _parentSession;
-    private SparseSessionScopeContext<EnterpriseCatalogItem>? _scopeContext;
     private ISparseChildEditContext<CatalogWorkflow, SparseConflict>? _childSession;
     private CatalogWorkflow.EditSession _draftSession = null!;
     private int _seenBaselineVersion;
@@ -181,24 +181,27 @@
 
     protected override void OnParametersSet()
     {
-        if (!ReferenceEquals(_parentSession, ParentSession) || !ReferenceEquals(_scopeContext, ScopeContext))
+        _ = ParentSession as CatalogSession
+            ?? throw new InvalidOperationException("The catalog edit session is unavailable.");
+        _ = ScopeContext
+            ?? throw new InvalidOperationException("The catalog session scope is unavailable.");
+    }
+
+    private void CaptureChildContext(
+        ISparseChildEditContext<CatalogWorkflow, SparseConflict> context
+    )
+    {
+        if (!ReferenceEquals(_childSession, context))
         {
-            _parentSession = ParentSession as CatalogSession
-                ?? throw new InvalidOperationException("The catalog edit session is unavailable.");
-            _scopeContext = ScopeContext
-                ?? throw new InvalidOperationException("The catalog session scope is unavailable.");
             if (_childSession is not null)
             {
                 _childSession.AutoAccepted -= OnChildAutoAccepted;
             }
 
-            var childSession = _scopeContext.OpenChildSession(
-                _parentSession,
-                EnterpriseCatalogItem.SparsePath.Workflow
-            );
-            _childSession = childSession;
+            _childSession = context;
             _childSession.AutoAccepted += OnChildAutoAccepted;
-            _draftSession = childSession.Session;
+            _draftSession = context.Session as CatalogWorkflow.EditSession
+                ?? throw new InvalidOperationException("The workflow edit session is unavailable.");
             _sortableListsVersion++;
         }
 
@@ -218,14 +221,12 @@
 
     private Task ReportStatus(bool _)
     {
-        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.WorkflowId, HasChanges);
         return OnChanged.InvokeAsync();
     }
 
     private Task RefreshBaseline()
     {
         _sortableListsVersion++;
-        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.WorkflowId, HasChanges);
         return OnChanged.InvokeAsync();
     }
 

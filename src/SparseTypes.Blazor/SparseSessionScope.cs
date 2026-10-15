@@ -10,7 +10,7 @@ namespace SparseTypes.Blazor;
 public sealed class SparseSessionScope<TModel> : ComponentBase, IDisposable
     where TModel : class
 {
-    private const string AutoAcceptCascadeName = "SparseSessionScope.AutoAccept";
+    internal const string AutoAcceptCascadeName = "SparseSessionScope.AutoAccept";
 
     private INotifyPropertyChanged? _subscribedNotifier;
     private ISparseEditSession<TModel>? _subscribedSession;

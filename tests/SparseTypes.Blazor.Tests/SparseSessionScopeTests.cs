@@ -489,6 +489,7 @@ public sealed class SparseSessionScopeTests
             if (!_disposed)
             {
                 _disposed = true;
+                _renderer.DispatchAsync(Scope.Dispose).GetAwaiter().GetResult();
                 _dispatcher.Dispose();
                 _services.Dispose();
             }

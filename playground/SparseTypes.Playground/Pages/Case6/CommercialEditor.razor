@@ -1,11 +1,15 @@
 @using SparseTypes
 @using SparseTypes.Blazor
 @using SparseTypes.Playground.Models
-@using CatalogSession = global::SparseTypes.Playground.Models.EnterpriseCatalogItem.EditSession;
+@using CatalogCommercialPaths = global::SparseTypes.Generated.SparseTypes_Playground_Models_CatalogCommercialDetails_83F12C92.SparsePaths<global::SparseTypes.Playground.Models.CatalogCommercialDetails>;
 
-@if (_childSession is not null)
+@if (ParentSession is not null && ScopeContext is not null)
 {
-        <SparseEdit Session="_draftSession" Context="edit">
+    <SparseChildEdit TParent="EnterpriseCatalogItem" TChild="CatalogCommercialDetails"
+        TChildPaths="CatalogCommercialPaths" TConflict="SparseConflict"
+        TChildSession="CatalogCommercialDetails.EditSession"
+        Path="EnterpriseCatalogItem.SparsePath.Commercial" Context="child">
+        @{ CaptureChildContext(child); }
             <FluentCard Class="pg-fluent-card">
                 <div class="pg-card-head">
                     <h3>Commercial details</h3>
@@ -13,39 +17,39 @@
                         <span aria-hidden="true"></span>@(HasChanges ? "Edited" : "Current")
                     </span>
                 </div>
-                <CatalogDraftStatus HasChanges="edit.HasChanges" OnChanged="ReportStatus" />
+                <CatalogDraftStatus HasChanges="HasChanges" OnChanged="ReportStatus" />
                 <div class="pg-stack pg-edit-fields">
-                    <SparseField Path="edit.Path.Customer" Context="customer">
+                    <SparseField Path="child.Path.Customer" Context="customer">
                         <div class="pg-row pg-session-field @(customer.IsChanged ? "pg-changed" : "")">
                             <span class="pg-name notranslate" translate="no">Customer <small>string</small></span>
                             <FluentTextInput Value="@customer.Value" ValueChanged="customer.ValueChanged" />
                         </div>
                     </SparseField>
-                    <SparseField Path="edit.Path.Region" Context="region">
+                    <SparseField Path="child.Path.Region" Context="region">
                         <div class="pg-row pg-session-field @(region.IsChanged ? "pg-changed" : "")">
                             <span class="pg-name notranslate" translate="no">Region <small>string</small></span>
                             <FluentTextInput Value="@region.Value" ValueChanged="region.ValueChanged" />
                         </div>
                     </SparseField>
-                    <SparseField Path="edit.Path.ContractCode" Context="contractCode">
+                    <SparseField Path="child.Path.ContractCode" Context="contractCode">
                         <div class="pg-row pg-session-field @(contractCode.IsChanged ? "pg-changed" : "")">
                             <span class="pg-name notranslate" translate="no">ContractCode <small>string</small></span>
                             <FluentTextInput Value="@contractCode.Value" ValueChanged="contractCode.ValueChanged" />
                         </div>
                     </SparseField>
-                    <SparseField Path="edit.Path.Currency" Context="currency">
+                    <SparseField Path="child.Path.Currency" Context="currency">
                         <div class="pg-row pg-session-field @(currency.IsChanged ? "pg-changed" : "")">
                             <span class="pg-name notranslate" translate="no">Currency <small>string</small></span>
                             <FluentTextInput Value="@currency.Value" ValueChanged="currency.ValueChanged" />
                         </div>
                     </SparseField>
-                    <SparseField Path="edit.Path.UnitPrice" Context="unitPrice">
+                    <SparseField Path="child.Path.UnitPrice" Context="unitPrice">
                         <div class="pg-row pg-session-field @(unitPrice.IsChanged ? "pg-changed" : "")">
                             <span class="pg-name notranslate" translate="no">UnitPrice <small>decimal</small></span>
                             <FluentNumberInput TValue="decimal" Value="@unitPrice.Value" ValueChanged="unitPrice.ValueChanged" />
                         </div>
                     </SparseField>
-                    <SparseField Path="edit.Path.AnnualVolume" Context="annualVolume">
+                    <SparseField Path="child.Path.AnnualVolume" Context="annualVolume">
                         <div class="pg-row pg-session-field @(annualVolume.IsChanged ? "pg-changed" : "")">
                             <span class="pg-name notranslate" translate="no">AnnualVolume <small>int</small></span>
                             <FluentNumberInput TValue="int" Value="@annualVolume.Value" ValueChanged="annualVolume.ValueChanged" />
@@ -58,20 +62,18 @@
                         <h4>Price tiers</h4>
                         <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddTier">Add price tier</FluentButton>
                     </div>
-                    <SparseField Path="edit.Path.PriceTiers" Context="tiers">
-                        @{ var roster = tiers.TryGetCollectionState(out var state) ? state : null; }
-                        <div class="pg-roster-list">
-                            @foreach (var tier in Draft.PriceTiers)
-                            {
-                                <SparseSessionScope @key="tier.Code" Session="_draftSession">
-                                    <CatalogPriceTierEditor Code="@tier.Code"
-                                        State="@(roster?.GetItemState(tier.Code) ?? default)"
-                                        SectionDraftsEnabled="SectionDraftsEnabled"
-                                        OpenOnLoad="@(_tierToOpen == tier.Code)"
-                                        OnOpened="ClearTierToOpen" OnRemove="RemoveTier"
-                                        OnChanged="ReportNestedStatus" />
-                                </SparseSessionScope>
-                            }
+                    <div class="pg-roster-list">
+                        <SparseCollection TModel="CatalogCommercialDetails" TElement="CatalogPriceTier"
+                            Path="child.Path.PriceTiers">
+                            <RowTemplate Context="tierRow">
+                                <CatalogPriceTierEditor Code="@tierRow.Item.Code"
+                                    State="tierRow.RequireItemState()"
+                                    SectionDraftsEnabled="SectionDraftsEnabled"
+                                    OpenOnLoad="@(_tierToOpen == tierRow.Item.Code)"
+                                    OnOpened="ClearTierToOpen" OnRemove="() => RemoveTier(tierRow)"
+                                    OnChanged="ReportNestedStatus" />
+                            </RowTemplate>
+                        </SparseCollection>
                             @foreach (var removed in _baseline.PriceTiers.Where(tier =>
                                 !Draft.PriceTiers.Any(current => current.Code == tier.Code)))
                             {
@@ -82,8 +84,7 @@
                                     </div>
                                 </div>
                             }
-                        </div>
-                    </SparseField>
+                    </div>
                 </div>
                 <div class="pg-legend pg-session-legend" aria-label="Edit highlight legend">
                     <span class="pg-lg"><span class="pg-sw pg-sw-add"></span>added</span>
@@ -95,7 +96,7 @@
                     Undo="Undo" Redo="Redo" Accept="TryAcceptChildSession" Discard="DiscardChildSession"
                     OnFinished="RefreshBaseline" OnStatusChanged="ReportStatus" />
             </FluentCard>
-        </SparseEdit>
+    </SparseChildEdit>
 
 }
 
@@ -106,17 +107,12 @@
     [CascadingParameter]
     public SparseSessionScopeContext<EnterpriseCatalogItem>? ScopeContext { get; set; }
 
-    [Parameter, EditorRequired]
-    public CatalogChildSessionCoordinator ChildSessions { get; set; } = null!;
-
     [Parameter]
     public bool SectionDraftsEnabled { get; set; } = true;
 
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
-    private CatalogSession? _parentSession;
-    private SparseSessionScopeContext<EnterpriseCatalogItem>? _scopeContext;
     private ISparseChildEditContext<CatalogCommercialDetails, SparseConflict>? _childSession;
     private CatalogCommercialDetails.EditSession _draftSession = null!;
     private CatalogCommercialDetails _baseline = null!;
@@ -124,23 +120,18 @@
     private CatalogCommercialDetails.Observable Draft => _draftSession.Observable;
     private bool HasChanges => _childSession?.HasChanges == true;
 
-    protected override void OnParametersSet()
+    private void CaptureChildContext(
+        ISparseChildEditContext<CatalogCommercialDetails, SparseConflict> context
+    )
     {
-        if (ReferenceEquals(_parentSession, ParentSession) && ReferenceEquals(_scopeContext, ScopeContext))
+        if (ReferenceEquals(_childSession, context))
         {
             return;
         }
 
-        _parentSession = ParentSession as CatalogSession
-            ?? throw new InvalidOperationException("The catalog edit session is unavailable.");
-        _scopeContext = ScopeContext
-            ?? throw new InvalidOperationException("The catalog session scope is unavailable.");
-        var childSession = _scopeContext.OpenChildSession(
-            _parentSession,
-            EnterpriseCatalogItem.SparsePath.Commercial
-        );
-        _childSession = childSession;
-        _draftSession = childSession.Session;
+        _childSession = context;
+        _draftSession = context.Session as CatalogCommercialDetails.EditSession
+            ?? throw new InvalidOperationException("The commercial edit session is unavailable.");
         _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
     }
 
@@ -153,14 +144,12 @@
 
     private Task UpdateStatus()
     {
-        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.CommercialId, HasChanges);
         return OnChanged.InvokeAsync();
     }
 
     private Task RefreshBaseline()
     {
         _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
-        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.CommercialId, HasChanges);
         return OnChanged.InvokeAsync();
     }
 
@@ -211,12 +200,11 @@
         return Task.CompletedTask;
     }
 
-    private Task RemoveTier(string code)
+    private Task RemoveTier(
+        SparseCollectionRow<CatalogCommercialDetails, CatalogPriceTier> row
+    )
     {
-        var tiers = _draftSession.EditCollection<CatalogPriceTier, string>(
-            CatalogCommercialDetails.SparsePath.PriceTiers
-        );
-        if (!tiers.TryRemoveByKey(code, out var error))
+        if (!row.TryRemove(out var error))
         {
             throw new InvalidOperationException($"Could not remove the price tier ({error}).");
         }

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Reflection;
+using SparseTypes.Generated;
 
 namespace SparseTypes.Blazor;
 
@@ -15,6 +16,7 @@ internal static class SparseSessionInterop
         MethodInfo?
     > FieldStateMethods = new();
     private static readonly ConcurrentDictionary<Type, MethodInfo?> CollectionStateMethods = new();
+    private static readonly ConcurrentDictionary<Type, MethodInfo> KeySegmentMethods = new();
     private static readonly ConcurrentDictionary<Type, MethodInfo?> EnableHistoryMethods = new();
     private static readonly ConcurrentDictionary<Type, MethodInfo?> DisableHistoryMethods = new();
 
@@ -149,10 +151,12 @@ internal static class SparseSessionInterop
         };
     }
 
-    /// <summary>Queries the live semantic field state, defaulting to clean when unavailable.</summary>
-    internal static SparseFieldState<TValue> FieldState<TModel, TValue>(
+    /// <summary>Queries the live semantic field state and preserves query failures for the UI.</summary>
+    internal static bool TryFieldState<TModel, TValue>(
         ISparseEditSession<TModel> session,
-        SparsePath<TModel, TValue> path
+        SparsePath<TModel, TValue> path,
+        out SparseFieldState<TValue> state,
+        out string? error
     )
         where TModel : class
     {
@@ -163,19 +167,24 @@ internal static class SparseSessionInterop
         );
         if (method is null)
         {
-            return default;
+            state = default;
+            error = $"The session type '{session.GetType()}' does not provide FieldState.";
+            return false;
         }
 
         try
         {
-            return (SparseFieldState<TValue>)method.Invoke(session, [path])!;
+            state = (SparseFieldState<TValue>)method.Invoke(session, [path])!;
+            error = null;
+            return true;
         }
-        catch (TargetInvocationException exception) when (exception.InnerException is not null)
+        catch (Exception exception)
         {
-            System
-                .Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception.InnerException)
-                .Throw();
-            throw;
+            state = default;
+            error = exception is TargetInvocationException { InnerException: { } inner }
+                ? inner.Message
+                : exception.Message;
+            return false;
         }
     }
 
@@ -242,6 +251,184 @@ internal static class SparseSessionInterop
             throw;
         }
     }
+
+    internal static SparseCollectionEditor<TElement> CreateCollectionEditor<TElement>(
+        object session,
+        SparsePath path
+    )
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        var descriptorsProperty = session
+            .GetType()
+            .GetProperty("Descriptors", BindingFlags.Instance | BindingFlags.Public);
+        if (
+            descriptorsProperty?.CanRead != true
+            || descriptorsProperty.GetValue(session)
+                is not SparseTypes.Generated.IDescriptorSet descriptors
+        )
+        {
+            throw new InvalidOperationException(
+                $"The session type '{session.GetType()}' does not expose generated descriptors."
+            );
+        }
+
+        var batchMethod = session
+            .GetType()
+            .GetMethod("BatchEdit", BindingFlags.Instance | BindingFlags.Public, [typeof(Action)]);
+        if (batchMethod?.ReturnType != typeof(void))
+        {
+            throw new InvalidOperationException(
+                $"The session type '{session.GetType()}' does not provide BatchEdit(Action)."
+            );
+        }
+
+        return descriptors.EditCollection<TElement>(
+            path,
+            mutation =>
+            {
+                try
+                {
+                    batchMethod.Invoke(session, [mutation]);
+                }
+                catch (TargetInvocationException exception)
+                    when (exception.InnerException is not null)
+                {
+                    System
+                        .Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(
+                            exception.InnerException
+                        )
+                        .Throw();
+                    throw;
+                }
+            }
+        );
+    }
+
+    internal static bool TryGetCollectionRowIdentity(
+        object session,
+        SparsePath path,
+        int index,
+        out SparsePathSegment identity,
+        out object? key,
+        out Guid? temporaryKey,
+        out bool isKeyed,
+        out string? error
+    )
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        identity = default;
+        key = null;
+        temporaryKey = null;
+        isKeyed = false;
+
+        var descriptorsProperty = session
+            .GetType()
+            .GetProperty("Descriptors", BindingFlags.Instance | BindingFlags.Public);
+        if (
+            descriptorsProperty?.CanRead != true
+            || descriptorsProperty.GetValue(session) is not IDescriptorSet descriptors
+        )
+        {
+            error =
+                $"The session type '{session.GetType()}' does not expose generated descriptors.";
+            return false;
+        }
+
+        var array = descriptors.Find(path)?.Array;
+        if (array is null)
+        {
+            error = $"The path '{path}' does not resolve to a generated sequence descriptor.";
+            return false;
+        }
+
+        if ((uint)index >= (uint)array.Count)
+        {
+            error = $"Collection row {index} is no longer present.";
+            return false;
+        }
+
+        isKeyed = array.IsKeyed;
+        if (!isKeyed)
+        {
+            identity = SparsePathSegment.At(index);
+            error = null;
+            return true;
+        }
+
+        key = array.GetItemKey(index);
+        if (key is not null && !array.IsUnassignedKey(key))
+        {
+            var keyType = array.KeyType;
+            if (keyType is null)
+            {
+                error = $"The keyed collection at '{path}' does not expose its key type.";
+                return false;
+            }
+
+            identity = CreateKeySegment(keyType, key);
+            error = null;
+            return true;
+        }
+
+        var itemDescriptors = array.GetItemDescriptors(index);
+        if (itemDescriptors is not null)
+        {
+            foreach (var descriptor in itemDescriptors.Members)
+            {
+                if (
+                    !descriptor.Attributes.Any(attribute =>
+                        attribute is SparseTemporaryKeyAttribute
+                    )
+                )
+                {
+                    continue;
+                }
+
+                var value = descriptor.GetModelValue();
+                if (value is Guid temporaryGuid && temporaryGuid != Guid.Empty)
+                {
+                    temporaryKey = temporaryGuid;
+                    identity = SparsePathSegment.TemporaryKeyOf(temporaryGuid);
+                    error = null;
+                    return true;
+                }
+
+                break;
+            }
+        }
+
+        error =
+            $"The keyed collection row at index {index} has neither an assigned key nor a declared temporary identity.";
+        return false;
+    }
+
+    private static SparsePathSegment CreateKeySegment(Type keyType, object? key)
+    {
+        var factory = KeySegmentMethods.GetOrAdd(
+            keyType,
+            static type =>
+                typeof(SparseSessionInterop)
+                    .GetMethod(
+                        nameof(CreateKeySegmentCore),
+                        BindingFlags.Static | BindingFlags.Public
+                    )!
+                    .MakeGenericMethod(type)
+        );
+        try
+        {
+            return (SparsePathSegment)factory.Invoke(null, [key])!;
+        }
+        catch (TargetInvocationException exception) when (exception.InnerException is not null)
+        {
+            System
+                .Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception.InnerException)
+                .Throw();
+            throw;
+        }
+    }
+
+    public static SparsePathSegment CreateKeySegmentCore<TKey>(object? key) =>
+        SparsePathSegment.KeyOf((TKey)key!);
 
     private static MethodInfo? FindFieldStateMethod(Type sessionType, Type valueType)
     {

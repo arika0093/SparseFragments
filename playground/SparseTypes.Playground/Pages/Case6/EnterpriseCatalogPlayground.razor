@@ -2,8 +2,6 @@
 @using SparseTypes.Blazor
 @using SparseTypes.Playground.Models
 @using SparseTypes.Playground.Components
-@implements IDisposable
-
 <SparseSessionScope @key="_session" Session="_session" AutoAccept="@(!_sectionDraftsEnabled)">
 <div class="pg-stack">
     <FluentCard Class="pg-fluent-card pg-catalog-header" Shadow="CardShadow.None">
@@ -42,60 +40,56 @@
         <FluentTab Id="case-6-overview">
             <HeaderTemplate>
                 <span class="pg-catalog-tab-label">1. Overview</span>
-                @if (_childSessions.HasChangesFor(CatalogChildSessionCoordinator.OverviewId))
+                @if (HasChildChanges(EnterpriseCatalogItem.SparsePath.Overview))
                 {
                     <span class="pg-catalog-tab-badge">Edited</span>
                 }
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <OverviewEditor ChildSessions="_childSessions" SectionDraftsEnabled="_sectionDraftsEnabled"
-                        OnChanged="Refresh" />
+                    <OverviewEditor SectionDraftsEnabled="_sectionDraftsEnabled" OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
         <FluentTab Id="case-6-commercial">
             <HeaderTemplate>
                 <span class="pg-catalog-tab-label">2. Commercial</span>
-                @if (_childSessions.HasChangesFor(CatalogChildSessionCoordinator.CommercialId))
+                @if (HasChildChanges(EnterpriseCatalogItem.SparsePath.Commercial))
                 {
                     <span class="pg-catalog-tab-badge">Edited</span>
                 }
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <CommercialEditor ChildSessions="_childSessions" SectionDraftsEnabled="_sectionDraftsEnabled"
-                        OnChanged="Refresh" />
+                    <CommercialEditor SectionDraftsEnabled="_sectionDraftsEnabled" OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
         <FluentTab Id="case-6-operations">
             <HeaderTemplate>
                 <span class="pg-catalog-tab-label">3. Operations</span>
-                @if (_childSessions.HasChangesFor(CatalogChildSessionCoordinator.OperationsId))
+                @if (HasChildChanges(EnterpriseCatalogItem.SparsePath.Operations))
                 {
                     <span class="pg-catalog-tab-badge">Edited</span>
                 }
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <OperationsEditor ChildSessions="_childSessions" SectionDraftsEnabled="_sectionDraftsEnabled"
-                        OnChanged="Refresh" />
+                    <OperationsEditor SectionDraftsEnabled="_sectionDraftsEnabled" OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
         <FluentTab Id="case-6-workflow">
             <HeaderTemplate>
                 <span class="pg-catalog-tab-label">4. Workflow</span>
-                @if (_childSessions.HasChangesFor(CatalogChildSessionCoordinator.WorkflowId))
+                @if (HasChildChanges(EnterpriseCatalogItem.SparsePath.Workflow))
                 {
                     <span class="pg-catalog-tab-badge">Edited</span>
                 }
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <WorkflowEditor @ref="_workflowEditor" ChildSessions="_childSessions"
-                        SectionDraftsEnabled="_sectionDraftsEnabled"
+                    <WorkflowEditor @ref="_workflowEditor" SectionDraftsEnabled="_sectionDraftsEnabled"
                         SavedWorkflow="_savedWorkflow" OnAccepted="EnsureAcceptedWorkMasters"
                         BaselineVersion="_baselineVersion" OnChanged="Refresh" />
                 </div>
@@ -105,7 +99,7 @@
             <HeaderTemplate>
                 <span class="pg-catalog-tab-label">5. Work masters</span>
                 @if (AcceptedWorkflow.Steps.Any(step =>
-                    _childSessions.HasChangesFor(CatalogChildSessionCoordinator.WorkMasterId(step.Id))))
+                    HasChildChanges(EnterpriseCatalogItem.SparsePath.WorkMasters.Key(step.Id))))
                 {
                     <span class="pg-catalog-tab-badge">Edited</span>
                 }
@@ -125,17 +119,15 @@
                                 <FluentTab @key="step.Id" Id="@MasterTabId(step.Id)">
                                     <HeaderTemplate>
                                         <span class="pg-catalog-tab-label">@step.Name</span>
-                                        @if (_childSessions.HasChangesFor(CatalogChildSessionCoordinator.WorkMasterId(step.Id)))
+                                        @if (HasChildChanges(EnterpriseCatalogItem.SparsePath.WorkMasters.Key(step.Id)))
                                         {
                                             <span class="pg-catalog-tab-badge">Edited</span>
                                         }
                                     </HeaderTemplate>
                                     <ChildContent>
-                                        <SparseSessionScope Session="_session">
-                                            <StepMasterEditor @key="step.Id" Step="step"
-                                                ChildSessions="_childSessions" SectionDraftsEnabled="_sectionDraftsEnabled"
-                                                OnChanged="Refresh" />
-                                        </SparseSessionScope>
+                                        <StepMasterEditor @key="step.Id" Step="step"
+                                            SectionDraftsEnabled="_sectionDraftsEnabled"
+                                            OnChanged="Refresh" />
                                     </ChildContent>
                                 </FluentTab>
                             }
@@ -185,14 +177,11 @@
     private const string MasterTabPrefix = "case-6-master-";
 
     private EnterpriseCatalogItem _model = null!;
-    private EnterpriseCatalogItem _savedModel = null!;
     private EnterpriseCatalogItem.EditSession _session = null!;
     private ISparseEditHistory _history = null!;
-    private readonly CatalogChildSessionCoordinator _childSessions = new();
     private FluentDialog? _saveDialog;
     private WorkflowEditor? _workflowEditor;
     private bool _saveDialogHidden = true;
-    private bool _hasChanges;
     private bool _sectionDraftsEnabled = true;
     private IReadOnlyList<ChangePreviewRow> _changeRows = [];
     private string? _error;
@@ -202,7 +191,7 @@
     private string _activeSectionTab = "case-6-overview";
     private string _activeMasterTab = string.Empty;
 
-    private bool HasChanges => _hasChanges;
+    private bool HasChanges => _session.HasOwnChanges;
     private CatalogWorkflow AcceptedWorkflow => _acceptedWorkflow;
     private string ActiveMasterTabId =>
         AcceptedWorkflow.Steps.Count == 0
@@ -213,17 +202,10 @@
 
     protected override void OnInitialized()
     {
-        _childSessions.Changed += Refresh;
         _model = CreateSample();
-        _savedModel = _model.DeepClone();
         CreateSession();
         _savedWorkflow = _model.Workflow.DeepClone();
         _acceptedWorkflow = _model.Workflow.DeepClone();
-    }
-
-    public void Dispose()
-    {
-        _childSessions.Changed -= Refresh;
     }
 
     private static EnterpriseCatalogItem CreateSample() =>
@@ -432,13 +414,10 @@
         {
             _session.DiscardChildSessions();
             _session.AcceptChanges();
-            _savedModel = _model.DeepClone();
-            _hasChanges = false;
             _savedWorkflow = _model.Workflow.DeepClone();
             _acceptedWorkflow = _model.Workflow.DeepClone();
             _baselineVersion++;
             CreateSession();
-            _childSessions.Clear();
             _error = null;
         }
         catch (InvalidOperationException exception)
@@ -525,13 +504,10 @@
         {
             _session.DiscardChildSessions();
             _session.RevertChanges();
-            _savedModel = _model.DeepClone();
-            _hasChanges = false;
             _savedWorkflow = _model.Workflow.DeepClone();
             _acceptedWorkflow = _model.Workflow.DeepClone();
             _baselineVersion++;
             CreateSession();
-            _childSessions.Clear();
             _error = null;
         }
         catch (InvalidOperationException exception)
@@ -542,11 +518,15 @@
         return Task.CompletedTask;
     }
 
-    private void Refresh()
-    {
-        _hasChanges = !EnterpriseCatalogItem.ChangeSet.Between(_savedModel, _model).IsEmpty;
-        StateHasChanged();
-    }
+    private void Refresh() => StateHasChanged();
+
+    private bool HasChildChanges<TChild, TChildPaths, TChildSession>(
+        ISparseChildEditPath<EnterpriseCatalogItem, TChild, TChildPaths, TChildSession> path
+    )
+        where TChild : class
+        where TChildPaths : ISparseTypedPath<TChild, TChild>
+        where TChildSession : ISparseEditSessionWithPaths<TChild, TChildPaths> =>
+        _session.GetChildSessionStatus(path) == SparseChildSessionStatus.OpenChanged;
 
     private void CreateSession()
     {

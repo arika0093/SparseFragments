@@ -59,6 +59,12 @@ public sealed class SparseFieldContext<TModel, TValue>
     /// <remarks>Snapshot by the owning field component once per render from a fresh session diff; it does not update until the next render.</remarks>
     public SparseFieldState<TValue> State { get; internal set; }
 
+    /// <summary>Gets the reason the semantic state query failed, or null when it succeeded.</summary>
+    public string? StateQueryError { get; internal set; }
+
+    /// <summary>Gets whether the semantic state query failed during the latest render.</summary>
+    public bool HasStateQueryError => StateQueryError is not null;
+
     /// <summary>Gets whether the path itself changed between the baseline and the live model.</summary>
     public bool IsChanged => State.IsChanged;
 
@@ -207,7 +213,7 @@ public sealed class SparseFieldContext<TModel, TValue>
         );
     }
 
-    private static SparsePath AppendSelector<TElement, TChild>(
+    internal static SparsePath AppendSelector<TElement, TChild>(
         SparsePath basePath,
         Type elementType,
         Expression<Func<TElement, TChild>> selector,

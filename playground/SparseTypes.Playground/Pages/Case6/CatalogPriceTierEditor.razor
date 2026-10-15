@@ -1,8 +1,15 @@
 @using SparseTypes
 @using SparseTypes.Blazor
 @using SparseTypes.Playground.Models
+@using CatalogPriceTierPaths = global::SparseTypes.Generated.SparseTypes_Playground_Models_CatalogPriceTier_A4E49A73.SparsePaths<global::SparseTypes.Playground.Models.CatalogPriceTier>;
 
-<SparseEdit Session="_draftSession" Context="edit">
+@if (ParentSession is not null && ScopeContext is not null)
+{
+<SparseChildEdit TParent="CatalogCommercialDetails" TChild="CatalogPriceTier"
+    TChildPaths="CatalogPriceTierPaths" TConflict="SparseConflict"
+    TChildSession="CatalogPriceTier.EditSession"
+    Path="CatalogCommercialDetails.SparsePath.PriceTiers.Key(Code)" Context="child">
+    @{ CaptureChildContext(child); }
     <div class="@CatalogCollectionRowState.ClassFor(State, hasLocalChanges: HasChanges)">
         <div class="pg-catalog-inline-row">
             <div class="pg-catalog-tier-summary">
@@ -25,20 +32,20 @@
         </div>
         <div class="pg-dialog-body">
             <div class="pg-stack pg-edit-fields">
-                <SparseField Path="edit.Path.Label" Context="label">
+                <SparseField Path="child.Path.Label" Context="label">
                     <div class="pg-row pg-session-field @(label.IsChanged ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">Label <small>string</small></span>
                         <FluentTextInput Value="@label.Value" ValueChanged="label.ValueChanged" />
                     </div>
                 </SparseField>
-                <SparseField Path="edit.Path.MinimumQuantity" Context="minimumQuantity">
+                <SparseField Path="child.Path.MinimumQuantity" Context="minimumQuantity">
                     <div class="pg-row pg-session-field @(minimumQuantity.IsChanged ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">MinimumQuantity <small>int</small></span>
                         <FluentNumberInput TValue="int" Value="@minimumQuantity.Value"
                             ValueChanged="minimumQuantity.ValueChanged" />
                     </div>
                 </SparseField>
-                <SparseField Path="edit.Path.UnitPrice" Context="unitPrice">
+                <SparseField Path="child.Path.UnitPrice" Context="unitPrice">
                     <div class="pg-row pg-session-field @(unitPrice.IsChanged ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">UnitPrice <small>decimal</small></span>
                         <FluentNumberInput TValue="decimal" Value="@unitPrice.Value"
@@ -77,53 +84,53 @@
                     <h4>Discount bands</h4>
                     <FluentButton Appearance="ButtonAppearance.Primary" @onclick="AddDiscountBand">Add band</FluentButton>
                 </div>
-                <SparseField Path="edit.Path.Discounts" Context="discounts">
-                    @{ var roster = discounts.TryGetCollectionState(out var state) ? state : null; }
-                    <div class="pg-roster-list">
-                        @foreach (var band in Draft.Discounts)
-                        {
-                            <div @key="band.Code" class="@CatalogCollectionRowState.ClassFor(roster?.GetItemState(band.Code) ?? default)">
+                <div class="pg-roster-list">
+                    <SparseCollection TModel="CatalogPriceTier" TElement="CatalogDiscountBand"
+                        Path="child.Path.Discounts">
+                        <RowTemplate Context="bandRow">
+                            <div class="@CatalogCollectionRowState.ClassFor(bandRow.RequireItemState())">
                                 <div class="pg-catalog-discount-row">
-                                    <SparseField Path="edit.Path.Discounts.Key(band.Code).MinimumQuantity" Context="minimum">
+                                    <SparseField Path="bandRow.Select(band => band.MinimumQuantity)" Context="minimum">
                                         <FluentNumberInput TValue="int" Value="@minimum.Value" ValueChanged="minimum.ValueChanged"
                                             aria-label="Discount minimum quantity" />
                                     </SparseField>
-                                    <SparseField Path="edit.Path.Discounts.Key(band.Code).DiscountPercent" Context="percent">
+                                    <SparseField Path="bandRow.Select(band => band.DiscountPercent)" Context="percent">
                                         <FluentNumberInput TValue="decimal" Value="@percent.Value" ValueChanged="percent.ValueChanged"
                                             aria-label="Discount percent" />
                                     </SparseField>
-                                    <SparseField Path="edit.Path.Discounts.Key(band.Code).ApprovalRole" Context="role">
+                                    <SparseField Path="bandRow.Select(band => band.ApprovalRole)" Context="role">
                                         <FluentTextInput Value="@role.Value" ValueChanged="role.ValueChanged"
                                             aria-label="Approval role" />
                                     </SparseField>
                                     <FluentButton Appearance="ButtonAppearance.Default" Title="Remove discount band"
-                                        @onclick="() => RemoveDiscountBand(band.Code)">✕</FluentButton>
+                                        @onclick="() => RemoveDiscountBand(bandRow)">✕</FluentButton>
                                 </div>
                             </div>
-                        }
-                        @foreach (var removed in _baseline.Discounts.Where(band =>
-                            !Draft.Discounts.Any(current => current.Code == band.Code)))
-                        {
-                            <div class="pg-roster-row pg-removed">
-                                <div class="pg-catalog-inline-row">
-                                    <span>@removed.MinimumQuantity+ units · @removed.DiscountPercent% · @removed.ApprovalRole</span>
-                                    <span class="pg-change-remove">Removed</span>
-                                </div>
+                        </RowTemplate>
+                    </SparseCollection>
+                    @foreach (var removed in _baseline.Discounts.Where(band =>
+                        !Draft.Discounts.Any(current => current.Code == band.Code)))
+                    {
+                        <div class="pg-roster-row pg-removed">
+                            <div class="pg-catalog-inline-row">
+                                <span>@removed.MinimumQuantity+ units · @removed.DiscountPercent% · @removed.ApprovalRole</span>
+                                <span class="pg-change-remove">Removed</span>
                             </div>
-                        }
-                        @if (Draft.Discounts.Count == 0)
-                        {
-                            <p class="pg-hint">No discount bands. Add a quantity break to this tier.</p>
-                        }
-                    </div>
-                </SparseField>
+                        </div>
+                    }
+                    @if (Draft.Discounts.Count == 0)
+                    {
+                        <p class="pg-hint">No discount bands. Add a quantity break to this tier.</p>
+                    }
+                </div>
             </div>
         </div>
         <div class="pg-dialog-footer">
             <FluentButton Appearance="ButtonAppearance.Primary" @onclick="CloseTierDialog">Done</FluentButton>
         </div>
     </FluentDialog>
-</SparseEdit>
+    </SparseChildEdit>
+}
 
 @code {
     [CascadingParameter]
@@ -148,13 +155,11 @@
     public EventCallback OnOpened { get; set; }
 
     [Parameter, EditorRequired]
-    public EventCallback<string> OnRemove { get; set; }
+    public EventCallback OnRemove { get; set; }
 
     [Parameter]
     public EventCallback<bool> OnChanged { get; set; }
 
-    private CatalogCommercialDetails.EditSession? _parentSession;
-    private SparseSessionScopeContext<CatalogCommercialDetails>? _scopeContext;
     private ISparseChildEditContext<CatalogPriceTier, SparseConflict>? _childSession;
     private CatalogPriceTier.EditSession _draftSession = null!;
     private CatalogPriceTier _baseline = null!;
@@ -167,24 +172,22 @@
     private bool CanUndo => _childSession?.CanUndo == true;
     private bool CanRedo => _childSession?.CanRedo == true;
 
-    protected override void OnParametersSet()
+    private void CaptureChildContext(
+        ISparseChildEditContext<CatalogPriceTier, SparseConflict> context
+    )
     {
-        if (ReferenceEquals(_parentSession, ParentSession) && ReferenceEquals(_scopeContext, ScopeContext))
+        if (ReferenceEquals(_childSession, context))
         {
             return;
         }
 
-        _parentSession = ParentSession as CatalogCommercialDetails.EditSession
-            ?? throw new InvalidOperationException("The commercial edit session is unavailable.");
-        _scopeContext = ScopeContext
-            ?? throw new InvalidOperationException("The commercial session scope is unavailable.");
-        var childSession = _scopeContext.OpenChildSession(
-            _parentSession,
-            CatalogCommercialDetails.SparsePath.PriceTiers.Key(Code)
-        );
-        _childSession = childSession;
-        _draftSession = childSession.Session;
+        _childSession = context;
+        _draftSession = context.Session as CatalogPriceTier.EditSession
+            ?? throw new InvalidOperationException("The price-tier edit session is unavailable.");
         _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
+        _openOnLoadHandled = false;
+        _tierDialogHidden = true;
+        _historyError = null;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -246,7 +249,7 @@
         }
 
         _childSession!.DiscardChanges();
-        await OnRemove.InvokeAsync(Code);
+        await OnRemove.InvokeAsync();
     }
 
     private async Task Undo()
@@ -299,12 +302,11 @@
         }
     }
 
-    private void RemoveDiscountBand(string code)
+    private void RemoveDiscountBand(
+        SparseCollectionRow<CatalogPriceTier, CatalogDiscountBand> row
+    )
     {
-        var discounts = _draftSession.EditCollection<CatalogDiscountBand, string>(
-            CatalogPriceTier.SparsePath.Discounts
-        );
-        if (!discounts.TryRemoveByKey(code, out var error))
+        if (!row.TryRemove(out var error))
         {
             throw new InvalidOperationException($"Could not remove the discount band ({error}).");
         }

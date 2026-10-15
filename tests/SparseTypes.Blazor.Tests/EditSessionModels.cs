@@ -136,3 +136,21 @@ public partial class ReadOnlyLineSheet
 {
     public IReadOnlyList<OrderLine> Lines { get; set; } = new List<OrderLine>();
 }
+
+[SparseModel]
+public partial class ScopeGrandchildLeaf
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+[SparseModel]
+public partial class ScopeGrandchildChild
+{
+    public ScopeGrandchildLeaf Leaf { get; set; } = new();
+}
+
+[SparseModel]
+public partial class ScopeGrandchildRoot
+{
+    public ScopeGrandchildChild Child { get; set; } = new();
+}

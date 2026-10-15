@@ -1,10 +1,15 @@
 @using SparseTypes
 @using SparseTypes.Blazor
 @using SparseTypes.Playground.Models
+@using CatalogWorkMasterPaths = global::SparseTypes.Generated.SparseTypes_Playground_Models_CatalogWorkMaster_DA031A6D.SparsePaths<global::SparseTypes.Playground.Models.CatalogWorkMaster>;
 
-@if (Step is not null && _childSession is not null)
+@if (Step is not null && ParentSession is not null && ScopeContext is not null)
 {
-    <SparseEdit Session="_draftSession" Context="edit">
+    <SparseChildEdit TParent="EnterpriseCatalogItem" TChild="CatalogWorkMaster"
+        TChildPaths="CatalogWorkMasterPaths" TConflict="SparseConflict"
+        TChildSession="CatalogWorkMaster.EditSession"
+        Path="EnterpriseCatalogItem.SparsePath.WorkMasters.Key(Step.Id)" Context="child">
+        @{ CaptureChildContext(child); }
         <FluentCard Class="pg-fluent-card">
             <div class="pg-card-head">
                 <div>
@@ -17,31 +22,31 @@
             </div>
             <CatalogDraftStatus HasChanges="HasChanges" OnChanged="ReportStatus" />
             <div class="pg-stack pg-edit-fields">
-                <SparseField Path="edit.Path.WorkCenter" Context="workCenter">
+                <SparseField Path="child.Path.WorkCenter" Context="workCenter">
                     <div class="pg-row pg-session-field @(workCenter.IsChanged ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">WorkCenter <small>string</small></span>
                         <FluentTextInput Value="@workCenter.Value" ValueChanged="workCenter.ValueChanged" />
                     </div>
                 </SparseField>
-                <SparseField Path="edit.Path.Equipment" Context="equipment">
+                <SparseField Path="child.Path.Equipment" Context="equipment">
                     <div class="pg-row pg-session-field @(equipment.IsChanged ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">Equipment <small>string</small></span>
                         <FluentTextInput Value="@equipment.Value" ValueChanged="equipment.ValueChanged" />
                     </div>
                 </SparseField>
-                <SparseField Path="edit.Path.SetupMinutes" Context="setupMinutes">
+                <SparseField Path="child.Path.SetupMinutes" Context="setupMinutes">
                     <div class="pg-row pg-session-field @(setupMinutes.IsChanged ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">SetupMinutes <small>decimal</small></span>
                         <FluentNumberInput TValue="decimal" Value="@setupMinutes.Value" ValueChanged="setupMinutes.ValueChanged" />
                     </div>
                 </SparseField>
-                <SparseField Path="edit.Path.Instruction" Context="instruction">
+                <SparseField Path="child.Path.Instruction" Context="instruction">
                     <div class="pg-row pg-session-field @(instruction.IsChanged ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">Instruction <small>string</small></span>
                         <FluentTextInput Value="@instruction.Value" ValueChanged="instruction.ValueChanged" />
                     </div>
                 </SparseField>
-                <SparseField Path="edit.Path.SupervisorApproval" Context="supervisorApproval">
+                <SparseField Path="child.Path.SupervisorApproval" Context="supervisorApproval">
                     <div class="pg-row pg-session-field @(supervisorApproval.IsChanged ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">SupervisorApproval <small>bool</small></span>
                         <FluentCheckbox Value="@supervisorApproval.Value" ValueChanged="supervisorApproval.ValueChanged" />
@@ -54,7 +59,7 @@
                 Undo="Undo" Redo="Redo" Accept="TryAcceptChildSession" Discard="DiscardChildSession"
                 OnFinished="NotifyChanged" OnStatusChanged="ReportStatus" />
         </FluentCard>
-    </SparseEdit>
+    </SparseChildEdit>
 }
 
 @code {
@@ -67,55 +72,37 @@
     [Parameter, EditorRequired]
     public CatalogWorkStep Step { get; set; } = null!;
 
-    [Parameter, EditorRequired]
-    public CatalogChildSessionCoordinator ChildSessions { get; set; } = null!;
-
     [Parameter]
     public bool SectionDraftsEnabled { get; set; } = true;
 
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
-    private EnterpriseCatalogItem.EditSession? _parentSession;
-    private SparseSessionScopeContext<EnterpriseCatalogItem>? _scopeContext;
     private ISparseChildEditContext<CatalogWorkMaster, SparseConflict>? _childSession;
     private CatalogWorkMaster.EditSession _draftSession = null!;
-    private string? _stepId;
     private bool HasChanges => _childSession?.HasChanges == true;
 
-    protected override void OnParametersSet()
+    private void CaptureChildContext(
+        ISparseChildEditContext<CatalogWorkMaster, SparseConflict> context
+    )
     {
-        if (
-            ReferenceEquals(_parentSession, ParentSession)
-            && ReferenceEquals(_scopeContext, ScopeContext)
-            && _stepId == Step.Id
-        )
+        if (ReferenceEquals(_childSession, context))
         {
             return;
         }
 
-        _parentSession = ParentSession as EnterpriseCatalogItem.EditSession
-            ?? throw new InvalidOperationException("The catalog edit session is unavailable.");
-        _scopeContext = ScopeContext
-            ?? throw new InvalidOperationException("The catalog session scope is unavailable.");
-        _stepId = Step.Id;
-        var childSession = _scopeContext.OpenChildSession(
-            _parentSession,
-            EnterpriseCatalogItem.SparsePath.WorkMasters.Key(Step.Id)
-        );
-        _childSession = childSession;
-        _draftSession = childSession.Session;
+        _childSession = context;
+        _draftSession = context.Session as CatalogWorkMaster.EditSession
+            ?? throw new InvalidOperationException("The work-master edit session is unavailable.");
     }
 
     private Task ReportStatus(bool _)
     {
-        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.WorkMasterId(Step.Id), HasChanges);
         return OnChanged.InvokeAsync();
     }
 
     private Task NotifyChanged()
     {
-        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.WorkMasterId(Step.Id), HasChanges);
         return OnChanged.InvokeAsync();
     }
     private bool GetHasChanges() => _childSession?.HasChanges == true;

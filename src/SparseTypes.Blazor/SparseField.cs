@@ -64,17 +64,23 @@ public sealed class SparseField<TModel, TValue> : ComponentBase, IDisposable
 
         // Read one session snapshot per field render; BatchEdit coalesces
         // updates.
-        SparseFieldState<TValue> state;
-        try
+        if (
+            SparseSessionInterop.TryFieldState(
+                session,
+                _binding!.TypedPath,
+                out var state,
+                out var error
+            )
+        )
         {
-            state = SparseSessionInterop.FieldState(session, _binding!.TypedPath);
+            _field!.State = state;
+            _field.StateQueryError = null;
         }
-        catch (InvalidOperationException)
+        else
         {
-            state = default;
+            _field!.State = default;
+            _field.StateQueryError = error;
         }
-
-        _field!.State = state;
     }
 
     /// <inheritdoc />

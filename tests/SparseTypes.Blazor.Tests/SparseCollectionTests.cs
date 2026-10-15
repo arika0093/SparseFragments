@@ -1,0 +1,153 @@
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Rendering;
+
+namespace SparseTypes.Blazor.Tests;
+
+public sealed class SparseCollectionTests
+{
+    private static RenderFragment EditWithCollection<TModel, TPaths, TElement>(
+        ISparseEditSessionWithPaths<TModel, TPaths> session,
+        SparsePath path,
+        Action<SparseCollection<TModel, TElement>> capture
+    )
+        where TModel : class
+        where TPaths : ISparseTypedPath<TModel, TModel>
+        where TElement : class =>
+        builder =>
+        {
+            builder.OpenComponent<SparseEdit<TModel, TPaths>>(0);
+            builder.AddAttribute(1, nameof(SparseEdit<TModel, TPaths>.Session), session);
+            builder.AddAttribute(
+                2,
+                nameof(SparseEdit<TModel, TPaths>.ChildContent),
+                (RenderFragment<SparseEditContext<TModel, TPaths>>)(
+                    _ =>
+                        inner =>
+                        {
+                            inner.OpenComponent<SparseCollection<TModel, TElement>>(0);
+                            inner.AddAttribute(
+                                1,
+                                nameof(SparseCollection<TModel, TElement>.Path),
+                                path
+                            );
+                            inner.AddAttribute(
+                                2,
+                                nameof(SparseCollection<TModel, TElement>.RowTemplate),
+                                (RenderFragment<SparseCollectionRow<TModel, TElement>>)(
+                                    row => rowBuilder => rowBuilder.AddContent(0, row.Item)
+                                )
+                            );
+                            inner.AddComponentReferenceCapture(
+                                3,
+                                component => capture((SparseCollection<TModel, TElement>)component)
+                            );
+                            inner.CloseComponent();
+                        }
+                )
+            );
+            builder.CloseComponent();
+        };
+
+    [Test]
+    public async Task CollectionRowsKeepIdentityAcrossKeyAssignmentAndSupportEdits()
+    {
+        var temporaryId = Guid.NewGuid();
+        var board = new BlazorDraftBoard
+        {
+            Drafts =
+            [
+                new BlazorDraftLine { Id = 2, Title = "Existing" },
+                new BlazorDraftLine { Id = 3, Title = "Other" },
+            ],
+        };
+        var session = board.CreateEditSession();
+        SparseCollection<BlazorDraftBoard, BlazorDraftLine>? collection = null;
+
+        using var tree = await Headless.Tree.CreateAsync(
+            EditWithCollection(
+                session,
+                BlazorDraftBoard.SparsePath.Drafts,
+                (SparseCollection<BlazorDraftBoard, BlazorDraftLine> captured) =>
+                    collection = captured
+            )
+        );
+
+        var view = collection.ShouldNotBeNull();
+        var existing = view.Rows[0];
+        var other = view.Rows[1];
+        existing.UiKey.ShouldNotBe(Guid.Empty);
+        existing.Path.UntypedPath.ShouldBe(BlazorDraftBoard.SparsePath.Drafts.Key(2).UntypedPath);
+        existing.ItemState.ShouldNotBeNull();
+        existing.ItemState!.Value.IsEmpty.ShouldBeTrue();
+
+        view.TryAdd(
+                new BlazorDraftLine
+                {
+                    Id = 0,
+                    TemporaryId = temporaryId,
+                    Title = "Draft",
+                },
+                out var addDraftError
+            )
+            .ShouldBeTrue();
+        addDraftError.ShouldBe(SparseCollectionEditError.None);
+        await tree.FlushAsync();
+
+        var draft = view.Rows[2];
+        draft.UiKey.ShouldNotBe(Guid.Empty);
+        draft.UiKey.ShouldNotBe(existing.UiKey);
+        draft.Path.UntypedPath.ShouldBe(
+            BlazorDraftBoard.SparsePath.Drafts.TemporaryKey(temporaryId).UntypedPath
+        );
+        draft
+            .Select(item => item.Title)
+            .UntypedPath.ShouldBe(
+                BlazorDraftBoard.SparsePath.Drafts.TemporaryKey(temporaryId).Title.UntypedPath
+            );
+        draft.ItemState.ShouldNotBeNull();
+        draft.ItemState!.Value.IsAdded.ShouldBeTrue();
+
+        draft.TryMoveTo(0, out var moveDraftError).ShouldBeTrue();
+        moveDraftError.ShouldBe(SparseCollectionEditError.None);
+        await tree.FlushAsync();
+        view.Rows[0].UiKey.ShouldBe(draft.UiKey);
+        view.Rows[0]
+            .Path.UntypedPath.ShouldBe(
+                BlazorDraftBoard.SparsePath.Drafts.TemporaryKey(temporaryId).UntypedPath
+            );
+        view.Rows[0].ItemState!.Value.IsAdded.ShouldBeTrue();
+
+        session.Observable.Drafts[0].Id = 10;
+        session.Observable.Drafts[0].TemporaryId = null;
+        await tree.FlushAsync();
+
+        view.Rows[0].UiKey.ShouldBe(draft.UiKey);
+        view.Rows[0].Item.Id.ShouldBe(10);
+        view.Rows[0]
+            .Path.UntypedPath.ShouldBe(BlazorDraftBoard.SparsePath.Drafts.Key(10).UntypedPath);
+        view.Rows[0].ItemState.ShouldNotBeNull();
+        view.Rows[0].ItemState!.Value.IsAdded.ShouldBeTrue();
+
+        existing.TryMoveTo(2, out var moveError).ShouldBeTrue();
+        moveError.ShouldBe(SparseCollectionEditError.None);
+        await tree.FlushAsync();
+        view.Rows[2].UiKey.ShouldBe(existing.UiKey);
+        view.Rows[2]
+            .Path.UntypedPath.ShouldBe(BlazorDraftBoard.SparsePath.Drafts.Key(2).UntypedPath);
+        view.Rows[2].ItemState!.Value.IsReordered.ShouldBeTrue();
+
+        view.TryAdd(new BlazorDraftLine { Id = 4, Title = "Added" }, out var addError)
+            .ShouldBeTrue();
+        addError.ShouldBe(SparseCollectionEditError.None);
+        await tree.FlushAsync();
+        view.Rows.Count.ShouldBe(4);
+
+        view.Rows[3].TryRemove(out var removeError).ShouldBeTrue();
+        removeError.ShouldBe(SparseCollectionEditError.None);
+        await tree.FlushAsync();
+        view.Rows.Count.ShouldBe(3);
+        board
+            .Drafts.Select(static item => item.Title)
+            .ShouldBe(new[] { "Draft", "Other", "Existing" });
+    }
+}
