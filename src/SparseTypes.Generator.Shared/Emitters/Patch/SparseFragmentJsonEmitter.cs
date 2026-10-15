@@ -112,8 +112,9 @@ internal static class SparseFragmentJsonEmitter
         );
         code.AppendLineAt(2, "{");
         // Keep linear UTF-8 dispatch limited to small models; wider converters
-        // retain string dispatch.
+        // use an effective-name index built once per read.
         var utf8Dispatch = members.Length > 0 && members.Length <= 3;
+        var indexedDispatch = members.Length > 3;
         // Public readers first; private buffers and helpers trail the writers
         // below.
         code.AppendLineAt(
@@ -132,7 +133,12 @@ internal static class SparseFragmentJsonEmitter
             "public override Fragment Read(ref global::System.Text.Json.Utf8JsonReader reader, global::System.Type typeToConvert, global::System.Text.Json.JsonSerializerOptions options)"
         );
         code.AppendLineAt(3, "{");
-        code.AppendLineAt(4, "ValidateJsonNames(options);");
+        code.AppendLineAt(
+            4,
+            indexedDispatch
+                ? "var propertyIndexes = BuildJsonPropertyIndexes(options);"
+                : "ValidateJsonNames(options);"
+        );
         code.AppendLineAt(
             4,
             "if (reader.TokenType != global::System.Text.Json.JsonTokenType.StartObject) { throw new global::System.Text.Json.JsonException(\"A fragment must be a JSON object.\"); }"
@@ -153,7 +159,9 @@ internal static class SparseFragmentJsonEmitter
             5,
             "if (reader.TokenType != global::System.Text.Json.JsonTokenType.PropertyName) { throw new global::System.Text.Json.JsonException(\"Expected a fragment property name.\"); }"
         );
-        if (utf8Dispatch)
+        if (indexedDispatch)
+            code.AppendLineAt(5, "var propertyName = reader.GetString();");
+        else if (utf8Dispatch)
         {
             code.AppendIndent(5).Append("var propertyIndex = !useUtf8Names ? -2 : ");
             // Match visible members before ignored members, as in the string
@@ -192,24 +200,42 @@ internal static class SparseFragmentJsonEmitter
         if (jsonMembers.Length + ignoredMembers.Length > 0)
         {
             var first = true;
+            if (indexedDispatch)
+            {
+                code.AppendLineAt(
+                    5,
+                    "if (propertyName is not null && propertyIndexes.TryGetValue(propertyName, out var propertyIndex))"
+                );
+                code.AppendLineAt(5, "{");
+                code.AppendLineAt(6, "switch (propertyIndex)");
+                code.AppendLineAt(6, "{");
+            }
             foreach (var member in jsonMembers)
             {
                 var property = SparseNaming.EscapeIdentifier(member.Property.Name);
                 var wireName = WireName(member);
                 var explicitName = member.Property.HasExplicitJsonPropertyName;
-                code.AppendIndent(5).Append(first ? "if (" : "else if (");
-                if (utf8Dispatch)
-                    code.Append("propertyIndex == ")
+                if (indexedDispatch)
+                    code.AppendIndent(7)
+                        .Append("case ")
                         .Append(members.IndexOf(member).ToString())
-                        .Append(" || (propertyIndex == -2 && ");
-                code.Append("Matches(propertyName, ")
-                    .Append(SymbolDisplay.FormatLiteral(wireName, true))
-                    .Append(", ")
-                    .Append(explicitName ? "false" : "true")
-                    .AppendLine(utf8Dispatch ? ", options)))" : ", options))");
+                        .AppendLine(":");
+                else
+                {
+                    code.AppendIndent(5).Append(first ? "if (" : "else if (");
+                    if (utf8Dispatch)
+                        code.Append("propertyIndex == ")
+                            .Append(members.IndexOf(member).ToString())
+                            .Append(" || (propertyIndex == -2 && ");
+                    code.Append("Matches(propertyName, ")
+                        .Append(SymbolDisplay.FormatLiteral(wireName, true))
+                        .Append(", ")
+                        .Append(explicitName ? "false" : "true")
+                        .AppendLine(utf8Dispatch ? ", options)))" : ", options))");
+                }
                 if (member.ChildModel is null)
                 {
-                    code.AppendIndent(6)
+                    code.AppendIndent(indexedDispatch ? 8 : 6)
                         .Append("builder.")
                         .Append(property)
                         .Append(" = " + optional + "<")
@@ -223,7 +249,7 @@ internal static class SparseFragmentJsonEmitter
                 else
                 {
                     var childFragment = member.ChildFragmentType!;
-                    code.AppendIndent(6)
+                    code.AppendIndent(indexedDispatch ? 8 : 6)
                         .Append("builder.")
                         .Append(property)
                         .Append(" = " + optional + "<")
@@ -238,6 +264,8 @@ internal static class SparseFragmentJsonEmitter
                                 + "), options));"
                         );
                 }
+                if (indexedDispatch)
+                    code.AppendLineAt(8, "break;");
                 first = false;
             }
 
@@ -245,24 +273,51 @@ internal static class SparseFragmentJsonEmitter
             {
                 var ignored = ignoredMember.Property;
                 var ignoredWireName = ignored.JsonPropertyName ?? ignored.Name;
-                code.AppendIndent(5).Append(first ? "if (" : "else if (");
-                if (utf8Dispatch)
-                    code.Append("propertyIndex == ")
+                if (indexedDispatch)
+                    code.AppendIndent(7)
+                        .Append("case ")
                         .Append(members.IndexOf(ignoredMember).ToString())
-                        .Append(" || (propertyIndex == -2 && ");
-                code.Append("Matches(propertyName, ")
-                    .Append(SymbolDisplay.FormatLiteral(ignoredWireName, true))
-                    .Append(", ")
-                    .Append(ignored.HasExplicitJsonPropertyName ? "false" : "true")
-                    .AppendLine(utf8Dispatch ? ", options)))" : ", options))");
-                code.AppendLineAt(6, "{ reader.Skip(); }");
+                        .AppendLine(":");
+                else
+                {
+                    code.AppendIndent(5).Append(first ? "if (" : "else if (");
+                    if (utf8Dispatch)
+                        code.Append("propertyIndex == ")
+                            .Append(members.IndexOf(ignoredMember).ToString())
+                            .Append(" || (propertyIndex == -2 && ");
+                    code.Append("Matches(propertyName, ")
+                        .Append(SymbolDisplay.FormatLiteral(ignoredWireName, true))
+                        .Append(", ")
+                        .Append(ignored.HasExplicitJsonPropertyName ? "false" : "true")
+                        .AppendLine(utf8Dispatch ? ", options)))" : ", options))");
+                }
+                code.AppendLineAt(indexedDispatch ? 8 : 6, "{ reader.Skip(); }");
+                if (indexedDispatch)
+                    code.AppendLineAt(8, "break;");
                 first = false;
             }
 
-            code.AppendLineAt(
-                5,
-                "else HandleUnknownFragmentProperty(ref reader, options, propertyName);"
-            );
+            if (indexedDispatch)
+            {
+                code.AppendLineAt(
+                    7,
+                    "default: HandleUnknownFragmentProperty(ref reader, options, propertyName); break;"
+                );
+                code.AppendLineAt(6, "}");
+                code.AppendLineAt(5, "}");
+                code.AppendLineAt(5, "else");
+                code.AppendLineAt(5, "{");
+                code.AppendLineAt(
+                    6,
+                    "HandleUnknownFragmentProperty(ref reader, options, propertyName);"
+                );
+                code.AppendLineAt(5, "}");
+            }
+            else
+                code.AppendLineAt(
+                    5,
+                    "else HandleUnknownFragmentProperty(ref reader, options, propertyName);"
+                );
         }
         else
         {
@@ -438,74 +493,136 @@ internal static class SparseFragmentJsonEmitter
         );
         code.AppendLineAt(4, "reader.Skip();");
         code.AppendLineAt(3, "}");
-        code.AppendLineAt(
-            3,
-            "private static void ValidateJsonNames(global::System.Text.Json.JsonSerializerOptions options)"
-        );
-        code.AppendLineAt(3, "{");
-        var comparePairs = jsonMembers.Length <= 3;
-        if (!comparePairs)
+        if (indexedDispatch)
         {
             code.AppendLineAt(
-                4,
-                "var names = new global::System.Collections.Generic.HashSet<string>(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal);"
+                3,
+                "private static global::System.Collections.Generic.Dictionary<string, int> BuildJsonPropertyIndexes(global::System.Text.Json.JsonSerializerOptions options)"
             );
-        }
-        else if (jsonMembers.Length > 1)
-        {
+            code.AppendLineAt(3, "{");
             code.AppendLineAt(
                 4,
-                "var comparison = options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal;"
+                "var indexes = new global::System.Collections.Generic.Dictionary<string, int>(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal);"
             );
+            foreach (var member in jsonMembers)
+            {
+                var property = member.Property;
+                var index = members.IndexOf(member).ToString();
+                var nameVariable = "__jsonName_" + index;
+                var literal = SymbolDisplay.FormatLiteral(
+                    property.JsonPropertyName ?? property.Name,
+                    true
+                );
+                var expression = property.HasExplicitJsonPropertyName
+                    ? literal
+                    : "options.PropertyNamingPolicy?.ConvertName(" + literal + ") ?? " + literal;
+                code.AppendLineAt(4, "var " + nameVariable + " = " + expression + ";");
+                code.AppendLineAt(
+                    4,
+                    "if (indexes.ContainsKey("
+                        + nameVariable
+                        + ")) { throw new global::System.Text.Json.JsonException(\"Multiple fragment members map to the same JSON property name.\"); }"
+                );
+                code.AppendLineAt(4, "indexes.Add(" + nameVariable + ", " + index + ");");
+            }
+            foreach (var member in ignoredMembers)
+            {
+                var property = member.Property;
+                var index = members.IndexOf(member).ToString();
+                var nameVariable = "__jsonName_" + index;
+                var literal = SymbolDisplay.FormatLiteral(
+                    property.JsonPropertyName ?? property.Name,
+                    true
+                );
+                var expression = property.HasExplicitJsonPropertyName
+                    ? literal
+                    : "options.PropertyNamingPolicy?.ConvertName(" + literal + ") ?? " + literal;
+                code.AppendLineAt(4, "var " + nameVariable + " = " + expression + ";");
+                code.AppendLineAt(
+                    4,
+                    "if (!indexes.ContainsKey("
+                        + nameVariable
+                        + ")) { indexes.Add("
+                        + nameVariable
+                        + ", "
+                        + index
+                        + "); }"
+                );
+            }
+            code.AppendLineAt(4, "return indexes;");
+            code.AppendLineAt(3, "}");
         }
         else
         {
-            // Preserve the options requirement even with no names to compare.
-            code.AppendLineAt(4, "_ = options.PropertyNameCaseInsensitive;");
-        }
-        var nameIndex = 0;
-        foreach (var property in jsonMembers.Select(static member => member.Property))
-        {
-            var literal = SymbolDisplay.FormatLiteral(
-                property.JsonPropertyName ?? property.Name,
-                true
+            code.AppendLineAt(
+                3,
+                "private static void ValidateJsonNames(global::System.Text.Json.JsonSerializerOptions options)"
             );
-            var expression = property.HasExplicitJsonPropertyName
-                ? literal
-                : "options.PropertyNamingPolicy?.ConvertName(" + literal + ") ?? " + literal;
+            code.AppendLineAt(3, "{");
+            var comparePairs = jsonMembers.Length <= 3;
             if (!comparePairs)
             {
                 code.AppendLineAt(
                     4,
-                    "if (!names.Add("
-                        + expression
-                        + ")) { throw new global::System.Text.Json.JsonException(\"Multiple fragment members map to the same JSON property name.\"); }"
+                    "var names = new global::System.Collections.Generic.HashSet<string>(options.PropertyNameCaseInsensitive ? global::System.StringComparer.OrdinalIgnoreCase : global::System.StringComparer.Ordinal);"
                 );
             }
-            else if (jsonMembers.Length == 1)
+            else if (jsonMembers.Length > 1)
             {
-                // Retain naming-policy evaluation even when collisions are
-                // impossible.
-                code.AppendLineAt(4, "_ = " + expression + ";");
+                code.AppendLineAt(
+                    4,
+                    "var comparison = options.PropertyNameCaseInsensitive ? global::System.StringComparison.OrdinalIgnoreCase : global::System.StringComparison.Ordinal;"
+                );
             }
             else
             {
-                code.AppendLineAt(4, "var __name_" + nameIndex + " = " + expression + ";");
-                for (var previous = 0; previous < nameIndex; previous++)
+                // Preserve the options requirement even with no names to compare.
+                code.AppendLineAt(4, "_ = options.PropertyNameCaseInsensitive;");
+            }
+            var nameIndex = 0;
+            foreach (var property in jsonMembers.Select(static member => member.Property))
+            {
+                var literal = SymbolDisplay.FormatLiteral(
+                    property.JsonPropertyName ?? property.Name,
+                    true
+                );
+                var expression = property.HasExplicitJsonPropertyName
+                    ? literal
+                    : "options.PropertyNamingPolicy?.ConvertName(" + literal + ") ?? " + literal;
+                if (!comparePairs)
                 {
                     code.AppendLineAt(
                         4,
-                        "if (global::System.String.Equals(__name_"
-                            + previous
-                            + ", __name_"
-                            + nameIndex
-                            + ", comparison)) { throw new global::System.Text.Json.JsonException(\"Multiple fragment members map to the same JSON property name.\"); }"
+                        "if (!names.Add("
+                            + expression
+                            + ")) { throw new global::System.Text.Json.JsonException(\"Multiple fragment members map to the same JSON property name.\"); }"
                     );
                 }
-                nameIndex++;
+                else if (jsonMembers.Length == 1)
+                {
+                    // Retain naming-policy evaluation even when collisions are
+                    // impossible.
+                    code.AppendLineAt(4, "_ = " + expression + ";");
+                }
+                else
+                {
+                    code.AppendLineAt(4, "var __name_" + nameIndex + " = " + expression + ";");
+                    for (var previous = 0; previous < nameIndex; previous++)
+                    {
+                        code.AppendLineAt(
+                            4,
+                            "if (global::System.String.Equals(__name_"
+                                + previous
+                                + ", __name_"
+                                + nameIndex
+                                + ", comparison)) { throw new global::System.Text.Json.JsonException(\"Multiple fragment members map to the same JSON property name.\"); }"
+                        );
+                    }
+                    nameIndex++;
+                }
             }
+            code.AppendLineAt(3, "}");
         }
-        code.AppendLineAt(3, "}");
         code.AppendLineAt(2, "}");
     }
 }
