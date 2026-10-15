@@ -46,14 +46,28 @@
                     </div>
                 </SparseField>
             </div>
-            <div class="pg-actions">
-                <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!CanUndo)" @onclick="Undo">
-                    Undo tier
-                </FluentButton>
-                <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!CanRedo)" @onclick="Redo">
-                    Redo tier
-                </FluentButton>
-            </div>
+            @if (SectionDraftsEnabled)
+            {
+                <div class="pg-actions">
+                    <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!CanUndo)" @onclick="Undo">
+                        Undo tier
+                    </FluentButton>
+                    <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!CanRedo)" @onclick="Redo">
+                        Redo tier
+                    </FluentButton>
+                </div>
+            }
+            @if (_childSession?.AutoAcceptConflicts is not null)
+            {
+                <div class="pg-stack">
+                    <FluentMessageBar Intent="MessageBarIntent.Error">
+                        The latest tier edit could not be applied automatically. Correct the conflicting value or discard the draft.
+                    </FluentMessageBar>
+                    <FluentButton Appearance="ButtonAppearance.Default" @onclick="DiscardConflictingEdit">
+                        Discard conflicting tier edit
+                    </FluentButton>
+                </div>
+            }
             @if (_historyError is not null)
             {
                 <FluentMessageBar Intent="MessageBarIntent.Error">@_historyError</FluentMessageBar>
@@ -136,9 +150,6 @@
     [Parameter, EditorRequired]
     public EventCallback<string> OnRemove { get; set; }
 
-    [Parameter, EditorRequired]
-    public CatalogChildSessionCoordinator ChildSessions { get; set; } = null!;
-
     [Parameter]
     public EventCallback<bool> OnChanged { get; set; }
 
@@ -190,17 +201,19 @@
 
     private Task ReportStatus(bool _)
     {
-        if (!SectionDraftsEnabled && HasChanges)
-        {
-            ChildSessions.TryAcceptImmediately(_childSession!);
-        }
-
         if (!HasChanges)
         {
             _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
         }
 
         return OnChanged.InvokeAsync(HasChanges);
+    }
+
+    private async Task DiscardConflictingEdit()
+    {
+        _childSession!.DiscardChanges();
+        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
+        await OnChanged.InvokeAsync(HasChanges);
     }
 
     private async Task OpenTier()
@@ -236,7 +249,7 @@
         await OnRemove.InvokeAsync(Code);
     }
 
-    private void Undo()
+    private async Task Undo()
     {
         try
         {
@@ -247,9 +260,11 @@
         {
             _historyError = exception.Message;
         }
+
+        await OnChanged.InvokeAsync(HasChanges);
     }
 
-    private void Redo()
+    private async Task Redo()
     {
         try
         {
@@ -260,6 +275,8 @@
         {
             _historyError = exception.Message;
         }
+
+        await OnChanged.InvokeAsync(HasChanges);
     }
 
     private void AddDiscountBand()

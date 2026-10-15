@@ -68,10 +68,20 @@ customer.Redo();
 ```
 
 The child context provides generated paths, a child-bound `EditContext`,
-change state, acceptance conflicts, and child-local history actions. The scope
-enables history; accepting or discarding resets its baseline while the child
-remains connected. Calling `child.Session.AcceptChanges()` alone does not
-merge the draft into its parent.
+change state, acceptance conflicts, child-local history actions, and an
+`AutoAccepted` event for successful automatic merges. The scope enables
+history; accepting or discarding resets its baseline while the child remains
+connected. Calling `child.Session.AcceptChanges()` alone does not merge the
+draft into its parent.
+
+Set `AutoAccept="true"` on `SparseSessionScope` to merge each child-session
+change into its parent as soon as it is reported. Nested scopes inherit the
+setting unless they override it. A failed merge leaves the child draft intact
+and exposes its conflicts through `AutoAcceptConflicts`; a child `BatchEdit`
+is accepted as one parent transition. `SparseSessionScopeContext.HasChanges`
+reports whether any opened child has pending changes, and its `Changed` event
+signals changes to those child states. Auto-accept does not enable history on
+the parent session; enable it there when parent-level Undo/Redo is needed.
 
 Field and collection state reads inspect the session they are bound to. A
 pending child draft stays separate from changes already accepted into the
@@ -89,9 +99,11 @@ scope never reads the live model itself, which keeps the observable-only
 `HasChanges` cache intact for reads during render.
 
 Refresh is session-level: every notification re-renders the whole subtree.
-Group one user action with `BatchEdit` so it notifies once. There is no
-per-path refresh; narrowing would have to stay correct for ancestor,
-descendant, collection reorder, and replacement notifications first.
+Group one user action with `BatchEdit` so it notifies once. `AutoAccept` also
+uses those notifications to attempt child acceptance; a failed acceptance
+keeps the draft available for conflict handling. There is no per-path refresh;
+narrowing would have to stay correct for ancestor, descendant, collection
+reorder, and replacement notifications first.
 
 Replacing the `Session` parameter unsubscribes the old session before
 subscribing the new one, and disposing the scope unsubscribes entirely. After

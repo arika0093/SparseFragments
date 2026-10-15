@@ -13,6 +13,12 @@ public interface ISparseChildEditContext<TModel, TConflict>
     /// <summary>Gets whether this child session or its descendants have pending changes.</summary>
     bool HasChanges { get; }
 
+    /// <summary>Gets conflicts from the most recent automatic acceptance attempt.</summary>
+    IReadOnlyList<TConflict>? AutoAcceptConflicts { get; }
+
+    /// <summary>Occurs after the parent accepts this child session.</summary>
+    event Action? AutoAccepted;
+
     /// <summary>Gets whether the child history can undo an edit.</summary>
     bool CanUndo { get; }
 

@@ -2,6 +2,7 @@
 @using SparseTypes.Blazor
 @using SparseTypes.Playground.Models
 @using CatalogSession = global::SparseTypes.Playground.Models.EnterpriseCatalogItem.EditSession;
+@implements IDisposable
 
 @if (_childSession is not null)
 {
@@ -94,8 +95,10 @@
             <div class="pg-workflow-scope-actions">
                 <ChildSessionActions HasChanges="GetHasChanges" CanUndo="GetCanUndo" CanRedo="GetCanRedo"
                     SectionDraftsEnabled="SectionDraftsEnabled"
+                    AutoAcceptConflicts="_childSession?.AutoAcceptConflicts"
                     Undo="Undo" Redo="Redo" Accept="TryAcceptChildSession" Discard="DiscardChildSession"
-                    OnFinished="RefreshBaseline" OnChanged="OnHistoryChanged" />
+                    OnFinished="RefreshBaseline" OnChanged="OnHistoryChanged"
+                    OnStatusChanged="ReportStatus" />
             </div>
         </FluentCard>
     </SparseEdit>
@@ -184,11 +187,17 @@
                 ?? throw new InvalidOperationException("The catalog edit session is unavailable.");
             _scopeContext = ScopeContext
                 ?? throw new InvalidOperationException("The catalog session scope is unavailable.");
+            if (_childSession is not null)
+            {
+                _childSession.AutoAccepted -= OnChildAutoAccepted;
+            }
+
             var childSession = _scopeContext.OpenChildSession(
                 _parentSession,
                 EnterpriseCatalogItem.SparsePath.Workflow
             );
             _childSession = childSession;
+            _childSession.AutoAccepted += OnChildAutoAccepted;
             _draftSession = childSession.Session;
             _sortableListsVersion++;
         }
@@ -209,12 +218,6 @@
 
     private Task ReportStatus(bool _)
     {
-        if (!SectionDraftsEnabled && _childSession!.HasChanges
-            && ChildSessions.TryAcceptImmediately(_childSession))
-        {
-            OnAccepted?.Invoke();
-        }
-
         ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.WorkflowId, HasChanges);
         return OnChanged.InvokeAsync();
     }
@@ -222,6 +225,7 @@
     private Task RefreshBaseline()
     {
         _sortableListsVersion++;
+        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.WorkflowId, HasChanges);
         return OnChanged.InvokeAsync();
     }
 
@@ -242,7 +246,17 @@
         return (accepted, conflicts);
     }
 
+    private void OnChildAutoAccepted() => OnAccepted?.Invoke();
+
     private void DiscardChildSession() => _childSession!.DiscardChanges();
+
+    public void Dispose()
+    {
+        if (_childSession is not null)
+        {
+            _childSession.AutoAccepted -= OnChildAutoAccepted;
+        }
+    }
 
     private bool IsTemplateAvailable(CatalogWorkStep template) =>
         !_templateIdByStepId.Any(mapping =>

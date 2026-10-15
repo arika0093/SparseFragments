@@ -14,10 +14,7 @@ using Microsoft.Extensions.Logging;
 
 namespace SparseTypes.Blazor.Tests;
 
-// Session-scope lifecycle for the OrderDto fixture (issue #254). The cascaded consumer
-// below performs no manual TransitionObserved hook/unhook and issues no InvokeAsync calls
-// of its own: every refresh arrives through SparseSessionScope, which subscribes through
-// INotifyPropertyChanged and marshals through the Blazor dispatcher.
+// Session-scope lifecycle for the OrderDto fixture.
 public sealed class SparseSessionScopeTests
 {
     private static OrderDto Order() =>
@@ -44,8 +41,8 @@ public sealed class SparseSessionScopeTests
             Contacts = new() { ["billing"] = new OrderCustomer { Name = "Ada" } },
         };
 
-    // Reads the cascaded session through trusted framework access (which keeps the
-    // observable-change cache intact) and renders the values a form badge would show.
+    // Reads the cascaded session through trusted framework access (which keeps
+    // Preserve the observable-change cache while rendering form values.
     private sealed class ScopeConsumer : ComponentBase
     {
         [CascadingParameter]
@@ -130,8 +127,8 @@ public sealed class SparseSessionScopeTests
             new ScopeSynchronizationContext(_dispatcher);
     }
 
-    // Single-threaded dispatcher: every queued callback runs on one dedicated thread,
-    // so InvokeAsync marshalling is observable and thread identity stays deterministic.
+    // Every queued callback runs on one dedicated thread, so InvokeAsync
+    // marshalling is observable and thread identity stays deterministic.
     private sealed class ScopeDispatcher : Dispatcher, IDisposable
     {
         private sealed record WorkItem
@@ -259,8 +256,8 @@ public sealed class SparseSessionScopeTests
                     {
                         try
                         {
-                            // No ConfigureAwait(false): continuations post back through
-                            // the dispatcher synchronization context of the loop thread.
+                            // Continuations post back through the dispatcher
+                            // synchronization context of the loop thread.
                             completion.SetResult(await workItem());
                         }
                         catch (Exception exception)
@@ -302,8 +299,8 @@ public sealed class SparseSessionScopeTests
             _dispatcherThreadId = Environment.CurrentManagedThreadId;
             SynchronizationContext.SetSynchronizationContext(new ScopeSynchronizationContext(this));
             _started.Set();
-            // The loop never blocks on queued work: incomplete tasks complete through
-            // a continuation, so re-posted continuations cannot deadlock the thread.
+            // Incomplete tasks complete through a continuation, so re-posted
+            // continuations cannot deadlock the thread.
             foreach (var item in _queue.GetConsumingEnumerable())
             {
                 Task pending;
@@ -352,8 +349,8 @@ public sealed class SparseSessionScopeTests
         }
     }
 
-    // Minimal renderer mirroring the rendered form tests: runs the real component diff
-    // on the dedicated dispatcher thread so InvokeAsync marshalling is observable.
+    // Runs the real component diff on the dedicated dispatcher thread so
+    // InvokeAsync marshalling is observable.
     private sealed class ScopeTestRenderer : Renderer
     {
         private readonly ScopeDispatcher _dispatcher;
@@ -396,7 +393,8 @@ public sealed class SparseSessionScopeTests
         protected override Task UpdateDisplayAsync(in RenderBatch batch) => Task.CompletedTask;
     }
 
-    // Owns one rendered scope tree: the scope under test plus its captured consumer.
+    // Owns one rendered scope tree: the scope under test plus its captured
+    // consumer.
     private sealed class ScopeHarness : IDisposable
     {
         private readonly ServiceProvider _services;
@@ -431,7 +429,10 @@ public sealed class SparseSessionScopeTests
             Consumer = consumer;
         }
 
-        public static async Task<ScopeHarness> CreateAsync(ISparseEditSession<OrderDto> session)
+        public static async Task<ScopeHarness> CreateAsync(
+            ISparseEditSession<OrderDto> session,
+            bool? autoAccept = null
+        )
         {
             var services = new ServiceCollection().AddLogging().BuildServiceProvider();
             var dispatcher = new ScopeDispatcher();
@@ -451,7 +452,10 @@ public sealed class SparseSessionScopeTests
                 );
                 builder.CloseComponent();
             };
-            var rootId = await renderer.RenderRootAsync(scope, ParametersFor(session, child));
+            var rootId = await renderer.RenderRootAsync(
+                scope,
+                ParametersFor(session, child, autoAccept)
+            );
             await renderer.DispatchAsync(() => { });
             if (consumer is null)
             {
@@ -464,6 +468,15 @@ public sealed class SparseSessionScopeTests
         public async Task SwapSessionAsync(ISparseEditSession<OrderDto> session)
         {
             await _renderer.RenderAsync(_rootId, ParametersFor(session, _child));
+            await _renderer.DispatchAsync(() => { });
+        }
+
+        public async Task SetAutoAcceptAsync(bool? autoAccept)
+        {
+            await _renderer.RenderAsync(
+                _rootId,
+                ParametersFor((ISparseEditSession<OrderDto>)Scope.Session!, _child, autoAccept)
+            );
             await _renderer.DispatchAsync(() => { });
         }
 
@@ -483,12 +496,14 @@ public sealed class SparseSessionScopeTests
 
         private static ParameterView ParametersFor(
             ISparseEditSession<OrderDto> session,
-            RenderFragment child
+            RenderFragment child,
+            bool? autoAccept = null
         ) =>
             ParameterView.FromDictionary(
                 new Dictionary<string, object?>
                 {
                     [nameof(SparseSessionScope<OrderDto>.Session)] = session,
+                    [nameof(SparseSessionScope<OrderDto>.AutoAccept)] = autoAccept,
                     [nameof(SparseSessionScope<OrderDto>.ChildContent)] = child,
                 }
             );
@@ -538,8 +553,8 @@ public sealed class SparseSessionScopeTests
             notifier.PropertyChanged -= Count;
         }
 
-        // One outer batch publishes one notification however many edits it holds,
-        // so the scope refreshes once for the whole user action.
+        // One outer batch publishes one notification however many edits it
+        // holds, so the scope refreshes once for the whole user action.
         notifications.ShouldBe(1);
         await harness.FlushAsync();
         consumer.ShownText.ShouldBe("ORD-2|Grace|a,b");
@@ -566,7 +581,8 @@ public sealed class SparseSessionScopeTests
             notifier.PropertyChanged -= Count;
         }
 
-        // Without BatchEdit each edit refreshes on its own; batch user actions instead.
+        // Without BatchEdit each edit refreshes on its own; batch user actions
+        // instead.
         notifications.ShouldBe(3);
         session.HasChanges.ShouldBeTrue();
     }
@@ -609,7 +625,8 @@ public sealed class SparseSessionScopeTests
         consumer.ShownText.ShouldBe("ORD-3|Ada|a,b");
         consumer.ShownHasChanges.ShouldBeFalse();
 
-        // A disjoint server state merges in place; the live instance stays bound.
+        // A disjoint server state merges in place; the live instance stays
+        // bound.
         session.Observable.Number = "local";
         var server = Order();
         server.Number = "ORD-3";
@@ -620,7 +637,8 @@ public sealed class SparseSessionScopeTests
         consumer.ShownText.ShouldBe("local|Server|a,b");
         consumer.ShownHasChanges.ShouldBeTrue();
 
-        // An overlapping server state conflicts and leaves everything untouched.
+        // An overlapping server state conflicts and leaves everything
+        // untouched.
         var conflicting = Order();
         conflicting.Number = "server";
         conflicting.Customer.Name = "Server";
@@ -669,6 +687,7 @@ public sealed class SparseSessionScopeTests
             OrderDto.SparsePath.Customer
         );
         child.Session.Observable.Name = "draft";
+        await harness.FlushAsync();
         var consumer = harness.Consumer;
         var renders = consumer.RenderCount;
 
@@ -716,7 +735,8 @@ public sealed class SparseSessionScopeTests
         var consumer = harness.Consumer;
         consumer.RenderThreadId.ShouldBe(harness.DispatcherThreadId);
 
-        // A direct StateHasChanged here would throw off-thread; the scope marshals instead.
+        // A direct StateHasChanged here would throw off-thread; the scope
+        // marshals instead.
         var editorThread = 0;
         await Task.Run(() =>
         {
@@ -769,6 +789,73 @@ public sealed class SparseSessionScopeTests
     }
 
     [Test]
+    public async Task AutoAcceptMergesChildBatchAsOneParentHistoryEntry()
+    {
+        var model = Order();
+        var parent = model.CreateEditSession();
+        var parentHistory = parent.EnableHistory();
+        using var harness = await ScopeHarness.CreateAsync(parent, autoAccept: true);
+        var scope = harness.Consumer.ScopeContext!;
+        var child = scope.OpenChildSession(parent, OrderDto.SparsePath.Customer);
+        var acceptedCount = 0;
+        child.AutoAccepted += () => acceptedCount++;
+
+        child.Session.BatchEdit(() =>
+        {
+            child.Session.Observable.Name = "Grace";
+            child.Session.Observable.Email = "grace@example.com";
+        });
+        await harness.FlushAsync();
+
+        model.Customer.Name.ShouldBe("Grace");
+        model.Customer.Email.ShouldBe("grace@example.com");
+        child.HasChanges.ShouldBeFalse();
+        child.AutoAcceptConflicts.ShouldBeNull();
+        scope.HasChanges.ShouldBeFalse();
+        acceptedCount.ShouldBe(1);
+        parentHistory.CanUndo.ShouldBeTrue();
+
+        parentHistory.Undo();
+        await harness.FlushAsync();
+        model.Customer.Name.ShouldBe("Ada");
+        model.Customer.Email.ShouldBe("ada@example.com");
+        parent.HasChanges.ShouldBeFalse();
+        child.HasChanges.ShouldBeFalse();
+        scope.HasChanges.ShouldBeFalse();
+
+        parentHistory.CanRedo.ShouldBeTrue();
+        parentHistory.Redo();
+        await harness.FlushAsync();
+        model.Customer.Name.ShouldBe("Grace");
+        model.Customer.Email.ShouldBe("grace@example.com");
+        parent.HasChanges.ShouldBeTrue();
+        child.HasChanges.ShouldBeFalse();
+    }
+
+    [Test]
+    public async Task EnablingAutoAcceptRetainsConflictingChildDraft()
+    {
+        var model = Order();
+        var parent = model.CreateEditSession();
+        using var harness = await ScopeHarness.CreateAsync(parent);
+        var scope = harness.Consumer.ScopeContext!;
+        var child = scope.OpenChildSession(parent, OrderDto.SparsePath.Customer);
+
+        child.Session.Observable.Name = "Child";
+        parent.Observable.Customer!.Name = "Parent";
+        await harness.SetAutoAcceptAsync(true);
+
+        child.AutoAcceptConflicts.ShouldNotBeNull();
+        child.HasChanges.ShouldBeTrue();
+        scope.HasChanges.ShouldBeTrue();
+        model.Customer.Name.ShouldBe("Parent");
+
+        await harness.SetAutoAcceptAsync(false);
+        child.AutoAcceptConflicts.ShouldBeNull();
+        child.HasChanges.ShouldBeTrue();
+    }
+
+    [Test]
     public async Task SessionReplacementReleasesScopeOwnedChildAndHistory()
     {
         using var harness = await ScopeHarness.CreateAsync(Order().CreateEditSession());
@@ -805,8 +892,8 @@ public sealed class SparseSessionScopeTests
         await harness.FlushAsync();
         session.HasChanges.ShouldBeTrue();
 
-        // Subscribing and refreshing through the scope never touches the raw model,
-        // so observable-only edits keep their cached HasChanges computation.
+        // Subscribing and refreshing through the scope never touches the raw
+        // model.
         CacheState(session).ShouldBe((Caching: true, Valid: true));
         harness.Consumer.ShownHasChanges.ShouldBeTrue();
     }

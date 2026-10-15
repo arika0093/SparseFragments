@@ -50,8 +50,9 @@
             </div>
             <ChildSessionActions HasChanges="GetHasChanges" CanUndo="GetCanUndo" CanRedo="GetCanRedo"
                 SectionDraftsEnabled="SectionDraftsEnabled"
+                AutoAcceptConflicts="_childSession?.AutoAcceptConflicts"
                 Undo="Undo" Redo="Redo" Accept="TryAcceptChildSession" Discard="DiscardChildSession"
-                OnFinished="NotifyChanged" />
+                OnFinished="NotifyChanged" OnStatusChanged="ReportStatus" />
         </FluentCard>
     </SparseEdit>
 }
@@ -108,16 +109,15 @@
 
     private Task ReportStatus(bool _)
     {
-        if (!SectionDraftsEnabled && _childSession!.HasChanges)
-        {
-            ChildSessions.TryAcceptImmediately(_childSession);
-        }
-
         ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.WorkMasterId(Step.Id), HasChanges);
         return OnChanged.InvokeAsync();
     }
 
-    private Task NotifyChanged() => OnChanged.InvokeAsync();
+    private Task NotifyChanged()
+    {
+        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.WorkMasterId(Step.Id), HasChanges);
+        return OnChanged.InvokeAsync();
+    }
     private bool GetHasChanges() => _childSession?.HasChanges == true;
     private bool GetCanUndo() => _childSession?.CanUndo == true;
     private bool GetCanRedo() => _childSession?.CanRedo == true;

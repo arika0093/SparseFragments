@@ -84,8 +84,9 @@
             </div>
             <ChildSessionActions HasChanges="GetHasChanges" CanUndo="GetCanUndo" CanRedo="GetCanRedo"
                 SectionDraftsEnabled="SectionDraftsEnabled"
+                AutoAcceptConflicts="_childSession?.AutoAcceptConflicts"
                 Undo="Undo" Redo="Redo" Accept="TryAcceptChildSession" Discard="DiscardChildSession"
-                OnFinished="RefreshBaseline" />
+                OnFinished="RefreshBaseline" OnStatusChanged="ReportStatus" />
         </FluentCard>
     </SparseEdit>
 }
@@ -135,13 +136,8 @@
         _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
     }
 
-    private Task ReportStatus(bool hasChanges)
+    private Task ReportStatus(bool _)
     {
-        if (!SectionDraftsEnabled && hasChanges && _childSession!.HasChanges)
-        {
-            ChildSessions.TryAcceptImmediately(_childSession);
-        }
-
         ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.OverviewId, _childSession!.HasChanges);
         return OnChanged.InvokeAsync();
     }
@@ -149,6 +145,7 @@
     private Task RefreshBaseline()
     {
         _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
+        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.OverviewId, HasChanges);
         return OnChanged.InvokeAsync();
     }
 

@@ -2,32 +2,39 @@
 @using SparseTypes.Playground.Models
 
 <div class="pg-stack">
-    <div class="pg-actions">
-        <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!CanUndo())" @onclick="UndoDraft">
-            Undo
-        </FluentButton>
-        <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!CanRedo())" @onclick="RedoDraft">
-            Redo
-        </FluentButton>
-        @if (SectionDraftsEnabled)
-        {
+    @if (SectionDraftsEnabled)
+    {
+        <div class="pg-actions">
+            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!CanUndo())" @onclick="UndoDraft">
+                Undo
+            </FluentButton>
+            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!CanRedo())" @onclick="RedoDraft">
+                Redo
+            </FluentButton>
             <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
                 Disabled="@(!HasChanges())" @onclick="AcceptChildSessionAsync">Save section draft</FluentButton>
             <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!HasChanges())"
                 @onclick="DiscardChildSessionAsync">Discard section draft</FluentButton>
-        }
-    </div>
-    @if (_message is not null)
+        </div>
+    }
+    @if (AutoAcceptConflicts is not null)
+    {
+        <p class="pg-hint">The latest edit could not be applied automatically. Correct the conflicting value or discard the draft.</p>
+        <FluentButton Appearance="ButtonAppearance.Default" @onclick="DiscardChildSessionAsync">
+            Discard conflicting edit
+        </FluentButton>
+    }
+    else if (_message is not null)
     {
         <p class="pg-hint">@_message</p>
     }
-    @if (_conflicts.Count > 0)
+    @if (DisplayedConflicts.Count > 0)
     {
         <div class="pg-change-table-wrap">
             <table class="pg-change-table" aria-label="Child-session conflicts">
                 <thead><tr><th>Path</th><th>Current value</th><th>Draft value</th><th>Kind</th></tr></thead>
                 <tbody>
-                    @foreach (var conflict in _conflicts)
+                    @foreach (var conflict in DisplayedConflicts)
                     {
                         <tr>
                             <td><span class="pg-change-value">@conflict.PathText</span></td>
@@ -48,6 +55,9 @@
 
     [Parameter]
     public bool SectionDraftsEnabled { get; set; } = true;
+
+    [Parameter]
+    public IReadOnlyList<SparseConflict>? AutoAcceptConflicts { get; set; }
 
     [Parameter, EditorRequired]
     public Func<bool> CanUndo { get; set; } = null!;
@@ -73,8 +83,13 @@
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
+    [Parameter]
+    public EventCallback<bool> OnStatusChanged { get; set; }
+
     private IReadOnlyList<SparseConflict> _conflicts = [];
     private string? _message;
+    private IReadOnlyList<SparseConflict> DisplayedConflicts =>
+        _conflicts.Count > 0 ? _conflicts : AutoAcceptConflicts ?? [];
 
     public async Task<bool> AcceptChildSessionAsync()
     {
@@ -111,6 +126,7 @@
         {
             Undo();
             _message = null;
+            await OnStatusChanged.InvokeAsync(HasChanges());
             await OnChanged.InvokeAsync();
         }
         catch (InvalidOperationException exception)
@@ -125,6 +141,7 @@
         {
             Redo();
             _message = null;
+            await OnStatusChanged.InvokeAsync(HasChanges());
             await OnChanged.InvokeAsync();
         }
         catch (InvalidOperationException exception)

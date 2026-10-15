@@ -4,7 +4,7 @@
 @using SparseTypes.Playground.Components
 @implements IDisposable
 
-<SparseSessionScope @key="_session" Session="_session">
+<SparseSessionScope @key="_session" Session="_session" AutoAccept="@(!_sectionDraftsEnabled)">
 <div class="pg-stack">
     <FluentCard Class="pg-fluent-card pg-catalog-header" Shadow="CardShadow.None">
         <div class="pg-catalog-header-main">
@@ -14,6 +14,13 @@
                     <span aria-hidden="true"></span>@(HasChanges ? "Changes pending" : "No committed changes")
                 </span>
                 <div class="pg-actions pg-catalog-header-actions">
+                    @if (!_sectionDraftsEnabled)
+                    {
+                        <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!_history.CanUndo)"
+                            @onclick="UndoCatalog">Undo</FluentButton>
+                        <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!_history.CanRedo)"
+                            @onclick="RedoCatalog">Redo</FluentButton>
+                    }
                     <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!HasChanges)" @onclick="Reset">
                         Reset
                     </FluentButton>
@@ -27,10 +34,6 @@
         @if (_error is not null)
         {
             <FluentMessageBar Intent="MessageBarIntent.Error">@_error</FluentMessageBar>
-        }
-        @if (_childSessions.Error is not null)
-        {
-            <FluentMessageBar Intent="MessageBarIntent.Error">@_childSessions.Error</FluentMessageBar>
         }
     </FluentCard>
 
@@ -184,6 +187,7 @@
     private EnterpriseCatalogItem _model = null!;
     private EnterpriseCatalogItem _savedModel = null!;
     private EnterpriseCatalogItem.EditSession _session = null!;
+    private ISparseEditHistory _history = null!;
     private readonly CatalogChildSessionCoordinator _childSessions = new();
     private FluentDialog? _saveDialog;
     private WorkflowEditor? _workflowEditor;
@@ -212,7 +216,7 @@
         _childSessions.Changed += Refresh;
         _model = CreateSample();
         _savedModel = _model.DeepClone();
-        _session = _model.CreateEditSession();
+        CreateSession();
         _savedWorkflow = _model.Workflow.DeepClone();
         _acceptedWorkflow = _model.Workflow.DeepClone();
     }
@@ -433,7 +437,7 @@
             _savedWorkflow = _model.Workflow.DeepClone();
             _acceptedWorkflow = _model.Workflow.DeepClone();
             _baselineVersion++;
-            _session = _model.CreateEditSession();
+            CreateSession();
             _childSessions.Clear();
             _error = null;
         }
@@ -526,7 +530,7 @@
             _savedWorkflow = _model.Workflow.DeepClone();
             _acceptedWorkflow = _model.Workflow.DeepClone();
             _baselineVersion++;
-            _session = _model.CreateEditSession();
+            CreateSession();
             _childSessions.Clear();
             _error = null;
         }
@@ -542,6 +546,32 @@
     {
         _hasChanges = !EnterpriseCatalogItem.ChangeSet.Between(_savedModel, _model).IsEmpty;
         StateHasChanged();
+    }
+
+    private void CreateSession()
+    {
+        _session = _model.CreateEditSession();
+        _history = _session.EnableHistory();
+    }
+
+    private Task UndoCatalog() => ApplyHistory(_history.Undo);
+
+    private Task RedoCatalog() => ApplyHistory(_history.Redo);
+
+    private Task ApplyHistory(Action apply)
+    {
+        try
+        {
+            apply();
+            _error = null;
+        }
+        catch (InvalidOperationException exception)
+        {
+            _error = exception.Message;
+        }
+
+        Refresh();
+        return Task.CompletedTask;
     }
 
 }

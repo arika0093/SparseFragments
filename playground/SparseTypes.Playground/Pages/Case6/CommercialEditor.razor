@@ -66,7 +66,6 @@
                                 <SparseSessionScope @key="tier.Code" Session="_draftSession">
                                     <CatalogPriceTierEditor Code="@tier.Code"
                                         State="@(roster?.GetItemState(tier.Code) ?? default)"
-                                        ChildSessions="ChildSessions"
                                         SectionDraftsEnabled="SectionDraftsEnabled"
                                         OpenOnLoad="@(_tierToOpen == tier.Code)"
                                         OnOpened="ClearTierToOpen" OnRemove="RemoveTier"
@@ -92,8 +91,9 @@
                 </div>
                 <ChildSessionActions HasChanges="GetHasChanges" CanUndo="GetCanUndo" CanRedo="GetCanRedo"
                     SectionDraftsEnabled="SectionDraftsEnabled"
+                    AutoAcceptConflicts="_childSession?.AutoAcceptConflicts"
                     Undo="Undo" Redo="Redo" Accept="TryAcceptChildSession" Discard="DiscardChildSession"
-                    OnFinished="RefreshBaseline" />
+                    OnFinished="RefreshBaseline" OnStatusChanged="ReportStatus" />
             </FluentCard>
         </SparseEdit>
 
@@ -144,31 +144,23 @@
         _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
     }
 
-    private Task ReportStatus(bool hasChanges)
+    private Task ReportStatus(bool _) => UpdateStatus();
+
+    private Task ReportNestedStatus(bool _)
     {
-        AcceptImmediatelyIfNeeded();
-        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.CommercialId, HasChanges);
-        return OnChanged.InvokeAsync();
+        return UpdateStatus();
     }
 
-    private Task ReportNestedStatus(bool hasChanges)
+    private Task UpdateStatus()
     {
-        AcceptImmediatelyIfNeeded();
         ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.CommercialId, HasChanges);
         return OnChanged.InvokeAsync();
-    }
-
-    private void AcceptImmediatelyIfNeeded()
-    {
-        if (!SectionDraftsEnabled && _childSession!.HasChanges)
-        {
-            ChildSessions.TryAcceptImmediately(_childSession);
-        }
     }
 
     private Task RefreshBaseline()
     {
         _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
+        ChildSessions.SetHasChanges(CatalogChildSessionCoordinator.CommercialId, HasChanges);
         return OnChanged.InvokeAsync();
     }
 

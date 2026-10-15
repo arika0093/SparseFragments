@@ -1,7 +1,7 @@
 @using SparseTypes.Playground.Components
 
 <div class="pg-code-samples">
-    <p class="pg-hint">A shared session scope retains typed child drafts. Each section accepts its own draft explicitly, and the catalog save reviews only accepted changes.</p>
+    <p class="pg-hint">A shared session scope can retain section drafts or automatically merge each child edit into its parent. BatchEdit keeps a multi-field child action as one parent history entry.</p>
     <FluentTabs Orientation="Orientation.Vertical">
         <FluentTab Header="Shapes" Id="code-6-shapes">
             <MonacoView Content="@ShapesCode" Language="csharp" Height="470px" />
@@ -130,7 +130,7 @@
         using SparseTypes.Blazor;
         using SparseTypes.Playground.Models;
 
-        <SparseSessionScope Session="_session">
+        <SparseSessionScope Session="_session" AutoAccept="true">
             <OverviewEditor />
         </SparseSessionScope>
 
@@ -152,16 +152,19 @@
             _draft = child.Session;
         }
 
+        var hasPendingChildEdits = ScopeContext!.HasChanges;
+
+        if (_overview.AutoAcceptConflicts is { Count: > 0 } conflicts)
+        {
+            ShowConflicts(conflicts);
+        }
+
         <SparseEdit Session="_draft" Context="edit">
             <SparseField Path="edit.Path.Name" Context="name">
                 <FluentTextInput Value="@name.Value" ValueChanged="name.ValueChanged" />
             </SparseField>
         </SparseEdit>
 
-        if (!_overview.TryAcceptChanges(out var conflicts))
-        {
-            ShowConflicts(conflicts);
-        }
         """;
 
     private const string WorkflowCode = """
@@ -194,33 +197,25 @@
         """;
 
     private const string HistoryCode = """
+        var history = session.EnableHistory();
         var overview = scope.OpenChildSession(
             session,
             EnterpriseCatalogItem.SparsePath.Overview);
-        overview.Session.Observable.Active = false;
-
-        if (overview.CanUndo)
+        overview.Session.BatchEdit(() =>
         {
-            overview.Undo();
+            overview.Session.Observable.Active = false;
+            overview.Session.Observable.Name = "Revised unit";
+        });
+
+        if (overview.AutoAcceptConflicts is { Count: > 0 } conflicts)
+        {
+            ShowConflicts(conflicts);
         }
 
-        if (overview.CanRedo)
+        // AutoAccept records the batch as one parent-history transition.
+        if (history.CanUndo)
         {
-            overview.Redo();
-        }
-
-        overview.TryAcceptChanges(out _); // Explicitly save the section draft.
-
-        if (session.HasPendingChildSessions)
-        {
-            AskToSaveOrDiscardSections();
-            return;
-        }
-
-        if (session.TryCreateChangeSet(out var changes, out var conflicts))
-        {
-            Review(changes);
-            session.AcceptChanges();
+            history.Undo();
         }
         """;
 }
