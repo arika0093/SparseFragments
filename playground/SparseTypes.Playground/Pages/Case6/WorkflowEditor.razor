@@ -15,11 +15,11 @@
         <FluentCard Class="pg-fluent-card">
             <div class="pg-card-head">
                 <h3>Workflow and work-step order</h3>
-                <span class="pg-has-changes-badge @(HasChanges ? "pg-has-changes" : "pg-no-changes")">
-                    <span aria-hidden="true"></span>@(HasChanges ? "Edited" : "Current")
+                <span class="pg-has-changes-badge @(IsSectionEdited ? "pg-has-changes" : "pg-no-changes")">
+                    <span aria-hidden="true"></span>@(IsSectionEdited ? "Edited" : "Current")
                 </span>
             </div>
-            <CatalogDraftStatus HasChanges="HasChanges" OnChanged="ReportStatus" />
+            <CatalogDraftStatus HasChanges="IsSectionEdited" OnChanged="ReportStatus" />
             <div class="pg-catalog-workflow-layout">
                 <div class="pg-stack">
                     <div class="pg-card-head">
@@ -34,7 +34,7 @@
                                 Handle="true" Class="pg-roster-list" OnUpdate="OnSortableUpdate"
                                 OnAdd="OnTemplateAdded">
                                 <ItemTemplate Context="step">
-                                    <div @key="step.Id" class="@CatalogCollectionRowState.ClassFor(roster?.GetItemState(step.Id) ?? default, detectReorder: true)">
+                                    <div @key="step.Id" class="@StepRowClass(step.Id, roster?.GetItemState(step.Id) ?? default)">
                                         <div class="pg-case6-step-line">
                                             <span class="pg-drag sortable-grab" title="Drag to reorder">⠿</span>
                                             <div class="pg-roster-field">
@@ -62,6 +62,30 @@
                                     </div>
                                 </ItemTemplate>
                             </FluentSortableList>
+                            @foreach (var change in roster?.ChangedItems ?? [])
+                            {
+                                if (change is { IsRemoved: true, Before: { IsPresent: true, Value: CatalogWorkStep removedDraftStep } })
+                                {
+                                    <div class="pg-roster-row pg-removed">
+                                        <div class="pg-catalog-inline-row">
+                                            <span>@removedDraftStep.Name</span>
+                                            <span class="pg-change-remove">Removed</span>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            @foreach (var record in Pending?.RemovedRows(StepsRootPath) ?? [])
+                            {
+                                if (record.Before is { IsPresent: true, Value: CatalogWorkStep removedStep })
+                                {
+                                    <div class="pg-roster-row pg-removed">
+                                        <div class="pg-catalog-inline-row">
+                                            <span>@removedStep.Name</span>
+                                            <span class="pg-change-remove">Removed</span>
+                                        </div>
+                                    </div>
+                                }
+                            }
                         </SparseField>
                         @if (_draftSession.Observable.Steps.Count == 0)
                         {
@@ -148,6 +172,9 @@
     [Parameter]
     public int BaselineVersion { get; set; }
 
+    [Parameter]
+    public CatalogPendingChanges? Pending { get; set; }
+
     [Parameter, EditorRequired]
     public CatalogWorkflow SavedWorkflow { get; set; } = null!;
 
@@ -168,6 +195,53 @@
 
     public CatalogWorkflow? CurrentWorkflow => _draftSession?.GetModelForFrameworkAccess();
     public bool HasChanges => _childSession?.HasChanges == true;
+    private bool IsSectionEdited => HasChanges || RootSectionChanged;
+    private bool RootSectionChanged =>
+        Pending?.IsSubtreeChanged(EnterpriseCatalogItem.SparsePath.Workflow.UntypedPath) == true;
+
+    private SparsePath StepsRootPath =>
+        EnterpriseCatalogItem.SparsePath.Workflow.UntypedPath.Append(
+            CatalogWorkflow.SparsePath.Steps.UntypedPath
+        );
+
+    private SparsePath StepRowRoot(string stepId) =>
+        EnterpriseCatalogItem.SparsePath.Workflow.UntypedPath.Append(
+            CatalogWorkflow.SparsePath.Steps.Key(stepId).UntypedPath
+        );
+
+    // Step rows merge draft state with catalog-merged state. Moved falls back
+    // to the saved order (which only root Save/Reset refresh) so reorder
+    // marking survives section accepts and follows Undo/Redo.
+    private string StepRowClass(string stepId, SparseCollectionItemState local)
+    {
+        var root = Pending?.RowState(StepRowRoot(stepId));
+        if (local is { IsAdded: true } || root?.Kind == SparseFieldChangeKind.Added)
+        {
+            return "pg-roster-row pg-added";
+        }
+
+        if (local is { IsReordered: true } || IsStepReordered(stepId))
+        {
+            return "pg-roster-row pg-moved";
+        }
+
+        if (
+            local is { IsEmpty: false }
+            || root?.IsChanged == true
+            || root?.HasDescendantChange == true
+        )
+        {
+            return "pg-roster-row pg-changed";
+        }
+
+        return "pg-roster-row";
+    }
+
+    private bool IsStepReordered(string stepId)
+    {
+        var savedIndex = SavedWorkflow.Steps.FindIndex(step => step.Id == stepId);
+        return savedIndex >= 0 && savedIndex != IndexOf(stepId);
+    }
 
     public CatalogWorkMaster? GetMasterDefaults(string stepId)
     {

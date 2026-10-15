@@ -13,38 +13,38 @@
         <FluentCard Class="pg-fluent-card">
             <div class="pg-card-head">
                 <h3>Overview</h3>
-                <span class="pg-has-changes-badge @(HasChanges ? "pg-has-changes" : "pg-no-changes")">
-                    <span aria-hidden="true"></span>@(HasChanges ? "Edited" : "Current")
+                <span class="pg-has-changes-badge @(IsSectionEdited ? "pg-has-changes" : "pg-no-changes")">
+                    <span aria-hidden="true"></span>@(IsSectionEdited ? "Edited" : "Current")
                 </span>
             </div>
-            <CatalogDraftStatus HasChanges="HasChanges" OnChanged="ReportStatus" />
+            <CatalogDraftStatus HasChanges="IsSectionEdited" OnChanged="ReportStatus" />
             <div class="pg-stack pg-edit-fields">
                 <SparseField Path="child.Path.ItemCode" Context="itemCode">
-                    <div class="pg-row pg-session-field @(itemCode.IsChanged ? "pg-changed" : "")">
+                    <div class="pg-row pg-session-field @(IsEdited(itemCode) ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">ItemCode <small>string</small></span>
                         <FluentTextInput Value="@itemCode.Value" ValueChanged="itemCode.ValueChanged" />
                     </div>
                 </SparseField>
                 <SparseField Path="child.Path.Name" Context="name">
-                    <div class="pg-row pg-session-field @(name.IsChanged ? "pg-changed" : "")">
+                    <div class="pg-row pg-session-field @(IsEdited(name) ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">Name <small>string</small></span>
                         <FluentTextInput Value="@name.Value" ValueChanged="name.ValueChanged" />
                     </div>
                 </SparseField>
                 <SparseField Path="child.Path.Category" Context="category">
-                    <div class="pg-row pg-session-field @(category.IsChanged ? "pg-changed" : "")">
+                    <div class="pg-row pg-session-field @(IsEdited(category) ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">Category <small>string</small></span>
                         <FluentTextInput Value="@category.Value" ValueChanged="category.ValueChanged" />
                     </div>
                 </SparseField>
                 <SparseField Path="child.Path.Owner" Context="owner">
-                    <div class="pg-row pg-session-field @(owner.IsChanged ? "pg-changed" : "")">
+                    <div class="pg-row pg-session-field @(IsEdited(owner) ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">Owner <small>string</small></span>
                         <FluentTextInput Value="@owner.Value" ValueChanged="owner.ValueChanged" />
                     </div>
                 </SparseField>
                 <SparseField Path="child.Path.Active" Context="active">
-                    <div class="pg-row pg-session-field @(active.IsChanged ? "pg-changed" : "")">
+                    <div class="pg-row pg-session-field @(IsEdited(active) ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">Active <small>bool</small></span>
                         <FluentCheckbox Value="@active.Value" ValueChanged="active.ValueChanged" />
                     </div>
@@ -60,9 +60,10 @@
                     </div>
                 </div>
                 <div class="pg-roster-list">
+                    @{ var aliasMarking = AliasMarking(); }
                     @foreach (var alias in Draft.AlternateCodes)
                     {
-                        <div class="@(_baseline.AlternateCodes.Contains(alias, StringComparer.OrdinalIgnoreCase) ? "pg-roster-row" : "pg-roster-row pg-added")">
+                        <div class="@(aliasMarking.Added.Contains(alias) ? "pg-roster-row pg-added" : "pg-roster-row")">
                             <div class="pg-catalog-inline-row">
                                 <span>@alias</span>
                                 <FluentButton Appearance="ButtonAppearance.Default" Title="Remove code"
@@ -70,8 +71,7 @@
                             </div>
                         </div>
                     }
-                    @foreach (var removed in _baseline.AlternateCodes.Where(alias =>
-                        !Draft.AlternateCodes.Contains(alias, StringComparer.OrdinalIgnoreCase)))
+                    @foreach (var removed in aliasMarking.Removed)
                     {
                         <div class="pg-roster-row pg-removed">
                             <div class="pg-catalog-inline-row">
@@ -106,14 +106,131 @@
     public bool SectionDraftsEnabled { get; set; } = true;
 
     [Parameter]
+    public CatalogPendingChanges? Pending { get; set; }
+
+    [Parameter]
     public EventCallback OnChanged { get; set; }
 
     private ISparseChildEditContext<CatalogOverview, SparseConflict>? _childSession;
     private CatalogOverview.EditSession _draftSession = null!;
-    private CatalogOverview _baseline = null!;
     private string _newAlias = string.Empty;
     private CatalogOverview.Observable Draft => _draftSession.Observable;
     private bool HasChanges => _childSession?.HasChanges == true;
+    private bool IsSectionEdited => HasChanges || RootSectionChanged;
+    private bool RootSectionChanged =>
+        Pending?.IsSubtreeChanged(EnterpriseCatalogItem.SparsePath.Overview.UntypedPath) == true;
+
+    private bool IsEdited<TValue>(SparseFieldContext<CatalogOverview, TValue> field) =>
+        field.IsChanged
+        || Pending?.IsFieldChanged(
+            EnterpriseCatalogItem.SparsePath.Overview.UntypedPath.Append(field.Path.UntypedPath)
+        ) == true;
+
+    // Alias marking compares before/after lists from live change sets instead
+    // of a retained baseline clone, so root Undo/Redo can never desync it.
+    // Draft endpoints come from the child session, merged endpoints from the
+    // shared root snapshot; either side marks the row. Computed once per
+    // render: one child diff plus indexed root queries.
+    private (HashSet<string> Added, HashSet<string> Removed) AliasMarking()
+    {
+        var added = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var removed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (DraftAliasEndpoints(out var draftBefore, out var draftAfter))
+        {
+            CollectAliasMarking(draftBefore, draftAfter, added, removed);
+        }
+
+        if (PendingAliasEndpoints(out var rootBefore, out var rootAfter))
+        {
+            CollectAliasMarking(rootBefore, rootAfter, added, removed);
+        }
+
+        return (added, removed);
+    }
+
+    private void CollectAliasMarking(
+        IReadOnlyList<string> before,
+        IReadOnlyList<string> after,
+        HashSet<string> added,
+        HashSet<string> removed
+    )
+    {
+        var beforeCounts = CountByValue(before);
+        var afterCounts = CountByValue(after);
+        var currentCounts = CountByValue(Draft.AlternateCodes);
+        foreach (var (value, beforeCount) in beforeCounts)
+        {
+            afterCounts.TryGetValue(value, out var afterCount);
+            currentCounts.TryGetValue(value, out var currentCount);
+            if (afterCount < beforeCount && currentCount == 0)
+            {
+                removed.Add(value);
+            }
+        }
+
+        foreach (var (value, afterCount) in afterCounts)
+        {
+            beforeCounts.TryGetValue(value, out var beforeCount);
+            if (afterCount > beforeCount && currentCounts.ContainsKey(value))
+            {
+                added.Add(value);
+            }
+        }
+    }
+
+    private bool DraftAliasEndpoints(
+        out IReadOnlyList<string> before,
+        out IReadOnlyList<string> after
+    )
+    {
+        before = [];
+        after = [];
+        try
+        {
+            var view = ((ISparseChangeSet)_draftSession.PreviewChangeSet()).CaptureQueryView();
+            return CatalogPendingChanges.TryGetStringListEndpoints(
+                view,
+                CatalogOverview.SparsePath.AlternateCodes.UntypedPath,
+                out before,
+                out after
+            );
+        }
+        catch (Exception exception)
+            when (exception is InvalidOperationException
+                or ArgumentException
+                or ObjectDisposedException
+            )
+        {
+            return false;
+        }
+    }
+
+    private bool PendingAliasEndpoints(
+        out IReadOnlyList<string> before,
+        out IReadOnlyList<string> after
+    )
+    {
+        before = [];
+        after = [];
+        return Pending?.TryGetStringListEndpoints(
+            EnterpriseCatalogItem.SparsePath.Overview.UntypedPath.Append(
+                CatalogOverview.SparsePath.AlternateCodes.UntypedPath
+            ),
+            out before,
+            out after
+        ) == true;
+    }
+
+    private static Dictionary<string, int> CountByValue(IEnumerable<string> values)
+    {
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var value in values)
+        {
+            counts[value] = counts.TryGetValue(value, out var count) ? count + 1 : 1;
+        }
+
+        return counts;
+    }
 
     private void CaptureChildContext(
         ISparseChildEditContext<CatalogOverview, SparseConflict> context
@@ -127,7 +244,6 @@
         _childSession = context;
         _draftSession = context.Session as CatalogOverview.EditSession
             ?? throw new InvalidOperationException("The overview edit session is unavailable.");
-        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
     }
 
     private Task ReportStatus(bool _)
@@ -137,7 +253,6 @@
 
     private Task RefreshBaseline()
     {
-        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
         return OnChanged.InvokeAsync();
     }
 
@@ -156,7 +271,6 @@
     private void DiscardChildSession()
     {
         _childSession!.DiscardChanges();
-        _baseline = _draftSession.GetModelForFrameworkAccess().DeepClone();
     }
 
     private Task AddAlias()

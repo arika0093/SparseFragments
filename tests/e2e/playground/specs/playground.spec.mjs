@@ -235,3 +235,44 @@ test("case 6 keeps a post-save edit as a new pending draft", async ({ page }) =>
   await expect(page.getByText("No committed changes", { exact: true })).toBeVisible();
   await expect(itemCode).toHaveValue("e2e-item-code-v2");
 });
+
+test("case 6 keeps Edited marking after saving a section draft", async ({ page }) => {
+  await openCase(page, "case-6", "Enterprise master editing with child sessions");
+  const itemCode = page.locator(".pg-edit-fields .pg-row").filter({ hasText: "ItemCode" }).locator("input").first();
+  const itemCodeRow = page.locator(".pg-edit-fields .pg-row").filter({ hasText: "ItemCode" }).first();
+
+  await enterText(itemCode, "e2e-marked-code");
+  await expect(page.locator(".pg-catalog-tab-badge").filter({ hasText: "Edited" }).first()).toBeVisible();
+  await expect(itemCodeRow).toHaveClass(/pg-changed/);
+
+  await fluentButton(page.locator("#case-6-overview-panel"), "Save section draft").click();
+  await expect(page.getByText("Section draft saved to the catalog session.")).toBeVisible();
+  await expect(page.locator(".pg-catalog-tab-badge").filter({ hasText: "Edited" }).first()).toBeVisible();
+  await expect(itemCodeRow).toHaveClass(/pg-changed/);
+
+  await fluentButton(page, "Save").first().click();
+  const reviewDialog = page.locator(".pg-catalog-review-dialog");
+  await expect(reviewDialog.locator("dialog[open]")).toBeVisible();
+  await fluentButton(reviewDialog, "Save").click();
+  await expect(page.getByText("No committed changes", { exact: true })).toBeVisible();
+  await expect(page.locator(".pg-catalog-tab-badge").filter({ hasText: "Edited" })).toHaveCount(0);
+});
+
+test("case 6 undo after disabling section drafts keeps rendering", async ({ page }) => {
+  await openCase(page, "case-6", "Enterprise master editing with child sessions");
+  const itemCode = page.locator(".pg-edit-fields .pg-row").filter({ hasText: "ItemCode" }).locator("input").first();
+
+  await enterText(itemCode, "e2e-undo-code");
+  await fluentButton(page.locator("#case-6-overview-panel"), "Save section draft").click();
+  await expect(page.getByText("Section draft saved to the catalog session.")).toBeVisible();
+
+  await page.locator("fluent-checkbox").filter({ hasText: "Enable section drafts" }).click();
+  await expect(fluentButton(page, "Undo").first()).toBeVisible();
+  await expect(page.locator(".pg-catalog-tab-badge").filter({ hasText: "Edited" }).first()).toBeVisible();
+  await fluentButton(page, "Undo").first().click();
+  await expect(itemCode).toHaveValue("EQ-2048");
+  await expect(page.locator(".pg-catalog-tab-badge").filter({ hasText: "Edited" })).toHaveCount(0);
+  await fluentButton(page, "Redo").first().click();
+  await expect(itemCode).toHaveValue("e2e-undo-code");
+  await expect(page.locator(".pg-catalog-tab-badge").filter({ hasText: "Edited" }).first()).toBeVisible();
+});

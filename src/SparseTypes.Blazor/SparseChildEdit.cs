@@ -97,12 +97,72 @@ public sealed class SparseChildEdit<TParent, TChild, TChildPaths, TConflict, TCh
         }
     }
 
+    /// <summary>Resolves the live child context without ever reading a disposed one.</summary>
+    /// <remarks>Shares the scope check with <see cref="OnParametersSet"/> but reports transient states (teardown, replaced target, mid-disposal scope) as null instead of throwing; the rebind render that follows fills the subtree back in. Opening here is side-effect free for rendering: it only registers the retained child, never notifies.</remarks>
+    /// <returns>The current context, or null when the subtree must stay blank for this batch.</returns>
+    private SparseChildEditContext<
+        TChild,
+        TChildPaths,
+        TConflict,
+        TChildSession
+    >? TryResolveCurrentContext()
+    {
+        var scope = ScopeContext;
+        var parent = ParentSession;
+        var path = Path;
+        if (scope is null || parent is null || path is null || !scope.OwnsSession(parent))
+        {
+            return null;
+        }
+
+        if (parent is not ISparseEditSessionWithChildren<TParent, TConflict> parentWithChildren)
+        {
+            return null;
+        }
+
+        try
+        {
+            if (
+                !scope.TryOpenChildSession(parentWithChildren, path, out var resolved)
+                || resolved is null
+                || resolved.IsDisposed
+            )
+            {
+                return null;
+            }
+
+            _context = resolved;
+            _boundParentSession = parent;
+            _boundScopeContext = scope;
+            _boundPath = path.UntypedPath;
+            _hasBoundPath = true;
+            return resolved;
+        }
+        catch (ObjectDisposedException)
+        {
+            // The scope is mid-disposal (its entries are being released while
+            // its own disposed flag is already set). The teardown or rebind
+            // render that follows owns the subtree from here.
+            return null;
+        }
+    }
+
     /// <inheritdoc />
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        var context = _context;
         var content = ChildContent;
-        if (context is null || content is null)
+        if (content is null)
+        {
+            return;
+        }
+
+        // Re-resolve instead of trusting the retained context: a descendant
+        // render (for example a child SparseEdit answering its own session
+        // notification) can run after the scope disposed this context but
+        // before the owning scope re-renders and rebinds. Rendering nothing
+        // keeps that transient batch safe; the rebind render follows it.
+        var context = TryResolveCurrentContext();
+        if (context is null)
         {
             return;
         }
@@ -172,10 +232,23 @@ public sealed class SparseChildEdit<TParent, TChild, TChildPaths, TConflict, TCh
                                                 >)(
                                                     _ =>
                                                         childBuilder =>
+                                                        {
+                                                            // Retained fragments execute on child
+                                                            // renders too, so resolve again here:
+                                                            // the bound context may have been
+                                                            // disposed since this tree was built.
+                                                            var current =
+                                                                TryResolveCurrentContext();
+                                                            if (current is null)
+                                                            {
+                                                                return;
+                                                            }
+
                                                             childBuilder.AddContent(
                                                                 0,
-                                                                content(context)
-                                                            )
+                                                                content(current)
+                                                            );
+                                                        }
                                                 )
                                             );
                                             scopeBuilder.CloseComponent();

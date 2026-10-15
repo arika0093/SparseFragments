@@ -16,38 +16,38 @@
                     <h3>@Step.Name master</h3>
                     <p class="pg-hint">Step key: <code>@Step.Id</code>, team: @Step.ResponsibleTeam</p>
                 </div>
-                <span class="pg-has-changes-badge @(HasChanges ? "pg-has-changes" : "pg-no-changes")">
-                    <span aria-hidden="true"></span>@(HasChanges ? "Edited" : "Current")
+                <span class="pg-has-changes-badge @(IsSectionEdited ? "pg-has-changes" : "pg-no-changes")">
+                    <span aria-hidden="true"></span>@(IsSectionEdited ? "Edited" : "Current")
                 </span>
             </div>
-            <CatalogDraftStatus HasChanges="HasChanges" OnChanged="ReportStatus" />
+            <CatalogDraftStatus HasChanges="IsSectionEdited" OnChanged="ReportStatus" />
             <div class="pg-stack pg-edit-fields">
                 <SparseField Path="child.Path.WorkCenter" Context="workCenter">
-                    <div class="pg-row pg-session-field @(workCenter.IsChanged ? "pg-changed" : "")">
+                    <div class="pg-row pg-session-field @(IsEdited(workCenter) ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">WorkCenter <small>string</small></span>
                         <FluentTextInput Value="@workCenter.Value" ValueChanged="workCenter.ValueChanged" />
                     </div>
                 </SparseField>
                 <SparseField Path="child.Path.Equipment" Context="equipment">
-                    <div class="pg-row pg-session-field @(equipment.IsChanged ? "pg-changed" : "")">
+                    <div class="pg-row pg-session-field @(IsEdited(equipment) ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">Equipment <small>string</small></span>
                         <FluentTextInput Value="@equipment.Value" ValueChanged="equipment.ValueChanged" />
                     </div>
                 </SparseField>
                 <SparseField Path="child.Path.SetupMinutes" Context="setupMinutes">
-                    <div class="pg-row pg-session-field @(setupMinutes.IsChanged ? "pg-changed" : "")">
+                    <div class="pg-row pg-session-field @(IsEdited(setupMinutes) ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">SetupMinutes <small>decimal</small></span>
                         <FluentNumberInput TValue="decimal" Value="@setupMinutes.Value" ValueChanged="setupMinutes.ValueChanged" />
                     </div>
                 </SparseField>
                 <SparseField Path="child.Path.Instruction" Context="instruction">
-                    <div class="pg-row pg-session-field @(instruction.IsChanged ? "pg-changed" : "")">
+                    <div class="pg-row pg-session-field @(IsEdited(instruction) ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">Instruction <small>string</small></span>
                         <FluentTextInput Value="@instruction.Value" ValueChanged="instruction.ValueChanged" />
                     </div>
                 </SparseField>
                 <SparseField Path="child.Path.SupervisorApproval" Context="supervisorApproval">
-                    <div class="pg-row pg-session-field @(supervisorApproval.IsChanged ? "pg-changed" : "")">
+                    <div class="pg-row pg-session-field @(IsEdited(supervisorApproval) ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">SupervisorApproval <small>bool</small></span>
                         <FluentCheckbox Value="@supervisorApproval.Value" ValueChanged="supervisorApproval.ValueChanged" />
                     </div>
@@ -76,11 +76,21 @@
     public bool SectionDraftsEnabled { get; set; } = true;
 
     [Parameter]
+    public CatalogPendingChanges? Pending { get; set; }
+
+    [Parameter]
     public EventCallback OnChanged { get; set; }
 
     private ISparseChildEditContext<CatalogWorkMaster, SparseConflict>? _childSession;
     private CatalogWorkMaster.EditSession _draftSession = null!;
     private bool HasChanges => _childSession?.HasChanges == true;
+    private SparsePath SectionRootPath =>
+        EnterpriseCatalogItem.SparsePath.WorkMasters.Key(Step.Id).UntypedPath;
+    private bool IsSectionEdited => HasChanges || Pending?.IsSubtreeChanged(SectionRootPath) == true;
+
+    private bool IsEdited<TValue>(SparseFieldContext<CatalogWorkMaster, TValue> field) =>
+        field.IsChanged
+        || Pending?.IsFieldChanged(SectionRootPath.Append(field.Path.UntypedPath)) == true;
 
     private void CaptureChildContext(
         ISparseChildEditContext<CatalogWorkMaster, SparseConflict> context

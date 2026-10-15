@@ -13,44 +13,44 @@
             <FluentCard Class="pg-fluent-card">
                 <div class="pg-card-head">
                     <h3>Commercial details</h3>
-                    <span class="pg-has-changes-badge @(HasChanges ? "pg-has-changes" : "pg-no-changes")">
-                        <span aria-hidden="true"></span>@(HasChanges ? "Edited" : "Current")
+                    <span class="pg-has-changes-badge @(IsSectionEdited ? "pg-has-changes" : "pg-no-changes")">
+                        <span aria-hidden="true"></span>@(IsSectionEdited ? "Edited" : "Current")
                     </span>
                 </div>
-                <CatalogDraftStatus HasChanges="HasChanges" OnChanged="ReportStatus" />
+                <CatalogDraftStatus HasChanges="IsSectionEdited" OnChanged="ReportStatus" />
                 <div class="pg-stack pg-edit-fields">
                     <SparseField Path="child.Path.Customer" Context="customer">
-                        <div class="pg-row pg-session-field @(customer.IsChanged ? "pg-changed" : "")">
+                        <div class="pg-row pg-session-field @(IsEdited(customer) ? "pg-changed" : "")">
                             <span class="pg-name notranslate" translate="no">Customer <small>string</small></span>
                             <FluentTextInput Value="@customer.Value" ValueChanged="customer.ValueChanged" />
                         </div>
                     </SparseField>
                     <SparseField Path="child.Path.Region" Context="region">
-                        <div class="pg-row pg-session-field @(region.IsChanged ? "pg-changed" : "")">
+                        <div class="pg-row pg-session-field @(IsEdited(region) ? "pg-changed" : "")">
                             <span class="pg-name notranslate" translate="no">Region <small>string</small></span>
                             <FluentTextInput Value="@region.Value" ValueChanged="region.ValueChanged" />
                         </div>
                     </SparseField>
                     <SparseField Path="child.Path.ContractCode" Context="contractCode">
-                        <div class="pg-row pg-session-field @(contractCode.IsChanged ? "pg-changed" : "")">
+                        <div class="pg-row pg-session-field @(IsEdited(contractCode) ? "pg-changed" : "")">
                             <span class="pg-name notranslate" translate="no">ContractCode <small>string</small></span>
                             <FluentTextInput Value="@contractCode.Value" ValueChanged="contractCode.ValueChanged" />
                         </div>
                     </SparseField>
                     <SparseField Path="child.Path.Currency" Context="currency">
-                        <div class="pg-row pg-session-field @(currency.IsChanged ? "pg-changed" : "")">
+                        <div class="pg-row pg-session-field @(IsEdited(currency) ? "pg-changed" : "")">
                             <span class="pg-name notranslate" translate="no">Currency <small>string</small></span>
                             <FluentTextInput Value="@currency.Value" ValueChanged="currency.ValueChanged" />
                         </div>
                     </SparseField>
                     <SparseField Path="child.Path.UnitPrice" Context="unitPrice">
-                        <div class="pg-row pg-session-field @(unitPrice.IsChanged ? "pg-changed" : "")">
+                        <div class="pg-row pg-session-field @(IsEdited(unitPrice) ? "pg-changed" : "")">
                             <span class="pg-name notranslate" translate="no">UnitPrice <small>decimal</small></span>
                             <FluentNumberInput TValue="decimal" Value="@unitPrice.Value" ValueChanged="unitPrice.ValueChanged" />
                         </div>
                     </SparseField>
                     <SparseField Path="child.Path.AnnualVolume" Context="annualVolume">
-                        <div class="pg-row pg-session-field @(annualVolume.IsChanged ? "pg-changed" : "")">
+                        <div class="pg-row pg-session-field @(IsEdited(annualVolume) ? "pg-changed" : "")">
                             <span class="pg-name notranslate" translate="no">AnnualVolume <small>int</small></span>
                             <FluentNumberInput TValue="int" Value="@annualVolume.Value" ValueChanged="annualVolume.ValueChanged" />
                         </div>
@@ -70,6 +70,7 @@
                                 <CatalogPriceTierEditor Code="@tierRow.Item.Code"
                                     State="tierRow.RequireItemState()"
                                     SectionDraftsEnabled="SectionDraftsEnabled"
+                                    Pending="Pending"
                                     OpenOnLoad="@(_tierToOpen == tierRow.Item.Code)"
                                     OnOpened="ClearTierToOpen" OnRemove="() => RemoveTier(tierRow)"
                                     OnChanged="ReportNestedStatus" />
@@ -83,6 +84,18 @@
                                         <span class="pg-change-remove">Removed</span>
                                     </div>
                                 </div>
+                            }
+                            @foreach (var record in Pending?.RemovedRows(TiersRootPath) ?? [])
+                            {
+                                if (record.Before is { IsPresent: true, Value: CatalogPriceTier removedTier })
+                                {
+                                    <div class="pg-roster-row pg-removed">
+                                        <div class="pg-catalog-inline-row">
+                                            <span>@removedTier.Label</span>
+                                            <span class="pg-change-remove">Removed</span>
+                                        </div>
+                                    </div>
+                                }
                             }
                     </div>
                 </div>
@@ -111,6 +124,9 @@
     public bool SectionDraftsEnabled { get; set; } = true;
 
     [Parameter]
+    public CatalogPendingChanges? Pending { get; set; }
+
+    [Parameter]
     public EventCallback OnChanged { get; set; }
 
     private ISparseChildEditContext<CatalogCommercialDetails, SparseConflict>? _childSession;
@@ -119,6 +135,9 @@
     private string? _tierToOpen;
     private CatalogCommercialDetails.Observable Draft => _draftSession.Observable;
     private bool HasChanges => _childSession?.HasChanges == true;
+    private bool IsSectionEdited => HasChanges || RootSectionChanged;
+    private bool RootSectionChanged =>
+        Pending?.IsSubtreeChanged(EnterpriseCatalogItem.SparsePath.Commercial.UntypedPath) == true;
 
     private void CaptureChildContext(
         ISparseChildEditContext<CatalogCommercialDetails, SparseConflict> context
@@ -135,6 +154,17 @@
     }
 
     private Task ReportStatus(bool _) => UpdateStatus();
+
+    private bool IsEdited<TValue>(SparseFieldContext<CatalogCommercialDetails, TValue> field) =>
+        field.IsChanged
+        || Pending?.IsFieldChanged(
+            EnterpriseCatalogItem.SparsePath.Commercial.UntypedPath.Append(field.Path.UntypedPath)
+        ) == true;
+
+    private SparsePath TiersRootPath =>
+        EnterpriseCatalogItem.SparsePath.Commercial.UntypedPath.Append(
+            CatalogCommercialDetails.SparsePath.PriceTiers.UntypedPath
+        );
 
     private Task ReportNestedStatus(bool _)
     {

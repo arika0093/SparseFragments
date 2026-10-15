@@ -156,3 +156,43 @@ public partial class ScopeGrandchildRoot
 
     public ScopeGrandchildChild Child { get; set; } = new();
 }
+
+// Case 6-shaped catalog: root section with a keyed grandchild collection,
+// mirroring EnterpriseCatalogItem → Commercial → keyed PriceTiers.
+[SparseModel]
+public partial class Case6Band
+{
+    [SparseKey]
+    public string Code { get; set; } = string.Empty;
+
+    public decimal Percent { get; set; }
+}
+
+[SparseModel]
+public partial class Case6Tier
+{
+    [SparseKey]
+    public string Code { get; set; } = string.Empty;
+
+    public string Label { get; set; } = string.Empty;
+
+    public decimal UnitPrice { get; set; }
+
+    public List<Case6Band> Bands { get; set; } = new();
+}
+
+[SparseModel]
+public partial class Case6Section
+{
+    public string Note { get; set; } = string.Empty;
+
+    public List<Case6Tier> Tiers { get; set; } = new();
+}
+
+[SparseModel]
+public partial class Case6Catalog
+{
+    public string Title { get; set; } = string.Empty;
+
+    public Case6Section Section { get; set; } = new();
+}

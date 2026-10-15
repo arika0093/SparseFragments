@@ -3,6 +3,7 @@
 @using SparseTypes.Playground.Models
 @using SparseTypes.Playground.Components
 <SparseSessionScope @key="_session" Session="_session" AutoAccept="@(!_sectionDraftsEnabled)">
+@{ _pending = CatalogPendingChanges.TryCaptureRoot(_session); }
 <div class="pg-stack">
     <FluentCard Class="pg-fluent-card pg-catalog-header" Shadow="CardShadow.None">
         <div class="pg-catalog-header-main">
@@ -47,7 +48,7 @@
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <OverviewEditor SectionDraftsEnabled="_sectionDraftsEnabled" OnChanged="Refresh" />
+                    <OverviewEditor SectionDraftsEnabled="_sectionDraftsEnabled" Pending="_pending" OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
@@ -61,7 +62,7 @@
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <CommercialEditor SectionDraftsEnabled="_sectionDraftsEnabled" OnChanged="Refresh" />
+                    <CommercialEditor SectionDraftsEnabled="_sectionDraftsEnabled" Pending="_pending" OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
@@ -75,7 +76,7 @@
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <OperationsEditor SectionDraftsEnabled="_sectionDraftsEnabled" OnChanged="Refresh" />
+                    <OperationsEditor SectionDraftsEnabled="_sectionDraftsEnabled" Pending="_pending" OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
@@ -91,7 +92,7 @@
                 <div class="pg-section-content">
                     <WorkflowEditor @ref="_workflowEditor" SectionDraftsEnabled="_sectionDraftsEnabled"
                         SavedWorkflow="_savedWorkflow" OnAccepted="EnsureAcceptedWorkMasters"
-                        BaselineVersion="_baselineVersion" OnChanged="Refresh" />
+                        BaselineVersion="_baselineVersion" Pending="_pending" OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
@@ -127,7 +128,7 @@
                                     <ChildContent>
                                         <StepMasterEditor @key="step.Id" Step="step"
                                             SectionDraftsEnabled="_sectionDraftsEnabled"
-                                            OnChanged="Refresh" />
+                                            Pending="_pending" OnChanged="Refresh" />
                                     </ChildContent>
                                 </FluentTab>
                             }
@@ -178,6 +179,7 @@
 
     private EnterpriseCatalogItem _model = null!;
     private EnterpriseCatalogItem.EditSession _session = null!;
+    private CatalogPendingChanges? _pending;
     private ISparseEditHistory _history = null!;
     private FluentDialog? _saveDialog;
     private WorkflowEditor? _workflowEditor;
@@ -526,7 +528,8 @@
         where TChild : class
         where TChildPaths : ISparseTypedPath<TChild, TChild>
         where TChildSession : ISparseEditSessionWithPaths<TChild, TChildPaths> =>
-        _session.GetChildSessionStatus(path) == SparseChildSessionStatus.OpenChanged;
+        _session.GetChildSessionStatus(path) == SparseChildSessionStatus.OpenChanged
+        || _pending?.IsSubtreeChanged(path.UntypedPath) == true;
 
     private void CreateSession()
     {

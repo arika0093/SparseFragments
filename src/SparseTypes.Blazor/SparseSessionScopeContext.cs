@@ -540,6 +540,9 @@ public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
 
     internal SparseSessionScopeContext<TModel> DescendantScopeContext { get; }
 
+    // Lets render fragments re-resolve liveness without touching Session.
+    internal bool IsDisposed => _disposed;
+
     ISparseEditSession<TModel> ISparseChildEditContext<TModel, TConflict>.Session => Session;
 
     /// <summary>Gets the generated paths rooted at the child model.</summary>
