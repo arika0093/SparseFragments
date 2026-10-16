@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 
 namespace SparseTypes.Blazor.Tests;
 
-// Case 6 regression for #302: section edit → child accept → AutoAccept mode
+// Case 6 regression for #302: section edit → child accept → PassThrough mode
 // change → root Undo → root Redo with nested keyed grandchildren. The root
 // history replay may replace nested instances, which must rebind descendant
 // scopes before any render fragment reads a disposed session.
@@ -41,18 +41,14 @@ public sealed class Case6ChildContextRegressionTests
     private static RenderFragment ScopeContent(
         ISparseEditSession<Case6Catalog> session,
         RenderFragment child,
-        bool? autoAccept = null
+        SparseChildEditMode? mode = null
     ) =>
         builder =>
         {
             builder.OpenComponent<SparseSessionScope<Case6Catalog>>(0);
             builder.AddAttribute(1, nameof(SparseSessionScope<Case6Catalog>.Session), session);
             builder.AddAttribute(2, nameof(SparseSessionScope<Case6Catalog>.ChildContent), child);
-            builder.AddAttribute(
-                3,
-                nameof(SparseSessionScope<Case6Catalog>.AutoAccept),
-                autoAccept
-            );
+            builder.AddAttribute(3, nameof(SparseSessionScope<Case6Catalog>.Mode), mode);
             builder.CloseComponent();
         };
 
@@ -83,7 +79,7 @@ public sealed class Case6ChildContextRegressionTests
         };
 
     [Test]
-    public async Task UndoAfterAutoAcceptModeChangeRebindsNestedKeyedGrandchildren()
+    public async Task UndoAfterPassThroughModeChangeRebindsNestedKeyedGrandchildren()
     {
         var live = Catalog();
         var session = live.CreateEditSession();
@@ -178,8 +174,10 @@ public sealed class Case6ChildContextRegressionTests
         live.Section.Note.ShouldBe("Draft note");
         live.Section.Tiers.Single(tier => tier.Code == "standard").Label.ShouldBe("Draft label");
 
-        // Disable section drafts: the scope flips to AutoAccept.
-        await tree.ShowAsync(ScopeContent(session, SectionContent(session), autoAccept: true));
+        // Disable section drafts: the scope switches to pass-through edits.
+        await tree.ShowAsync(
+            ScopeContent(session, SectionContent(session), SparseChildEditMode.PassThrough)
+        );
         shownNote.ShouldBe("Draft note");
         shownLabel.ShouldBe("Draft label");
 
@@ -276,10 +274,10 @@ public sealed class Case6ChildContextRegressionTests
             );
 
         using var tree = await Headless.Tree.CreateAsync(
-            ScopeContent(session, SectionContent(session), autoAccept: true)
+            ScopeContent(session, SectionContent(session), SparseChildEditMode.PassThrough)
         );
 
-        // Structural edit through the tier draft in AutoAccept mode: the merge
+        // Structural edit through the tier draft in PassThrough mode: the merge
         // cascades into the root session, which may replace nested instances
         // and dispose the very contexts whose renders are already queued.
         ((Case6Tier.EditSession)tierContexts[0].Session).Observable.Bands.AddModel(
@@ -361,7 +359,9 @@ public sealed class Case6ChildContextRegressionTests
         await tree.FlushAsync();
         sectionContexts[0].TryAcceptChanges(out _).ShouldBeTrue();
         await tree.FlushAsync();
-        await tree.ShowAsync(ScopeContent(session, SectionContent(session), autoAccept: true));
+        await tree.ShowAsync(
+            ScopeContent(session, SectionContent(session), SparseChildEditMode.PassThrough)
+        );
 
         // Queue a tier-subtree render while its context is still live, then
         // dispose it underneath via root Undo before anything flushes.
@@ -444,7 +444,9 @@ public sealed class Case6ChildContextRegressionTests
         ((Case6Section.EditSession)sectionContexts[0].Session).Observable.Note = "Draft note";
         ((Case6Tier.EditSession)tierContexts[0].Session).Observable.Label = "Draft label";
         sectionContexts[0].TryAcceptChanges(out _).ShouldBeTrue();
-        await tree.ShowAsync(ScopeContent(session, SectionContent(session), autoAccept: true));
+        await tree.ShowAsync(
+            ScopeContent(session, SectionContent(session), SparseChildEditMode.PassThrough)
+        );
         shownNote.ShouldBe("Draft note");
         shownLabel.ShouldBe("Draft label");
 
@@ -466,15 +468,17 @@ public sealed class Case6ChildContextRegressionTests
         // report the restored state and history.
         Should.Throw<ObjectDisposedException>(() => sectionContexts[0].Session);
         Should.Throw<ObjectDisposedException>(() => tierContexts[0].Session);
-        sectionContexts[^1].HasChanges.ShouldBeFalse();
-        tierContexts[^1].HasChanges.ShouldBeFalse();
+        sectionContexts[^1].HasChanges.ShouldBeTrue();
+        tierContexts[^1].HasChanges.ShouldBeTrue();
         session.HasOwnChanges.ShouldBeTrue();
         history.CanUndo.ShouldBeTrue();
         history.CanRedo.ShouldBeFalse();
 
         // Replacement, removal, and reorder replay through the same safe path.
         // Back to drafts so the structural edits merge as one history entry.
-        await tree.ShowAsync(ScopeContent(session, SectionContent(session), autoAccept: false));
+        await tree.ShowAsync(
+            ScopeContent(session, SectionContent(session), SparseChildEditMode.Draft)
+        );
         sectionContexts[^1].HasChanges.ShouldBeFalse();
         var sectionDraft = (Case6Section.EditSession)sectionContexts[^1].Session;
         sectionDraft.Observable.Tiers.RemoveAt(1);
@@ -489,7 +493,9 @@ public sealed class Case6ChildContextRegressionTests
         sectionDraft.Observable.Tiers.Move(0, 1);
         sectionContexts[^1].TryAcceptChanges(out _).ShouldBeTrue();
         live.Section.Tiers.Select(tier => tier.Code).ShouldBe(["promo", "standard"]);
-        await tree.ShowAsync(ScopeContent(session, SectionContent(session), autoAccept: true));
+        await tree.ShowAsync(
+            ScopeContent(session, SectionContent(session), SparseChildEditMode.PassThrough)
+        );
 
         history.Undo();
         live.Section.Tiers.Select(tier => tier.Code).ShouldBe(["standard", "volume"]);
@@ -569,7 +575,7 @@ public sealed class Case6ChildContextRegressionTests
         using var tree = await Headless.Tree.CreateAsync(
             ScopeContent(session, SectionContent(session))
         );
-        var autoAccept = false;
+        var mode = SparseChildEditMode.Draft;
         var random = new Random(302);
         for (var step = 0; step < 60; step++)
         {
@@ -619,11 +625,14 @@ public sealed class Case6ChildContextRegressionTests
                     // while child edits are pending.
                     if (!session.HasPendingChildSessions)
                     {
-                        autoAccept = !autoAccept;
+                        mode =
+                            mode == SparseChildEditMode.Draft
+                                ? SparseChildEditMode.PassThrough
+                                : SparseChildEditMode.Draft;
                         try
                         {
                             await tree.ShowAsync(
-                                ScopeContent(session, SectionContent(session), autoAccept)
+                                ScopeContent(session, SectionContent(session), mode)
                             );
                         }
                         catch (InvalidOperationException) { }

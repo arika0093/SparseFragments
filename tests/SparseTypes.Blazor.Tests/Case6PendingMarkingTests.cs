@@ -251,7 +251,7 @@ public sealed class Case6PendingMarkingTests
     }
 
     [Test]
-    public async Task AutoAcceptedEditsClearDraftStateAndRemainInRootChangeSet()
+    public async Task PassThroughEditsReportParentChangesAndRemainInRootChangeSet()
     {
         var live = Catalog();
         var session = live.CreateEditSession();
@@ -262,16 +262,16 @@ public sealed class Case6PendingMarkingTests
             context => sectionContext = context
         );
         using var tree = await Headless.Tree.CreateAsync(
-            ChildScope.Root(session, child, autoAccept: true)
+            ChildScope.Root(session, child, mode: SparseChildEditMode.PassThrough)
         );
 
         var section = (Case6Section.EditSession)sectionContext!.Session;
         section.Observable.Note = "Auto";
         await tree.FlushAsync();
 
-        // AutoAccept merged into the parent: the child draft is clear, while
-        // the root retains the unsaved change.
-        sectionContext.HasChanges.ShouldBeFalse();
+        // Pass-through accepts into the parent, which owns the pending state.
+        sectionContext.HasChanges.ShouldBeTrue();
+        section.HasOwnChanges.ShouldBeFalse();
         session.HasOwnChanges.ShouldBeTrue();
         section.FieldState(Case6Section.SparsePath.Note).IsChanged.ShouldBeFalse();
         var merged = RootView(session);
@@ -283,6 +283,44 @@ public sealed class Case6PendingMarkingTests
         await tree.FlushAsync();
         SubtreeChanged(RootView(session), SectionPath).ShouldBeFalse();
         live.Section.Note.ShouldBe("Baseline");
+    }
+
+    [Test]
+    public async Task PassThroughCollectionStateIncludesNestedKeyedRows()
+    {
+        var live = Catalog();
+        var session = live.CreateEditSession();
+        var history = session.EnableHistory();
+        ISparseChildEditContext<Case6Tier, SparseConflict>? tierContext = null;
+        SparseFieldContext<Case6Tier, List<Case6Band>>? bandsField = null;
+        using var tree = await Headless.Tree.CreateAsync(
+            ChildScope.Root(
+                session,
+                ChildScope.SectionWithTier(
+                    (ISparseEditSessionWithChildren<Case6Catalog, SparseConflict>)session,
+                    context => tierContext = context,
+                    context => bandsField = context
+                ),
+                mode: SparseChildEditMode.PassThrough
+            )
+        );
+
+        var tier = (Case6Tier.EditSession)tierContext!.Session;
+        tier.Observable.Bands.AddModel(new Case6Band { Code = "promo", Percent = 7m });
+        await tree.FlushAsync();
+
+        tierContext.HasChanges.ShouldBeTrue();
+        tier.HasOwnChanges.ShouldBeFalse();
+        bandsField!.TryGetCollectionState(out var collection).ShouldBeTrue();
+        collection.ShouldNotBeNull();
+        collection.Value.GetItemState("promo").IsAdded.ShouldBeTrue();
+
+        history.Undo();
+        await tree.FlushAsync();
+        bandsField.TryGetCollectionState(out collection).ShouldBeTrue();
+        collection.ShouldNotBeNull();
+        collection.Value.GetItemState("promo").IsEmpty.ShouldBeTrue();
+        live.Section.Tiers[0].Bands.Select(static band => band.Code).ShouldBe(["annual"]);
     }
 
     [Test]
@@ -309,7 +347,7 @@ public sealed class Case6PendingMarkingTests
         public static RenderFragment Root(
             ISparseEditSession<Case6Catalog> session,
             RenderFragment child,
-            bool? autoAccept = null
+            SparseChildEditMode? mode = null
         ) =>
             builder =>
             {
@@ -320,11 +358,7 @@ public sealed class Case6PendingMarkingTests
                     nameof(SparseSessionScope<Case6Catalog>.ChildContent),
                     child
                 );
-                builder.AddAttribute(
-                    3,
-                    nameof(SparseSessionScope<Case6Catalog>.AutoAccept),
-                    autoAccept
-                );
+                builder.AddAttribute(3, nameof(SparseSessionScope<Case6Catalog>.Mode), mode);
                 builder.CloseComponent();
             };
 
@@ -341,6 +375,47 @@ public sealed class Case6PendingMarkingTests
                         capture(context);
                         builder.AddContent(0, "section");
                     }
+            );
+
+        public static RenderFragment SectionWithTier(
+            ISparseEditSessionWithChildren<Case6Catalog, SparseConflict> parent,
+            Action<ISparseChildEditContext<Case6Tier, SparseConflict>> captureTier,
+            Action<SparseFieldContext<Case6Tier, List<Case6Band>>> captureBands
+        ) =>
+            Child(
+                parent,
+                Case6Catalog.SparsePath.Section,
+                sectionContext =>
+                    Child(
+                        (ISparseEditSessionWithChildren<Case6Section, SparseConflict>)
+                            sectionContext.Session,
+                        Case6Section.SparsePath.Tiers.Key("standard"),
+                        tierContext =>
+                            builder =>
+                            {
+                                captureTier(tierContext);
+                                builder.OpenComponent<SparseField<Case6Tier, List<Case6Band>>>(0);
+                                builder.AddAttribute(
+                                    1,
+                                    nameof(SparseField<Case6Tier, List<Case6Band>>.Path),
+                                    Case6Tier.SparsePath.Bands
+                                );
+                                builder.AddAttribute(
+                                    2,
+                                    nameof(SparseField<Case6Tier, List<Case6Band>>.ChildContent),
+                                    (RenderFragment<
+                                        SparseFieldContext<Case6Tier, List<Case6Band>>
+                                    >)(
+                                        field =>
+                                            fieldBuilder =>
+                                            {
+                                                captureBands(field);
+                                            }
+                                    )
+                                );
+                                builder.CloseComponent();
+                            }
+                    )
             );
 
         private static RenderFragment Child<TParent, TChild, TPaths, TConflict, TSession>(

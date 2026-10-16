@@ -431,7 +431,7 @@ public sealed class SparseSessionScopeTests
 
         public static async Task<ScopeHarness> CreateAsync(
             ISparseEditSession<OrderDto> session,
-            bool? autoAccept = null
+            SparseChildEditMode? mode = null
         )
         {
             var services = new ServiceCollection().AddLogging().BuildServiceProvider();
@@ -452,10 +452,7 @@ public sealed class SparseSessionScopeTests
                 );
                 builder.CloseComponent();
             };
-            var rootId = await renderer.RenderRootAsync(
-                scope,
-                ParametersFor(session, child, autoAccept)
-            );
+            var rootId = await renderer.RenderRootAsync(scope, ParametersFor(session, child, mode));
             await renderer.DispatchAsync(() => { });
             if (consumer is null)
             {
@@ -471,11 +468,11 @@ public sealed class SparseSessionScopeTests
             await _renderer.DispatchAsync(() => { });
         }
 
-        public async Task SetAutoAcceptAsync(bool? autoAccept)
+        public async Task SetModeAsync(SparseChildEditMode? mode)
         {
             await _renderer.RenderAsync(
                 _rootId,
-                ParametersFor((ISparseEditSession<OrderDto>)Scope.Session!, _child, autoAccept)
+                ParametersFor((ISparseEditSession<OrderDto>)Scope.Session!, _child, mode)
             );
             await _renderer.DispatchAsync(() => { });
         }
@@ -498,13 +495,13 @@ public sealed class SparseSessionScopeTests
         private static ParameterView ParametersFor(
             ISparseEditSession<OrderDto> session,
             RenderFragment child,
-            bool? autoAccept = null
+            SparseChildEditMode? mode = null
         ) =>
             ParameterView.FromDictionary(
                 new Dictionary<string, object?>
                 {
                     [nameof(SparseSessionScope<OrderDto>.Session)] = session,
-                    [nameof(SparseSessionScope<OrderDto>.AutoAccept)] = autoAccept,
+                    [nameof(SparseSessionScope<OrderDto>.Mode)] = mode,
                     [nameof(SparseSessionScope<OrderDto>.ChildContent)] = child,
                 }
             );
@@ -790,16 +787,19 @@ public sealed class SparseSessionScopeTests
     }
 
     [Test]
-    public async Task AutoAcceptMergesChildBatchAsOneParentHistoryEntry()
+    public async Task PassThroughMergesChildBatchAndReportsParentChanges()
     {
         var model = Order();
         var parent = model.CreateEditSession();
         var parentHistory = parent.EnableHistory();
-        using var harness = await ScopeHarness.CreateAsync(parent, autoAccept: true);
+        using var harness = await ScopeHarness.CreateAsync(
+            parent,
+            mode: SparseChildEditMode.PassThrough
+        );
         var scope = harness.Consumer.ScopeContext!;
         var child = scope.OpenChildSession(parent, OrderDto.SparsePath.Customer);
         var acceptedCount = 0;
-        child.AutoAccepted += () => acceptedCount++;
+        child.Accepted += () => acceptedCount++;
 
         child.Session.BatchEdit(() =>
         {
@@ -810,9 +810,10 @@ public sealed class SparseSessionScopeTests
 
         model.Customer.Name.ShouldBe("Grace");
         model.Customer.Email.ShouldBe("grace@example.com");
-        child.HasChanges.ShouldBeFalse();
-        child.AutoAcceptConflicts.ShouldBeNull();
+        child.HasChanges.ShouldBeTrue();
+        child.Conflicts.ShouldBeNull();
         scope.HasChanges.ShouldBeFalse();
+        scope.HasChangesFor(OrderDto.SparsePath.Customer).ShouldBeTrue();
         acceptedCount.ShouldBe(1);
         parentHistory.CanUndo.ShouldBeTrue();
 
@@ -822,6 +823,7 @@ public sealed class SparseSessionScopeTests
         model.Customer.Email.ShouldBe("ada@example.com");
         parent.HasChanges.ShouldBeFalse();
         child.HasChanges.ShouldBeFalse();
+        scope.HasChangesFor(OrderDto.SparsePath.Customer).ShouldBeFalse();
         scope.HasChanges.ShouldBeFalse();
 
         parentHistory.CanRedo.ShouldBeTrue();
@@ -830,11 +832,37 @@ public sealed class SparseSessionScopeTests
         model.Customer.Name.ShouldBe("Grace");
         model.Customer.Email.ShouldBe("grace@example.com");
         parent.HasChanges.ShouldBeTrue();
-        child.HasChanges.ShouldBeFalse();
+        child.HasChanges.ShouldBeTrue();
     }
 
     [Test]
-    public async Task AutoAcceptModeChangeIsRejectedWhileChildDraftIsPending()
+    public async Task PassThroughParentChangesNotifyOnceAfterRebasingCleanChildren()
+    {
+        var model = Order();
+        var parent = model.CreateEditSession();
+        using var harness = await ScopeHarness.CreateAsync(
+            parent,
+            mode: SparseChildEditMode.PassThrough
+        );
+        var scope = harness.Consumer.ScopeContext!;
+        var customer = scope.OpenChildSession(parent, OrderDto.SparsePath.Customer);
+        var line = scope.OpenChildSession(parent, OrderDto.SparsePath.Lines.Key("a"));
+        var notifications = 0;
+        void OnChanged() => notifications++;
+        scope.Changed += OnChanged;
+
+        parent.Observable.Number = "ORD-2";
+        await harness.FlushAsync();
+
+        scope.Changed -= OnChanged;
+        notifications.ShouldBe(1);
+        parent.HasPendingChildSessions.ShouldBeFalse();
+        Should.Throw<ObjectDisposedException>(() => _ = customer.Session);
+        Should.Throw<ObjectDisposedException>(() => _ = line.Session);
+    }
+
+    [Test]
+    public async Task PassThroughModeChangeIsRejectedWhileChildDraftIsPending()
     {
         var model = Order();
         var parent = model.CreateEditSession();
@@ -847,7 +875,7 @@ public sealed class SparseSessionScopeTests
         InvalidOperationException? rejection = null;
         try
         {
-            await harness.SetAutoAcceptAsync(true);
+            await harness.SetModeAsync(SparseChildEditMode.PassThrough);
         }
         catch (InvalidOperationException exception)
         {
@@ -856,14 +884,15 @@ public sealed class SparseSessionScopeTests
 
         rejection.ShouldNotBeNull();
         rejection!.Message.ShouldContain("while child edits are pending");
-        child.AutoAcceptConflicts.ShouldBeNull();
+        child.Conflicts.ShouldBeNull();
         child.HasChanges.ShouldBeTrue();
         scope.HasChanges.ShouldBeTrue();
         model.Customer.Name.ShouldBe("Parent");
 
         child.DiscardChanges();
-        await harness.SetAutoAcceptAsync(true);
-        child.HasChanges.ShouldBeFalse();
+        await harness.SetModeAsync(SparseChildEditMode.PassThrough);
+        child.Mode.ShouldBe(SparseChildEditMode.PassThrough);
+        child.HasChanges.ShouldBeTrue();
     }
 
     [Test]

@@ -13,16 +13,19 @@ public sealed class SparseFieldContext<TModel, TValue>
     where TModel : class
 {
     private readonly ISparseEditSession<TModel> _session;
+    private readonly SparseSessionScopeContext<TModel>? _scopeContext;
 
     internal SparseFieldContext(
         ComponentBase receiver,
         ISparseEditSession<TModel> session,
+        SparseSessionScopeContext<TModel>? scopeContext,
         SparseFieldBinding<TModel, TValue> binding,
         ISparseTypedPath<TModel, TValue> path
     )
     {
         ArgumentNullException.ThrowIfNull(receiver);
         _session = session;
+        _scopeContext = scopeContext;
         Binding = binding;
         Path = path;
         ValueChanged = EventCallback.Factory.Create<TValue>(
@@ -118,7 +121,9 @@ public sealed class SparseFieldContext<TModel, TValue>
     /// <param name="state">The point-in-time view on success.</param>
     /// <returns>True when the path addresses a root keyed or dictionary collection.</returns>
     public bool TryGetCollectionState(out SparseCollectionState? state) =>
-        SparseSessionInterop.TryCollectionState(_session, Path.UntypedPath, out state);
+        _scopeContext?.OwnsSession(_session) == true
+            ? _scopeContext.TryCollectionState(Path.UntypedPath, out state)
+            : SparseSessionInterop.TryCollectionState(_session, Path.UntypedPath, out state);
 
     /// <summary>Navigates to a child member with a root-preserving compile-time typed path.</summary>
     /// <remarks>The selector must contain only member accesses.</remarks>

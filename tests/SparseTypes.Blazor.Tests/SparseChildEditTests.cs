@@ -58,7 +58,7 @@ public sealed class SparseChildEditTests
         ISparseEditSession<TModel> session,
         RenderFragment child,
         Action<SparseSessionScope<TModel>> capture,
-        bool? autoAccept = null
+        SparseChildEditMode? mode = null
     )
         where TModel : class =>
         builder =>
@@ -66,7 +66,7 @@ public sealed class SparseChildEditTests
             builder.OpenComponent<SparseSessionScope<TModel>>(0);
             builder.AddAttribute(1, nameof(SparseSessionScope<TModel>.Session), session);
             builder.AddAttribute(2, nameof(SparseSessionScope<TModel>.ChildContent), child);
-            builder.AddAttribute(3, nameof(SparseSessionScope<TModel>.AutoAccept), autoAccept);
+            builder.AddAttribute(3, nameof(SparseSessionScope<TModel>.Mode), mode);
             builder.AddComponentReferenceCapture(
                 4,
                 component => capture((SparseSessionScope<TModel>)component)
@@ -166,6 +166,41 @@ public sealed class SparseChildEditTests
         await tree.FlushAsync();
         typedSession.FieldState(OrderCustomer.SparsePath.Name).IsChanged.ShouldBeTrue();
         session.GetModelForFrameworkAccess().Customer.Name.ShouldBe("Ada");
+    }
+
+    [Test]
+    public async Task PassThroughFieldsHighlightParentChangesUntilTheParentAccepts()
+    {
+        var model = new OrderDto { Customer = new OrderCustomer { Name = "Ada" } };
+        var session = model.CreateEditSession();
+        var contexts = new List<ISparseChildEditContext<OrderCustomer, SparseConflict>>();
+        var fields = new List<SparseFieldContext<OrderCustomer, string>>();
+        var child = Child(
+            (ISparseEditSessionWithChildren<OrderDto, SparseConflict>)session,
+            OrderDto.SparsePath.Customer,
+            OrderCustomer.SparsePath.Name,
+            contexts.Add,
+            fields.Add
+        );
+        using var tree = await Headless.Tree.CreateAsync(
+            ScopeContent(session, child, static _ => { }, SparseChildEditMode.PassThrough)
+        );
+
+        var context = contexts.ShouldHaveSingleItem();
+        ((OrderCustomer.EditSession)context.Session).Observable.Name = "Grace";
+        await tree.FlushAsync();
+
+        model.Customer.Name.ShouldBe("Grace");
+        session.HasOwnChanges.ShouldBeTrue();
+        context.HasChanges.ShouldBeTrue();
+        fields[^1].IsChanged.ShouldBeTrue();
+
+        session.AcceptChanges();
+        await tree.FlushAsync();
+
+        session.HasOwnChanges.ShouldBeFalse();
+        context.HasChanges.ShouldBeFalse();
+        fields[^1].IsChanged.ShouldBeFalse();
     }
 
     [Test]
@@ -408,7 +443,7 @@ public sealed class SparseChildEditTests
     }
 
     [Test]
-    public async Task AutoAcceptModeCannotChangeWhileChildEditsArePending()
+    public async Task PassThroughModeCannotChangeWhileChildEditsArePending()
     {
         var root = new ScopeGrandchildRoot
         {
@@ -439,7 +474,7 @@ public sealed class SparseChildEditTests
         context.HasChanges.ShouldBeTrue();
 
         var failure = await tree.TryShowAsync(
-            ScopeContent(session, child, static _ => { }, autoAccept: true)
+            ScopeContent(session, child, static _ => { }, mode: SparseChildEditMode.PassThrough)
         );
 
         failure.ShouldNotBeNull();

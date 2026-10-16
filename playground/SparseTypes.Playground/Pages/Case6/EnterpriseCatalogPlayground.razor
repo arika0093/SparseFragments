@@ -3,7 +3,8 @@
 @using SparseTypes.Playground.Models
 @using SparseTypes.Playground.Components
 
-<SparseSessionScope @key="_session" Session="_session" AutoAccept="@(!_sectionDraftsEnabled)">
+<SparseSessionScope @ref="_sessionScope" @key="_session" Session="_session"
+    Mode="@(_sectionDraftsEnabled ? SparseChildEditMode.Draft : SparseChildEditMode.PassThrough)">
     <div class="pg-stack">
         <FluentCard Class="pg-fluent-card pg-catalog-header" Shadow="CardShadow.None">
             <div class="pg-catalog-header-main">
@@ -15,9 +16,11 @@
                     <div class="pg-actions pg-catalog-header-actions">
                         @if (!_sectionDraftsEnabled)
                         {
-                            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!_history.CanUndo)"
+                            <FluentButton Appearance="ButtonAppearance.Default"
+                                Disabled="@(!_history.CanUndo || _session.HasPendingChildSessions)"
                                 @onclick="UndoCatalog">Undo</FluentButton>
-                            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!_history.CanRedo)"
+                            <FluentButton Appearance="ButtonAppearance.Default"
+                                Disabled="@(!_history.CanRedo || _session.HasPendingChildSessions)"
                                 @onclick="RedoCatalog">Redo</FluentButton>
                         }
                         <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!HasChanges)" @onclick="Reset">
@@ -139,15 +142,15 @@
         </FluentTabs>
         <div class="pg-catalog-draft-mode">
             <FluentCheckbox Value="@_sectionDraftsEnabled" ValueChanged="OnSectionDraftsEnabledChanged"
-                Disabled="@_session.HasPendingChildSessions">
+                Disabled="@(!CanChangeSectionDrafts)">
                 Enable section drafts
             </FluentCheckbox>
             <p class="pg-hint">
                 When enabled, section edits stay in drafts until saved. Turn it off to apply each edit to the catalog immediately.
             </p>
-            @if (_session.HasPendingChildSessions)
+            @if (!CanChangeSectionDrafts)
             {
-                <p class="pg-hint">Save or discard every section draft before changing this setting.</p>
+                <p class="pg-hint">This setting is available only when the catalog and all section drafts have no pending changes.</p>
             }
         </div>
     </div>
@@ -180,6 +183,7 @@
 
     private EnterpriseCatalogItem _model = null!;
     private EnterpriseCatalogItem.EditSession _session = null!;
+    private SparseSessionScope<EnterpriseCatalogItem>? _sessionScope;
     private ISparseEditHistory _history = null!;
     private FluentDialog? _saveDialog;
     private WorkflowEditor? _workflowEditor;
@@ -191,6 +195,9 @@
     private string _activeMasterTab = string.Empty;
 
     private bool HasChanges => _session.HasOwnChanges;
+    private bool CanChangeSectionDrafts =>
+        !_session.HasOwnChanges && !_session.HasPendingChildSessions;
+
     private string ActiveMasterTabId =>
         _model.Workflow.Steps.Count == 0
             ? string.Empty
@@ -527,7 +534,7 @@
 
     private Task OnSectionDraftsEnabledChanged(bool enabled)
     {
-        if (_session.HasPendingChildSessions)
+        if (!CanChangeSectionDrafts)
         {
             return Task.CompletedTask;
         }
@@ -561,7 +568,10 @@
         where TChild : class
         where TChildPaths : ISparseTypedPath<TChild, TChild>
         where TChildSession : ISparseEditSessionWithPaths<TChild, TChildPaths> =>
-        _session.GetChildSessionStatus(path) == SparseChildSessionStatus.OpenChanged;
+        ReferenceEquals(_sessionScope?.Session, _session)
+            && _sessionScope?.ScopeContext is { } scopeContext
+            ? scopeContext.HasChangesFor(path)
+            : _session.GetChildSessionStatus(path) == SparseChildSessionStatus.OpenChanged;
 
     private void CreateSession()
     {
@@ -575,6 +585,13 @@
 
     private Task ApplyHistory(Action apply)
     {
+        if (_session.HasPendingChildSessions)
+        {
+            _error = "Save or discard all section drafts before changing catalog history.";
+            Refresh();
+            return Task.CompletedTask;
+        }
+
         try
         {
             apply();

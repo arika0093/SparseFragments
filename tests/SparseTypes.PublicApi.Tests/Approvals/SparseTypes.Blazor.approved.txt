@@ -5,12 +5,13 @@ namespace SparseTypes.Blazor
         where TModel :  class
         where TConflict :  class
     {
-        System.Collections.Generic.IReadOnlyList<TConflict>? AutoAcceptConflicts { get; }
         bool CanRedo { get; }
         bool CanUndo { get; }
+        System.Collections.Generic.IReadOnlyList<TConflict>? Conflicts { get; }
         bool HasChanges { get; }
+        SparseTypes.Blazor.SparseChildEditMode Mode { get; }
         SparseTypes.ISparseEditSession<TModel> Session { get; }
-        event System.Action? AutoAccepted;
+        event System.Action? Accepted;
         void AcceptChanges();
         void DiscardChanges();
         void Redo();
@@ -29,21 +30,35 @@ namespace SparseTypes.Blazor
         where TConflict :  class
         where TSession : SparseTypes.ISparseEditSessionWithPaths<TModel, TPaths>
     {
-        public System.Collections.Generic.IReadOnlyList<TConflict>? AutoAcceptConflicts { get; }
         public bool CanRedo { get; }
         public bool CanUndo { get; }
+        public System.Collections.Generic.IReadOnlyList<TConflict>? Conflicts { get; }
         public Microsoft.AspNetCore.Components.Forms.EditContext EditContext { get; }
         public bool HasChanges { get; }
+        public SparseTypes.Blazor.SparseChildEditMode Mode { get; }
         public TPaths Path { get; }
         public TSession Session { get; }
-        public event System.Action? AutoAccepted;
+        public event System.Action? Accepted;
         public void AcceptChanges() { }
         public void DiscardChanges() { }
         public void Redo() { }
         public bool TryAcceptChanges(out System.Collections.Generic.IReadOnlyList<TConflict>? conflicts) { }
         public void Undo() { }
     }
-    public sealed class SparseChildEdit<TParent, TChild, TChildPaths, TConflict, TChildSession> : Microsoft.AspNetCore.Components.ComponentBase
+    public sealed class SparseChildEditDefault<TParent, TChild, TChildPaths, TChildSession> : SparseTypes.Blazor.SparseChildEdit<TParent, TChild, TChildPaths, SparseTypes.SparseConflict, TChildSession>
+        where TParent :  class
+        where TChild :  class
+        where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
+        where TChildSession : SparseTypes.ISparseEditSessionWithPaths<TChild, TChildPaths>
+    {
+        public SparseChildEditDefault() { }
+    }
+    public enum SparseChildEditMode
+    {
+        Draft = 0,
+        PassThrough = 1,
+    }
+    public class SparseChildEdit<TParent, TChild, TChildPaths, TConflict, TChildSession> : Microsoft.AspNetCore.Components.ComponentBase
         where TParent :  class
         where TChild :  class
         where TChildPaths : SparseTypes.ISparseTypedPath<TChild, TChild>
@@ -97,6 +112,8 @@ namespace SparseTypes.Blazor
         public System.Collections.Generic.IReadOnlyList<SparseTypes.Blazor.SparseCollectionRow<TModel, TElement>> Rows { get; }
         [Microsoft.AspNetCore.Components.CascadingParameter]
         public SparseTypes.Blazor.ISparseEditScope<TModel>? Scope { get; set; }
+        [Microsoft.AspNetCore.Components.CascadingParameter]
+        public SparseTypes.Blazor.SparseSessionScopeContext<TModel>? SessionScopeContext { get; set; }
         protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder) { }
         public void Dispose() { }
         protected override void OnParametersSet() { }
@@ -251,6 +268,8 @@ namespace SparseTypes.Blazor
         public SparseTypes.ISparseTypedPath<TModel, TValue>? Path { get; set; }
         [Microsoft.AspNetCore.Components.CascadingParameter]
         public SparseTypes.Blazor.ISparseEditScope<TModel>? Scope { get; set; }
+        [Microsoft.AspNetCore.Components.CascadingParameter]
+        public SparseTypes.Blazor.SparseSessionScopeContext<TModel>? SessionScopeContext { get; set; }
         protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder) { }
         public void Dispose() { }
         protected override void OnParametersSet() { }
@@ -258,8 +277,8 @@ namespace SparseTypes.Blazor
     public sealed class SparseSessionScopeContext<TModel>
         where TModel :  class
     {
-        public bool AutoAccept { get; }
         public bool HasChanges { get; }
+        public SparseTypes.Blazor.SparseChildEditMode Mode { get; }
         public event System.Action? Changed;
         public void DisposeDetachedChildren() { }
         public System.Collections.Generic.IReadOnlyList<SparseTypes.SparsePath> GetDetachedChildPaths() { }
@@ -283,9 +302,10 @@ namespace SparseTypes.Blazor
     {
         public SparseSessionScope() { }
         [Microsoft.AspNetCore.Components.Parameter]
-        public bool? AutoAccept { get; set; }
-        [Microsoft.AspNetCore.Components.Parameter]
         public Microsoft.AspNetCore.Components.RenderFragment? ChildContent { get; set; }
+        [Microsoft.AspNetCore.Components.Parameter]
+        public SparseTypes.Blazor.SparseChildEditMode? Mode { get; set; }
+        public SparseTypes.Blazor.SparseSessionScopeContext<TModel>? ScopeContext { get; }
         [Microsoft.AspNetCore.Components.Parameter]
         public SparseTypes.ISparseEditSession<TModel>? Session { get; set; }
         protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder) { }

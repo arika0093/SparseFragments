@@ -12,11 +12,11 @@
             {
                 if (_childSession is not null)
                 {
-                    _childSession.AutoAccepted -= OnChildAutoAccepted;
+                    _childSession.Accepted -= OnChildAccepted;
                 }
 
                 _childSession = child;
-                _childSession.AutoAccepted += OnChildAutoAccepted;
+                _childSession.Accepted += OnChildAccepted;
                 _draftSession = child.Session;
                 _sortableListsVersion++;
             }
@@ -121,7 +121,7 @@
             <div class="pg-workflow-scope-actions">
                 <ChildSessionActions Context="child" SectionDraftsEnabled="SectionDraftsEnabled"
                     AcceptanceBatchSession="AcceptanceBatchSession"
-                    OnAccepted="OnAccepted" OnFinished="RefreshWorkflow"
+                    OnFinished="RefreshWorkflow"
                     OnChanged="OnHistoryChanged"
                     OnStatusChanged="ReportStatus" />
             </div>
@@ -236,24 +236,35 @@
         return OnChanged.InvokeAsync();
     }
 
-    private void OnChildAutoAccepted() => OnAccepted?.Invoke();
+    private void OnChildAccepted() => OnAccepted?.Invoke();
 
-    private void RunInCatalogBatch(Action edit)
+    private void RunInWorkflowBatch(Action edit)
     {
-        if (AcceptanceBatchSession is null)
+        if (_draftSession is not ISparseEditSessionWithBatchEdit batch)
         {
             edit();
             return;
         }
 
-        AcceptanceBatchSession.BatchEdit(edit);
+        batch.BatchEdit(edit);
+    }
+
+    private void RunWithWorkMasterSync(Action edit)
+    {
+        if (_childSession?.Mode == SparseChildEditMode.PassThrough && AcceptanceBatchSession is not null)
+        {
+            AcceptanceBatchSession.BatchEdit(edit);
+            return;
+        }
+
+        RunInWorkflowBatch(edit);
     }
 
     public void Dispose()
     {
         if (_childSession is not null)
         {
-            _childSession.AutoAccepted -= OnChildAutoAccepted;
+            _childSession.Accepted -= OnChildAccepted;
         }
     }
 
@@ -339,7 +350,7 @@
         var targetIndex = Math.Clamp(insertAt, 0, steps.Count);
         var inserted = false;
         var error = SparseCollectionEditError.None;
-        RunInCatalogBatch(() => inserted = steps.TryInsert(targetIndex, step, out error));
+        RunWithWorkMasterSync(() => inserted = steps.TryInsert(targetIndex, step, out error));
         if (!inserted)
         {
             _templateIdByStepId.Remove(step.Id);
@@ -356,7 +367,7 @@
         var steps = _draftSession.EditCollection<CatalogWorkStep, string>(CatalogWorkflow.SparsePath.Steps);
         var removed = false;
         var error = SparseCollectionEditError.None;
-        RunInCatalogBatch(() => removed = steps.TryRemoveByKey(id, out error));
+        RunWithWorkMasterSync(() => removed = steps.TryRemoveByKey(id, out error));
         if (removed)
         {
             _error = null;
@@ -380,7 +391,7 @@
 
         var moved = false;
         var error = SparseCollectionEditError.None;
-        RunInCatalogBatch(() => moved = steps.TryMove(oldIndex, target, out error));
+        RunInWorkflowBatch(() => moved = steps.TryMove(oldIndex, target, out error));
         if (!moved)
         {
             _error = $"Could not move the step ({error}).";
@@ -409,7 +420,7 @@
         var steps = _draftSession.EditCollection<CatalogWorkStep, string>(CatalogWorkflow.SparsePath.Steps);
         var moved = false;
         var error = SparseCollectionEditError.None;
-        RunInCatalogBatch(() => moved = steps.TryMove(oldIndex, newIndex, out error));
+        RunInWorkflowBatch(() => moved = steps.TryMove(oldIndex, newIndex, out error));
         if (!moved)
         {
             _error = $"Could not reorder the steps ({error}).";

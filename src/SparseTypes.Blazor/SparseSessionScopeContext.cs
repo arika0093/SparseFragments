@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using Microsoft.AspNetCore.Components.Forms;
 
 namespace SparseTypes.Blazor;
 
@@ -47,7 +46,8 @@ public sealed class SparseSessionScopeContext<TModel>
         object TargetModel,
         Func<object?> ResolveTarget,
         Func<bool> HasChanges,
-        Action<bool> SetAutoAccept,
+        Func<bool> IsApplyingPassThrough,
+        Action<SparseChildEditMode> SetMode,
         Action Dispose
     );
 
@@ -55,30 +55,71 @@ public sealed class SparseSessionScopeContext<TModel>
         SparsePath Path,
         object Context,
         Func<bool> HasChanges,
-        Action<bool> SetAutoAccept,
+        Action<SparseChildEditMode> SetMode,
         Action Dispose
     );
 
     private readonly ISparseEditSession<TModel> _session;
+    private readonly SparsePassThroughStateScope _localStateScope;
+    private readonly SparsePassThroughStateScope _passThroughStateScope;
+    private readonly bool _ownsLocalStateScope;
     private readonly Dictionary<SparsePath, ChildEntry> _children = new();
     private readonly List<DetachedChildEntry> _detached = new();
     private INotifyPropertyChanged? _sessionNotifier;
+    private SparsePassThroughStateScope _stateScope;
     private bool _disposed;
 
-    internal SparseSessionScopeContext(ISparseEditSession<TModel> session, bool autoAccept)
+    internal SparseSessionScopeContext(
+        ISparseEditSession<TModel> session,
+        SparseChildEditMode mode,
+        SparsePassThroughStateScope? parentStateScope = null
+    )
+        : this(
+            session,
+            mode,
+            SparsePassThroughStateScope.CreateRoot(session),
+            parentStateScope,
+            ownsLocalStateScope: true
+        ) { }
+
+    internal SparseSessionScopeContext(
+        ISparseEditSession<TModel> session,
+        SparseChildEditMode mode,
+        SparsePassThroughStateScope localStateScope,
+        SparsePassThroughStateScope? passThroughStateScope,
+        bool ownsLocalStateScope
+    )
     {
         _session = session;
-        SparseSessionScopeOwnership.Register(session, this);
-        AutoAccept = autoAccept;
-        if (session is INotifyPropertyChanged notifier)
+        _localStateScope = localStateScope;
+        _passThroughStateScope = passThroughStateScope ?? localStateScope;
+        _stateScope =
+            mode == SparseChildEditMode.PassThrough ? _passThroughStateScope : _localStateScope;
+        _ownsLocalStateScope = ownsLocalStateScope;
+        try
         {
-            _sessionNotifier = notifier;
-            notifier.PropertyChanged += OnParentSessionChanged;
+            SparseSessionScopeOwnership.Register(session, this);
+            Mode = mode;
+            if (session is INotifyPropertyChanged notifier)
+            {
+                _sessionNotifier = notifier;
+                notifier.PropertyChanged += OnParentSessionChanged;
+            }
+        }
+        catch
+        {
+            SparseSessionScopeOwnership.Release(session, this);
+            if (_ownsLocalStateScope)
+            {
+                _localStateScope.Dispose();
+            }
+
+            throw;
         }
     }
 
-    /// <summary>Gets whether child sessions accept changes into their parent automatically.</summary>
-    public bool AutoAccept { get; private set; }
+    /// <summary>Gets the active child-edit ownership mode.</summary>
+    public SparseChildEditMode Mode { get; private set; }
 
     /// <summary>Occurs when a child session changes, is accepted, or is removed.</summary>
     public event Action? Changed;
@@ -161,6 +202,7 @@ public sealed class SparseSessionScopeContext<TModel>
             }
 
             DetachOrDisposeChild(untypedPath);
+            NotifyChanged();
         }
 
         if (targetModel is not TChild resolvedTarget)
@@ -171,24 +213,43 @@ public sealed class SparseSessionScopeContext<TModel>
 
         var child = parentSession.OpenChildSession(path);
         var historyEnabled = false;
+        SparseSessionScopeContext<TChild>? childScopeContext = null;
+        SparsePassThroughStateScope? childLocalStateScope = null;
         try
         {
             SparseSessionInterop.EnableHistory(child.Session);
             historyEnabled = true;
+            childLocalStateScope = SparsePassThroughStateScope.CreateRoot(child.Session);
+            var childPassThroughStateScope = _stateScope.Push(untypedPath);
+            childScopeContext = new SparseSessionScopeContext<TChild>(
+                child.Session,
+                Mode,
+                childLocalStateScope,
+                childPassThroughStateScope,
+                ownsLocalStateScope: true
+            );
+            childLocalStateScope = null;
             var childContext = new SparseChildEditContext<
                 TChild,
                 TChildPaths,
                 TConflict,
                 TChildSession
-            >(child, () => DetachOrDisposeChild(untypedPath), AutoAccept, NotifyChanged);
+            >(
+                child,
+                parentSession,
+                childScopeContext,
+                () => DetachOrDisposeChild(untypedPath),
+                NotifyChanged
+            );
             _children.Add(
                 untypedPath,
                 new ChildEntry(
                     childContext,
                     resolvedTarget,
                     () => ResolveChildModel(parentSession, untypedPath),
-                    () => childContext.HasChanges,
-                    childContext.SetAutoAccept,
+                    () => childContext.HasPendingChanges,
+                    () => childContext.IsApplyingPassThrough,
+                    childContext.SetMode,
                     childContext.DisposeOwned
                 )
             );
@@ -197,12 +258,21 @@ public sealed class SparseSessionScopeContext<TModel>
         }
         catch
         {
-            if (historyEnabled)
+            try
             {
-                SparseSessionInterop.DisableHistory(child.Session);
+                childScopeContext?.DisposeChildren();
+            }
+            finally
+            {
+                childLocalStateScope?.Dispose();
+                if (historyEnabled)
+                {
+                    SparseSessionInterop.DisableHistory(child.Session);
+                }
+
+                child.Dispose();
             }
 
-            child.Dispose();
             throw;
         }
     }
@@ -221,6 +291,11 @@ public sealed class SparseSessionScopeContext<TModel>
         where TChildSession : ISparseEditSessionWithPaths<TChild, TChildPaths>
     {
         ArgumentNullException.ThrowIfNull(path);
+        if (Mode == SparseChildEditMode.PassThrough)
+        {
+            return _stateScope.HasChanges(path.UntypedPath);
+        }
+
         return _children.TryGetValue(path.UntypedPath, out var entry) && entry.HasChanges();
     }
 
@@ -329,30 +404,45 @@ public sealed class SparseSessionScopeContext<TModel>
         && ReferenceEquals(entry.Context, context)
         && ReferenceEquals(entry.TargetModel, entry.ResolveTarget());
 
-    internal void SetAutoAccept(bool autoAccept)
+    internal SparsePassThroughStateScope StateScope => _stateScope;
+
+    internal bool HasChangesAtRoot => _stateScope.HasChanges(SparsePath.Root<TModel>());
+
+    internal bool TryFieldState<TValue>(
+        SparsePath path,
+        out SparseFieldState<TValue> state,
+        out string? error
+    ) => _stateScope.TryFieldState(path, out state, out error);
+
+    internal bool TryCollectionState(SparsePath path, out SparseCollectionState? state) =>
+        _stateScope.TryCollectionState(path, out state);
+
+    internal void SetMode(SparseChildEditMode mode)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (AutoAccept == autoAccept)
+        if (Mode == mode)
         {
             return;
         }
 
-        if (HasChanges)
+        if (HasChanges || _detached.Any(static entry => entry.HasChanges()))
         {
             throw new InvalidOperationException(
-                "Cannot change automatic child acceptance while child edits are pending."
+                "Cannot change child edit mode while child edits are pending."
             );
         }
 
-        AutoAccept = autoAccept;
+        Mode = mode;
+        _stateScope =
+            mode == SparseChildEditMode.PassThrough ? _passThroughStateScope : _localStateScope;
         foreach (var entry in _children.Values.ToArray())
         {
-            entry.SetAutoAccept(autoAccept);
+            entry.SetMode(mode);
         }
 
         foreach (var entry in _detached.ToArray())
         {
-            entry.SetAutoAccept(autoAccept);
+            entry.SetMode(mode);
         }
 
         Changed?.Invoke();
@@ -405,6 +495,10 @@ public sealed class SparseSessionScopeContext<TModel>
             }
 
             SparseSessionScopeOwnership.Release(_session, this);
+            if (_ownsLocalStateScope)
+            {
+                _localStateScope.Dispose();
+            }
         }
 
         if (failures is not null)
@@ -430,7 +524,7 @@ public sealed class SparseSessionScopeContext<TModel>
                     path,
                     entry.Context,
                     entry.HasChanges,
-                    entry.SetAutoAccept,
+                    entry.SetMode,
                     entry.Dispose
                 )
             );
@@ -439,8 +533,6 @@ public sealed class SparseSessionScopeContext<TModel>
         {
             entry.Dispose();
         }
-
-        NotifyChanged();
     }
 
     private void NotifyChanged()
@@ -469,248 +561,32 @@ public sealed class SparseSessionScopeContext<TModel>
 
     private void OnParentSessionChanged(object? sender, PropertyChangedEventArgs args)
     {
+        var changed = false;
         foreach (var (path, entry) in _children.ToArray())
         {
+            if (entry.IsApplyingPassThrough())
+            {
+                continue;
+            }
+
             if (!ReferenceEquals(entry.TargetModel, entry.ResolveTarget()))
             {
                 DetachOrDisposeChild(path);
+                changed = true;
+                continue;
             }
-        }
-    }
-}
 
-/// <summary>A typed child-session context owned by a <see cref="SparseSessionScopeContext{TModel}"/>.</summary>
-/// <typeparam name="TModel">The child model type.</typeparam>
-/// <typeparam name="TPaths">The generated path builder rooted at the child model.</typeparam>
-/// <typeparam name="TConflict">The generated structured conflict type.</typeparam>
-/// <typeparam name="TSession">The generated child-model edit-session type.</typeparam>
-public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
-    : ISparseChildEditContext<TModel, TConflict>
-    where TModel : class
-    where TPaths : ISparseTypedPath<TModel, TModel>
-    where TConflict : class
-    where TSession : ISparseEditSessionWithPaths<TModel, TPaths>
-{
-    private readonly ISparseEditChildSession<TModel, TPaths, TConflict, TSession> _child;
-    private readonly Action _invalidate;
-    private readonly Action _changed;
-    private readonly EditContext _editContext;
-    private INotifyPropertyChanged? _notifier;
-    private bool _autoAccept;
-    private bool _handlingSessionChange;
-    private bool _disposed;
-    private IReadOnlyList<TConflict>? _autoAcceptConflicts;
-
-    internal SparseChildEditContext(
-        ISparseEditChildSession<TModel, TPaths, TConflict, TSession> child,
-        Action invalidate,
-        bool autoAccept,
-        Action changed
-    )
-    {
-        _child = child;
-        _invalidate = invalidate;
-        _changed = changed;
-        _editContext = child.Session.CreateEditContext();
-        if (autoAccept && child.Session is not INotifyPropertyChanged)
-        {
-            throw new InvalidOperationException(
-                "Automatic child acceptance requires a session that reports property changes."
-            );
-        }
-
-        _autoAccept = autoAccept;
-        DescendantScopeContext = new SparseSessionScopeContext<TModel>(child.Session, autoAccept);
-        if (child.Session is INotifyPropertyChanged notifier)
-        {
-            _notifier = notifier;
-            notifier.PropertyChanged += OnSessionPropertyChanged;
-        }
-    }
-
-    /// <summary>Gets the generated edit session for the child model.</summary>
-    public TSession Session
-    {
-        get
-        {
-            ThrowIfDisposed();
-            return _child.Session;
-        }
-    }
-
-    internal SparseSessionScopeContext<TModel> DescendantScopeContext { get; }
-
-    // Lets render fragments re-resolve liveness without touching Session.
-    internal bool IsDisposed => _disposed;
-
-    ISparseEditSession<TModel> ISparseChildEditContext<TModel, TConflict>.Session => Session;
-
-    /// <summary>Gets the generated paths rooted at the child model.</summary>
-    public TPaths Path => Session.Paths;
-
-    /// <summary>Gets the Blazor edit context bound to the child model.</summary>
-    public EditContext EditContext
-    {
-        get
-        {
-            ThrowIfDisposed();
-            return _editContext;
-        }
-    }
-
-    /// <summary>Gets whether this child session or its descendants have pending changes.</summary>
-    public bool HasChanges => _child.HasChanges;
-
-    /// <summary>Gets conflicts from the most recent automatic acceptance attempt.</summary>
-    public IReadOnlyList<TConflict>? AutoAcceptConflicts => _autoAcceptConflicts;
-
-    /// <summary>Occurs after the parent accepts this child session.</summary>
-    public event Action? AutoAccepted;
-
-    /// <summary>Gets whether the child history can undo an edit.</summary>
-    public bool CanUndo => SparseSessionInterop.TryGetHistory(Session)?.CanUndo == true;
-
-    /// <summary>Gets whether the child history can redo an edit.</summary>
-    public bool CanRedo => SparseSessionInterop.TryGetHistory(Session)?.CanRedo == true;
-
-    /// <summary>Attempts to merge this child draft into its parent.</summary>
-    /// <param name="conflicts">Structured conflicts when the merge fails.</param>
-    /// <returns>True when the draft was accepted; otherwise false.</returns>
-    public bool TryAcceptChanges(out IReadOnlyList<TConflict>? conflicts)
-    {
-        ThrowIfDisposed();
-        var accepted = _child.TryAcceptChanges(out conflicts);
-        if (accepted)
-        {
-            _autoAcceptConflicts = null;
-        }
-
-        if (!accepted && conflicts is null)
-        {
-            _invalidate();
-        }
-
-        return accepted;
-    }
-
-    /// <summary>Merges this child draft into its parent, throwing when the merge conflicts.</summary>
-    public void AcceptChanges() => _child.AcceptChanges();
-
-    /// <summary>Discards pending child edits while keeping the child session connected.</summary>
-    public void DiscardChanges()
-    {
-        _autoAcceptConflicts = null;
-        _child.DiscardChanges();
-        _changed();
-    }
-
-    /// <summary>Undoes the newest edit in this child session.</summary>
-    public void Undo()
-    {
-        ThrowIfDisposed();
-        RequireHistory().Undo();
-    }
-
-    /// <summary>Redoes the newest edit in this child session.</summary>
-    public void Redo()
-    {
-        ThrowIfDisposed();
-        RequireHistory().Redo();
-    }
-
-    internal void DisposeOwned()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        if (_notifier is not null)
-        {
-            _notifier.PropertyChanged -= OnSessionPropertyChanged;
-            _notifier = null;
-        }
-
-        try
-        {
-            DescendantScopeContext.DisposeChildren();
-        }
-        finally
-        {
-            try
+            if (Mode == SparseChildEditMode.PassThrough && !entry.HasChanges())
             {
-                SparseSessionInterop.DisableHistory(_child.Session);
-            }
-            finally
-            {
-                _child.Dispose();
+                _children.Remove(path);
+                entry.Dispose();
+                changed = true;
             }
         }
-    }
 
-    internal void SetAutoAccept(bool autoAccept)
-    {
-        ThrowIfDisposed();
-        if (autoAccept && _notifier is null)
+        if (changed)
         {
-            throw new InvalidOperationException(
-                "Automatic child acceptance requires a session that reports property changes."
-            );
+            NotifyChanged();
         }
-
-        _autoAccept = autoAccept;
-        DescendantScopeContext.SetAutoAccept(autoAccept);
-        if (autoAccept)
-        {
-            TryAutoAccept();
-        }
-        else
-        {
-            _autoAcceptConflicts = null;
-        }
-    }
-
-    private void OnSessionPropertyChanged(object? sender, PropertyChangedEventArgs args)
-    {
-        if (_disposed || _handlingSessionChange)
-        {
-            return;
-        }
-
-        _handlingSessionChange = true;
-        try
-        {
-            TryAutoAccept();
-        }
-        finally
-        {
-            _handlingSessionChange = false;
-            _changed();
-        }
-    }
-
-    private void TryAutoAccept()
-    {
-        if (!_autoAccept || !HasChanges)
-        {
-            return;
-        }
-
-        var accepted = TryAcceptChanges(out var conflicts);
-        _autoAcceptConflicts = accepted ? null : conflicts;
-        if (accepted)
-        {
-            AutoAccepted?.Invoke();
-        }
-    }
-
-    private ISparseEditHistory RequireHistory() =>
-        SparseSessionInterop.TryGetHistory(Session)
-        ?? throw new InvalidOperationException("The child session has no enabled edit history.");
-
-    private void ThrowIfDisposed()
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
     }
 }

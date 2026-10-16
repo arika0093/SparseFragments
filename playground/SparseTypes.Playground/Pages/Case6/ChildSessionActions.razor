@@ -19,9 +19,9 @@
                 @onclick="DiscardChildSessionAsync">Discard section draft</FluentButton>
         </div>
     }
-    @if (Context.AutoAcceptConflicts is not null)
+    @if (Context.Conflicts is not null)
     {
-        <p class="pg-hint">The latest edit could not be applied automatically. Correct the conflicting value or discard the draft.</p>
+        <p class="pg-hint">The latest edit could not be merged. Correct the conflicting value or discard the draft.</p>
         <FluentButton Appearance="ButtonAppearance.Default" @onclick="DiscardChildSessionAsync">
             Discard conflicting edit
         </FluentButton>
@@ -65,9 +65,6 @@
     public EventCallback OnFinished { get; set; }
 
     [Parameter]
-    public Action? OnAccepted { get; set; }
-
-    [Parameter]
     public EventCallback OnChanged { get; set; }
 
     [Parameter]
@@ -76,7 +73,7 @@
     private IReadOnlyList<SparseConflict> _conflicts = [];
     private string? _message;
     private IReadOnlyList<SparseConflict> DisplayedConflicts =>
-        _conflicts.Count > 0 ? _conflicts : Context.AutoAcceptConflicts ?? [];
+        _conflicts.Count > 0 ? _conflicts : Context.Conflicts ?? [];
 
     public async Task<bool> AcceptChildSessionAsync()
     {
@@ -90,10 +87,6 @@
         void Accept()
         {
             accepted = Context.TryAcceptChanges(out conflicts);
-            if (accepted)
-            {
-                OnAccepted?.Invoke();
-            }
         }
 
         try

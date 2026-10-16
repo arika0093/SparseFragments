@@ -61,6 +61,11 @@ release it with `DisposeDetachedChildren`. An unchanged child is disposed as
 before. Replacing the parent session or disposing the scope still disposes
 every owned child, including detached drafts.
 
+The scope's `ScopeContext` property exposes the same context to its owner.
+Use `HasChangesFor` when the owner needs to display child status outside the
+cascaded subtree; it reads pending drafts in `Draft` mode and parent changes
+in `PassThrough` mode.
+
 <!-- illustrative: the parent and child model types are defined by the application -->
 ```csharp
 var customer = scope.OpenChildSession(session, OrderDto.SparsePath.Customer);
@@ -78,26 +83,31 @@ generated path-builder types. Keep `SparseChildEdit` for applications that use
 a custom conflict type.
 
 The child context provides generated paths, a child-bound `EditContext`,
-change state, acceptance conflicts, child-local history actions, and an
-`AutoAccepted` event for successful automatic merges. The scope enables
-history; accepting or discarding resets its baseline while the child remains
-connected. Calling `child.Session.AcceptChanges()` alone does not merge the
-draft into its parent.
+change state, merge conflicts, history actions, and an `Accepted` event.
+Calling `child.Session.AcceptChanges()` alone does not merge the draft into
+its parent.
 
-Set `AutoAccept="true"` on `SparseSessionScope` to merge each child-session
-change into its parent as soon as it is reported. Nested scopes inherit the
-setting unless they override it. A failed merge leaves the child draft intact
-and exposes its conflicts through `AutoAcceptConflicts`; a child `BatchEdit`
-is accepted as one parent transition. `SparseSessionScopeContext.HasChanges`
-reports whether any opened child has pending changes, and its `Changed` event
-signals changes to those child states. Auto-accept does not enable history on
+`SparseSessionScope.Mode` controls who owns child changes. The default,
+`Draft`, keeps edits in the child session until `TryAcceptChanges` or
+`AcceptChanges` merges them into the parent. `DiscardChanges` resets that child
+baseline while keeping the session connected. Nested scopes inherit the mode
+unless they override it.
+
+In `PassThrough`, each child-session change is merged into its parent as soon
+as it is reported. The child's `HasChanges` and field or collection state read
+the parent change set at the child path, so parent-owned edits remain
+highlighted until the parent accepts or reverts them. A failed merge keeps the
+child edit available and exposes its conflicts through `Conflicts`; a child
+`BatchEdit` becomes one parent transition. `Accepted` fires after either a
+successful draft acceptance or pass-through merge.
+
+`SparseSessionScopeContext.HasChanges` reports pending child drafts, not
+changes already owned by the parent. Pass-through does not enable history on
 the parent session; enable it there when parent-level Undo/Redo is needed.
-
-Field and collection state reads inspect the session they are bound to. A
-pending child draft stays separate from changes already accepted into the
-parent, and rendering `SparseField` does not accept or discard it. Change-set
-capture builds a child-aware preview without accepting; acknowledging a
-captured submission merges pending children first.
+Field and collection state reads use the active ownership mode, and rendering
+`SparseField` does not accept or discard changes. Change-set capture builds a
+child-aware preview without accepting; acknowledging a captured submission
+merges pending drafts first.
 
 Session scope and refresh
 
@@ -110,11 +120,11 @@ scope never reads the live model itself, which keeps the observable-only
 `HasChanges` cache intact for reads during render.
 
 Refresh is session-level: every notification re-renders the whole subtree.
-Group one user action with `BatchEdit` so it notifies once. `AutoAccept` also
-uses those notifications to attempt child acceptance; a failed acceptance
-keeps the draft available for conflict handling. There is no per-path refresh;
-narrowing would have to stay correct for ancestor, descendant, collection
-reorder, and replacement notifications first.
+Group one user action with `BatchEdit` so it notifies once. `PassThrough` uses
+those notifications to merge child changes; a failed merge keeps the edit
+available for conflict handling. There is no per-path refresh; narrowing
+would have to stay correct for ancestor, descendant, collection reorder, and
+replacement notifications first.
 
 Field state reads share one snapshot per refresh generation: the first field
 captures a single change set and later fields query its indexed view instead

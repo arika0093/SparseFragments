@@ -14,6 +14,7 @@ public sealed class SparseField<TModel, TValue> : ComponentBase, IDisposable
     where TModel : class
 {
     private ISparseEditScope<TModel>? _boundScope;
+    private SparseSessionScopeContext<TModel>? _boundScopeContext;
     private ISparseEditSession<TModel>? _boundSession;
     private EditContext? _boundEditContext;
     private SparsePath _bindingPath;
@@ -35,6 +36,10 @@ public sealed class SparseField<TModel, TValue> : ComponentBase, IDisposable
     [CascadingParameter]
     public ISparseEditScope<TModel>? Scope { get; set; }
 
+    /// <summary>Gets the session scope used to resolve ownership-aware field state.</summary>
+    [CascadingParameter]
+    public SparseSessionScopeContext<TModel>? SessionScopeContext { get; set; }
+
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
@@ -54,12 +59,13 @@ public sealed class SparseField<TModel, TValue> : ComponentBase, IDisposable
             !_hasBinding
             || _binding is null
             || !ReferenceEquals(_boundScope, scope)
+            || !ReferenceEquals(_boundScopeContext, SessionScopeContext)
             || !ReferenceEquals(_boundSession, session)
             || !ReferenceEquals(_boundEditContext, editContext)
             || !_bindingPath.Equals(untyped)
         )
         {
-            Rebind(scope, session, editContext, path, untyped);
+            Rebind(scope, SessionScopeContext, session, editContext, path, untyped);
         }
 
         // One shared snapshot per refresh generation: the first field captures
@@ -84,6 +90,15 @@ public sealed class SparseField<TModel, TValue> : ComponentBase, IDisposable
         out string? error
     )
     {
+        if (SessionScopeContext?.OwnsSession(session) == true)
+        {
+            return SessionScopeContext.TryFieldState(
+                _binding!.TypedPath.UntypedPath,
+                out state,
+                out error
+            );
+        }
+
         if (
             scope is ISparseStateSnapshotScope snapshotScope
             && SparseSessionInterop.HasStateSnapshot(session)
@@ -148,6 +163,7 @@ public sealed class SparseField<TModel, TValue> : ComponentBase, IDisposable
 
     private void Rebind(
         ISparseEditScope<TModel> scope,
+        SparseSessionScopeContext<TModel>? scopeContext,
         ISparseEditSession<TModel> session,
         EditContext editContext,
         ISparseTypedPath<TModel, TValue> path,
@@ -163,8 +179,9 @@ public sealed class SparseField<TModel, TValue> : ComponentBase, IDisposable
         // The binding holds no subscriptions.
         var binding = session.Bind(path.TypedPath, editContext);
         _binding = binding;
-        _field = new SparseFieldContext<TModel, TValue>(this, session, binding, path);
+        _field = new SparseFieldContext<TModel, TValue>(this, session, scopeContext, binding, path);
         _boundScope = scope;
+        _boundScopeContext = scopeContext;
         _boundSession = session;
         _boundEditContext = editContext;
         _bindingPath = untyped;

@@ -246,6 +246,10 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
     [CascadingParameter]
     public ISparseEditScope<TModel>? Scope { get; set; }
 
+    /// <summary>Gets the session scope used to resolve ownership-aware collection state.</summary>
+    [CascadingParameter]
+    public SparseSessionScopeContext<TModel>? SessionScopeContext { get; set; }
+
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
@@ -381,11 +385,14 @@ public sealed class SparseCollection<TModel, TElement> : ComponentBase, IDisposa
         string? stateQueryError = null;
         try
         {
-            hasCollectionState = SparseSessionInterop.TryCollectionState(
-                _scope!.Session,
-                _path,
-                out collectionState
-            );
+            hasCollectionState =
+                SessionScopeContext?.OwnsSession(_scope!.Session) == true
+                    ? SessionScopeContext.TryCollectionState(_path, out collectionState)
+                    : SparseSessionInterop.TryCollectionState(
+                        _scope!.Session,
+                        _path,
+                        out collectionState
+                    );
         }
         catch (Exception exception)
         {

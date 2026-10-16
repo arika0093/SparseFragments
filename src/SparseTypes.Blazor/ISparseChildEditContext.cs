@@ -10,24 +10,27 @@ public interface ISparseChildEditContext<TModel, TConflict>
     /// <summary>Gets the child edit session.</summary>
     ISparseEditSession<TModel> Session { get; }
 
-    /// <summary>Gets whether this child session or its descendants have pending changes.</summary>
+    /// <summary>Gets the ownership mode used by this child context.</summary>
+    SparseChildEditMode Mode { get; }
+
+    /// <summary>Gets whether this child has changes under the active mode.</summary>
     bool HasChanges { get; }
 
-    /// <summary>Gets conflicts from the most recent automatic acceptance attempt.</summary>
-    IReadOnlyList<TConflict>? AutoAcceptConflicts { get; }
+    /// <summary>Gets structured conflicts from the most recent merge attempt.</summary>
+    IReadOnlyList<TConflict>? Conflicts { get; }
 
-    /// <summary>Occurs after the parent accepts this child session.</summary>
-    event Action? AutoAccepted;
+    /// <summary>Occurs after this child draft is accepted or passed through to its parent.</summary>
+    event Action? Accepted;
 
-    /// <summary>Gets whether the child history can undo an edit.</summary>
+    /// <summary>Gets whether the active edit history can undo an edit.</summary>
     bool CanUndo { get; }
 
-    /// <summary>Gets whether the child history can redo an edit.</summary>
+    /// <summary>Gets whether the active edit history can redo an edit.</summary>
     bool CanRedo { get; }
 
     /// <summary>Attempts to merge this child draft into its parent.</summary>
     /// <param name="conflicts">Structured conflicts when the merge fails.</param>
-    /// <returns>True when the draft was accepted; otherwise false.</returns>
+    /// <returns>True when the draft was accepted or no draft remains; otherwise false.</returns>
     bool TryAcceptChanges(out IReadOnlyList<TConflict>? conflicts);
 
     /// <summary>Merges the child draft into its parent, throwing when the merge conflicts.</summary>

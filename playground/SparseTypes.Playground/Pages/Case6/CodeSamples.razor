@@ -130,7 +130,7 @@
         using SparseTypes.Blazor;
         using SparseTypes.Playground.Models;
 
-        <SparseSessionScope Session="_session" AutoAccept="true">
+        <SparseSessionScope Session="_session" Mode="SparseChildEditMode.PassThrough">
             <OverviewEditor />
         </SparseSessionScope>
 
@@ -154,7 +154,7 @@
 
         var hasPendingChildEdits = ScopeContext!.HasChanges;
 
-        if (_overview.AutoAcceptConflicts is { Count: > 0 } conflicts)
+        if (_overview.Conflicts is { Count: > 0 } conflicts)
         {
             ShowConflicts(conflicts);
         }
@@ -207,12 +207,12 @@
             overview.Session.Observable.Name = "Revised unit";
         });
 
-        if (overview.AutoAcceptConflicts is { Count: > 0 } conflicts)
+        if (overview.Conflicts is { Count: > 0 } conflicts)
         {
             ShowConflicts(conflicts);
         }
 
-        // AutoAccept records the batch as one parent-history transition.
+        // PassThrough records the batch as one parent-history transition.
         if (history.CanUndo)
         {
             history.Undo();
