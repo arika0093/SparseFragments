@@ -1,0 +1,18 @@
+@using SparseTypes
+@using SparseTypes.Blazor
+@namespace SparseTypes.Blazor.Tests
+
+<SparseSessionScope Session="Session">
+    <SparseChildEditDefault Path="ScopeGrandchildRoot.SparsePath.Child" Context="child">
+        <SparseChildEditDefault Path="child.Path.Leaf" Context="leaf">
+            <SparseField Path="leaf.Path.Name" Context="name">
+                <span>@name.Value</span>
+            </SparseField>
+        </SparseChildEditDefault>
+    </SparseChildEditDefault>
+</SparseSessionScope>
+
+@code {
+    [Parameter, EditorRequired]
+    public ISparseEditSession<ScopeGrandchildRoot> Session { get; set; } = null!;
+}

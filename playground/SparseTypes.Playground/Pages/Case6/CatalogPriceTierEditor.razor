@@ -1,15 +1,20 @@
 @using SparseTypes
 @using SparseTypes.Blazor
 @using SparseTypes.Playground.Models
-@using CatalogPriceTierPaths = global::SparseTypes.Generated.SparseTypes_Playground_Models_CatalogPriceTier_A4E49A73.SparsePaths<global::SparseTypes.Playground.Models.CatalogPriceTier>;
 
 @if (ParentSession is not null && ScopeContext is not null)
 {
-<SparseChildEdit TParent="CatalogCommercialDetails" TChild="CatalogPriceTier"
-    TChildPaths="CatalogPriceTierPaths" TConflict="SparseConflict"
-    TChildSession="CatalogPriceTier.EditSession"
-    Path="CatalogCommercialDetails.SparsePath.PriceTiers.Key(Code)" Context="child">
-    @{ CaptureChildContext(child); }
+<SparseChildEditDefault Path="CatalogCommercialDetails.SparsePath.PriceTiers.Key(Code)" Context="child">
+    @{
+        if (!ReferenceEquals(_childSession, child))
+        {
+            _childSession = child;
+            _draftSession = child.Session;
+            _openOnLoadHandled = false;
+            _tierDialogHidden = true;
+            _historyError = null;
+        }
+    }
     <div class="@CatalogCollectionRowState.ClassFor(State, hasLocalChanges: IsTierEdited)">
         <div class="pg-catalog-inline-row">
             <div class="pg-catalog-tier-summary">
@@ -33,20 +38,20 @@
         <div class="pg-dialog-body">
             <div class="pg-stack pg-edit-fields">
                 <SparseField Path="child.Path.Label" Context="label">
-                    <div class="pg-row pg-session-field @(IsTierFieldEdited(label) ? "pg-changed" : "")">
+                    <div class="pg-row pg-session-field @(label.IsChanged ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">Label <small>string</small></span>
                         <FluentTextInput Value="@label.Value" ValueChanged="label.ValueChanged" />
                     </div>
                 </SparseField>
                 <SparseField Path="child.Path.MinimumQuantity" Context="minimumQuantity">
-                    <div class="pg-row pg-session-field @(IsTierFieldEdited(minimumQuantity) ? "pg-changed" : "")">
+                    <div class="pg-row pg-session-field @(minimumQuantity.IsChanged ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">MinimumQuantity <small>int</small></span>
                         <FluentNumberInput TValue="int" Value="@minimumQuantity.Value"
                             ValueChanged="minimumQuantity.ValueChanged" />
                     </div>
                 </SparseField>
                 <SparseField Path="child.Path.UnitPrice" Context="unitPrice">
-                    <div class="pg-row pg-session-field @(IsTierFieldEdited(unitPrice) ? "pg-changed" : "")">
+                    <div class="pg-row pg-session-field @(unitPrice.IsChanged ? "pg-changed" : "")">
                         <span class="pg-name notranslate" translate="no">UnitPrice <small>decimal</small></span>
                         <FluentNumberInput TValue="decimal" Value="@unitPrice.Value"
                             ValueChanged="unitPrice.ValueChanged" />
@@ -118,18 +123,6 @@
                             </div>
                         </div>
                     }
-                    @foreach (var record in Pending?.RemovedRows(BandsRootPath) ?? [])
-                    {
-                        if (record.Before is { IsPresent: true, Value: CatalogDiscountBand removedBand })
-                        {
-                            <div class="pg-roster-row pg-removed">
-                                <div class="pg-catalog-inline-row">
-                                    <span>@removedBand.MinimumQuantity+ units · @removedBand.DiscountPercent% · @removedBand.ApprovalRole</span>
-                                    <span class="pg-change-remove">Removed</span>
-                                </div>
-                            </div>
-                        }
-                    }
                     @if (Draft.Discounts.Count == 0)
                     {
                         <p class="pg-hint">No discount bands. Add a quantity break to this tier.</p>
@@ -141,7 +134,7 @@
             <FluentButton Appearance="ButtonAppearance.Primary" @onclick="CloseTierDialog">Done</FluentButton>
         </div>
     </FluentDialog>
-    </SparseChildEdit>
+    </SparseChildEditDefault>
 }
 
 @code {
@@ -159,9 +152,6 @@
 
     [Parameter]
     public bool SectionDraftsEnabled { get; set; } = true;
-
-    [Parameter]
-    public CatalogPendingChanges? Pending { get; set; }
 
     [Parameter]
     public bool OpenOnLoad { get; set; }
@@ -186,15 +176,7 @@
     private bool HasChanges => _childSession?.HasChanges == true;
     private bool CanUndo => _childSession?.CanUndo == true;
     private bool CanRedo => _childSession?.CanRedo == true;
-    private SparsePath TierRowRoot =>
-        EnterpriseCatalogItem.SparsePath.Commercial.UntypedPath.Append(
-            CatalogCommercialDetails.SparsePath.PriceTiers.Key(Code).UntypedPath
-        );
-    private SparsePath BandsRootPath =>
-        TierRowRoot.Append(CatalogPriceTier.SparsePath.Discounts.UntypedPath);
-
-    // The tier row stays marked while its draft or its catalog-merged state
-    // changed, with field precision from the shared root snapshot.
+    // The tier row reflects only edits that remain in its current draft.
     private bool IsTierEdited
     {
         get
@@ -204,43 +186,14 @@
                 return true;
             }
 
-            var state = Pending?.RowState(TierRowRoot);
-            return state?.IsChanged == true || state?.HasDescendantChange == true;
+            return false;
         }
     }
-
-    private bool IsTierFieldEdited<TValue>(SparseFieldContext<CatalogPriceTier, TValue> field) =>
-        field.IsChanged || Pending?.IsFieldChanged(TierRowRoot.Append(field.Path.UntypedPath)) == true;
 
     private bool IsBandRowChanged(
         SparseCollectionRow<CatalogPriceTier, CatalogDiscountBand> row
     )
-    {
-        if (row.ItemState is { IsEmpty: false })
-        {
-            return true;
-        }
-
-        var state = Pending?.RowState(TierRowRoot.Append(row.Path.Path));
-        return state?.IsChanged == true || state?.HasDescendantChange == true;
-    }
-
-    private void CaptureChildContext(
-        ISparseChildEditContext<CatalogPriceTier, SparseConflict> context
-    )
-    {
-        if (ReferenceEquals(_childSession, context))
-        {
-            return;
-        }
-
-        _childSession = context;
-        _draftSession = context.Session as CatalogPriceTier.EditSession
-            ?? throw new InvalidOperationException("The price-tier edit session is unavailable.");
-        _openOnLoadHandled = false;
-        _tierDialogHidden = true;
-        _historyError = null;
-    }
+        => row.ItemState is { IsEmpty: false };
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

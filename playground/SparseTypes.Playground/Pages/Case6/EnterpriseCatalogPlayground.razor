@@ -3,7 +3,6 @@
 @using SparseTypes.Playground.Models
 @using SparseTypes.Playground.Components
 <SparseSessionScope @key="_session" Session="_session" AutoAccept="@(!_sectionDraftsEnabled)">
-@{ _pending = CatalogPendingChanges.TryCaptureRoot(_session); }
 <div class="pg-stack">
     <FluentCard Class="pg-fluent-card pg-catalog-header" Shadow="CardShadow.None">
         <div class="pg-catalog-header-main">
@@ -48,7 +47,7 @@
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <OverviewEditor SectionDraftsEnabled="_sectionDraftsEnabled" Pending="_pending" OnChanged="Refresh" />
+                    <OverviewEditor SectionDraftsEnabled="_sectionDraftsEnabled" OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
@@ -62,7 +61,7 @@
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <CommercialEditor SectionDraftsEnabled="_sectionDraftsEnabled" Pending="_pending" OnChanged="Refresh" />
+                    <CommercialEditor SectionDraftsEnabled="_sectionDraftsEnabled" OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
@@ -76,7 +75,7 @@
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    <OperationsEditor SectionDraftsEnabled="_sectionDraftsEnabled" Pending="_pending" OnChanged="Refresh" />
+                    <OperationsEditor SectionDraftsEnabled="_sectionDraftsEnabled" OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
@@ -91,15 +90,14 @@
             <ChildContent>
                 <div class="pg-section-content">
                     <WorkflowEditor @ref="_workflowEditor" SectionDraftsEnabled="_sectionDraftsEnabled"
-                        SavedWorkflow="_savedWorkflow" OnAccepted="EnsureAcceptedWorkMasters"
-                        BaselineVersion="_baselineVersion" Pending="_pending" OnChanged="Refresh" />
+                        OnAccepted="EnsureAcceptedWorkMasters" OnChanged="Refresh" />
                 </div>
             </ChildContent>
         </FluentTab>
         <FluentTab Id="case-6-work-masters">
             <HeaderTemplate>
                 <span class="pg-catalog-tab-label">5. Work masters</span>
-                @if (AcceptedWorkflow.Steps.Any(step =>
+                @if (_model.Workflow.Steps.Any(step =>
                     HasChildChanges(EnterpriseCatalogItem.SparsePath.WorkMasters.Key(step.Id))))
                 {
                     <span class="pg-catalog-tab-badge">Edited</span>
@@ -107,7 +105,7 @@
             </HeaderTemplate>
             <ChildContent>
                 <div class="pg-section-content">
-                    @if (AcceptedWorkflow.Steps.Count == 0)
+                    @if (_model.Workflow.Steps.Count == 0)
                     {
                         <p class="pg-hint">Save the workflow section draft to update the work-master tabs.</p>
                     }
@@ -115,7 +113,7 @@
                     {
                         <FluentTabs ActiveTabId="@ActiveMasterTabId" ActiveTabIdChanged="OnMasterTabChanged"
                             Orientation="Orientation.Vertical">
-                            @foreach (var step in AcceptedWorkflow.Steps)
+                            @foreach (var step in _model.Workflow.Steps)
                             {
                                 <FluentTab @key="step.Id" Id="@MasterTabId(step.Id)">
                                     <HeaderTemplate>
@@ -128,7 +126,7 @@
                                     <ChildContent>
                                         <StepMasterEditor @key="step.Id" Step="step"
                                             SectionDraftsEnabled="_sectionDraftsEnabled"
-                                            Pending="_pending" OnChanged="Refresh" />
+                                            OnChanged="Refresh" />
                                     </ChildContent>
                                 </FluentTab>
                             }
@@ -179,7 +177,6 @@
 
     private EnterpriseCatalogItem _model = null!;
     private EnterpriseCatalogItem.EditSession _session = null!;
-    private CatalogPendingChanges? _pending;
     private ISparseEditHistory _history = null!;
     private FluentDialog? _saveDialog;
     private WorkflowEditor? _workflowEditor;
@@ -187,27 +184,21 @@
     private bool _sectionDraftsEnabled = true;
     private IReadOnlyList<ChangePreviewRow> _changeRows = [];
     private string? _error;
-    private int _baselineVersion;
-    private CatalogWorkflow _savedWorkflow = null!;
-    private CatalogWorkflow _acceptedWorkflow = null!;
     private string _activeSectionTab = "case-6-overview";
     private string _activeMasterTab = string.Empty;
 
     private bool HasChanges => _session.HasOwnChanges;
-    private CatalogWorkflow AcceptedWorkflow => _acceptedWorkflow;
     private string ActiveMasterTabId =>
-        AcceptedWorkflow.Steps.Count == 0
+        _model.Workflow.Steps.Count == 0
             ? string.Empty
-            : AcceptedWorkflow.Steps.Any(step => MasterTabId(step.Id) == _activeMasterTab)
+            : _model.Workflow.Steps.Any(step => MasterTabId(step.Id) == _activeMasterTab)
                 ? _activeMasterTab
-                : MasterTabId(AcceptedWorkflow.Steps[0].Id);
+                : MasterTabId(_model.Workflow.Steps[0].Id);
 
     protected override void OnInitialized()
     {
         _model = CreateSample();
         CreateSession();
-        _savedWorkflow = _model.Workflow.DeepClone();
-        _acceptedWorkflow = _model.Workflow.DeepClone();
     }
 
     private static EnterpriseCatalogItem CreateSample() =>
@@ -416,9 +407,6 @@
         {
             _session.DiscardChildSessions();
             _session.AcceptChanges();
-            _savedWorkflow = _model.Workflow.DeepClone();
-            _acceptedWorkflow = _model.Workflow.DeepClone();
-            _baselineVersion++;
             CreateSession();
             _error = null;
         }
@@ -430,40 +418,85 @@
 
     private void EnsureAcceptedWorkMasters()
     {
-        _acceptedWorkflow = _model.Workflow.DeepClone();
-        var activeStepIds = AcceptedWorkflow.Steps.Select(static step => step.Id).ToHashSet(StringComparer.Ordinal);
-        var workMasters = _session.EditCollection<CatalogWorkMaster, string>(
-            EnterpriseCatalogItem.SparsePath.WorkMasters
-        );
-
-        foreach (var step in AcceptedWorkflow.Steps)
+        _error = null;
+        try
         {
-            if (_model.WorkMasters.Any(master => master.StepId == step.Id))
+            var activeSteps = _model.Workflow.Steps;
+            var activeStepIds = activeSteps
+                .Select(static step => step.Id)
+                .ToHashSet(StringComparer.Ordinal);
+            var existingMasters = _model.WorkMasters
+                .Select(static master => master.StepId)
+                .ToHashSet(StringComparer.Ordinal);
+            if (existingMasters.Count != _model.WorkMasters.Count)
             {
-                continue;
-            }
-
-            var master = _workflowEditor?.GetMasterDefaults(step.Id);
-            if (master is null)
-            {
-                throw new InvalidOperationException($"Work-master defaults for step '{step.Id}' are unavailable.");
-            }
-
-            master.StepId = step.Id;
-            if (!workMasters.TryInsert(workMasters.Count, master, out var error))
-            {
-                _error = $"Could not create the work master for '{step.Name}' ({error}).";
+                _error = "Work-master keys are duplicated. Reset the catalog to restore consistency.";
                 return;
+            }
+
+            var plannedAdds = new List<(CatalogWorkStep Step, CatalogWorkMaster Master)>();
+            foreach (var step in activeSteps)
+            {
+                if (existingMasters.Contains(step.Id))
+                {
+                    continue;
+                }
+
+                var master = _workflowEditor?.GetMasterDefaults(step.Id);
+                if (master is null)
+                {
+                    _error =
+                        $"Work-master defaults for step '{step.Id}' are unavailable. Reset the catalog to restore consistency.";
+                    return;
+                }
+
+                master.StepId = step.Id;
+                plannedAdds.Add((step, master));
+            }
+
+            var workMasters = _session.EditCollection<CatalogWorkMaster, string>(
+                EnterpriseCatalogItem.SparsePath.WorkMasters
+            );
+            var insertedIds = new List<string>(plannedAdds.Count);
+            foreach (var (step, master) in plannedAdds)
+            {
+                if (!workMasters.TryInsert(workMasters.Count, master, out var error))
+                {
+                    foreach (var insertedId in insertedIds)
+                    {
+                        workMasters.TryRemoveByKey(insertedId, out _);
+                    }
+
+                    _error =
+                        $"Could not create the work master for '{step.Name}' ({error}). Reset the catalog to restore consistency.";
+                    return;
+                }
+
+                insertedIds.Add(step.Id);
+            }
+
+            foreach (
+                var master in _model.WorkMasters
+                    .Where(master => !activeStepIds.Contains(master.StepId))
+                    .ToArray()
+            )
+            {
+                if (!workMasters.TryRemoveByKey(master.StepId, out var error))
+                {
+                    _error =
+                        $"Could not remove the work master for '{master.StepId}' ({error}). Reset the catalog to restore consistency.";
+                    return;
+                }
             }
         }
-
-        foreach (var master in _model.WorkMasters.Where(master => !activeStepIds.Contains(master.StepId)).ToArray())
+        catch (Exception exception)
+            when (exception is InvalidOperationException
+                or ArgumentException
+                or ObjectDisposedException
+            )
         {
-            if (!workMasters.TryRemoveByKey(master.StepId, out var error))
-            {
-                _error = $"Could not remove the work master for '{master.StepId}' ({error}).";
-                return;
-            }
+            _error =
+                $"Workflow and work masters could not be synchronized: {exception.Message} Reset the catalog to restore consistency.";
         }
     }
 
@@ -506,9 +539,6 @@
         {
             _session.DiscardChildSessions();
             _session.RevertChanges();
-            _savedWorkflow = _model.Workflow.DeepClone();
-            _acceptedWorkflow = _model.Workflow.DeepClone();
-            _baselineVersion++;
             CreateSession();
             _error = null;
         }
@@ -528,8 +558,7 @@
         where TChild : class
         where TChildPaths : ISparseTypedPath<TChild, TChild>
         where TChildSession : ISparseEditSessionWithPaths<TChild, TChildPaths> =>
-        _session.GetChildSessionStatus(path) == SparseChildSessionStatus.OpenChanged
-        || _pending?.IsSubtreeChanged(path.UntypedPath) == true;
+        _session.GetChildSessionStatus(path) == SparseChildSessionStatus.OpenChanged;
 
     private void CreateSession()
     {

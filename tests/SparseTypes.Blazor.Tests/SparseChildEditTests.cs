@@ -140,6 +140,58 @@ public sealed class SparseChildEditTests
     }
 
     [Test]
+    public async Task ChildFragmentKeepsTheGeneratedSessionType()
+    {
+        var root = new OrderDto { Customer = new OrderCustomer { Name = "Ada" } };
+        var session = root.CreateEditSession();
+        OrderCustomer.EditSession? typedSession = null;
+        var child = ChildWithContent(
+            (ISparseEditSessionWithChildren<OrderDto, SparseConflict>)session,
+            OrderDto.SparsePath.Customer,
+            context =>
+                builder =>
+                {
+                    typedSession = context.Session;
+                    builder.AddContent(0, context.Session.Observable.Name);
+                }
+        );
+
+        using var tree = await Headless.Tree.CreateAsync(
+            ScopeContent(session, child, static _ => { })
+        );
+
+        typedSession.ShouldNotBeNull();
+        typedSession.Observable.Name.ShouldBe("Ada");
+        typedSession.Observable.Name = "Typed draft";
+        await tree.FlushAsync();
+        typedSession.FieldState(OrderCustomer.SparsePath.Name).IsChanged.ShouldBeTrue();
+        session.GetModelForFrameworkAccess().Customer.Name.ShouldBe("Ada");
+    }
+
+    [Test]
+    public async Task DefaultRazorChildEditRendersNestedPathsWithoutGeneratedTypeNames()
+    {
+        var session = new ScopeGrandchildRoot
+        {
+            Child = new ScopeGrandchildChild
+            {
+                Leaf = new ScopeGrandchildLeaf { Name = "Baseline" },
+            },
+        }.CreateEditSession();
+        RenderFragment probe = builder =>
+        {
+            builder.OpenComponent<ChildEditInferenceProbe>(0);
+            builder.AddAttribute(1, nameof(ChildEditInferenceProbe.Session), session);
+            builder.CloseComponent();
+        };
+
+        using var tree = await Headless.Tree.CreateAsync(probe);
+
+        await tree.FlushAsync();
+        session.HasOwnChanges.ShouldBeFalse();
+    }
+
+    [Test]
     public async Task DuplicateScopeOwnerForOneSessionFailsClearly()
     {
         var session = new OrderDto().CreateEditSession();

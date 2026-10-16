@@ -3,12 +3,8 @@ using SparseTypes.Generated;
 
 namespace SparseTypes.Blazor.Tests;
 
-// Case 6 regression for #303: Edited marking must survive child Save and
-// AutoAccept. Draft edits (child-local) and catalog-pending edits (merged
-// into the root, unpersisted) both mark their subtree; root Undo/Redo/Reset/
-// Save move the markings with the root state. These tests lock the marking
-// predicates over the shared snapshot API; the Case 6 UI composes the same
-// predicates in CatalogPendingChanges.
+// Case 6 keeps draft highlighting local to each child session. Root changes
+// remain available for the catalog save preview after a section is accepted.
 public sealed class Case6PendingMarkingTests
 {
     private static readonly SparsePath SectionPath = Case6Catalog.SparsePath.Section.UntypedPath;
@@ -42,7 +38,7 @@ public sealed class Case6PendingMarkingTests
             },
         };
 
-    // Mirrors CatalogPendingChanges over one captured root snapshot.
+    // Captures one root snapshot to verify the delta remains available for Save.
     private static SparseChangeSetQueryView RootView(Case6Catalog.EditSession session)
     {
         var view = ((ISparseChangeSet)session.PreviewChangeSet()).CaptureQueryView();
@@ -66,7 +62,7 @@ public sealed class Case6PendingMarkingTests
         SectionPath.Append(Case6Section.SparsePath.Tiers.UntypedPath);
 
     [Test]
-    public void ScalarDraftThenAcceptKeepsMarkingUntilBaseline()
+    public void SectionAcceptanceClearsDraftStateAndRetainsRootChange()
     {
         var live = Catalog();
         var session = live.CreateEditSession();
@@ -78,14 +74,16 @@ public sealed class Case6PendingMarkingTests
 
         section.Observable.Note = "Draft";
         sectionChild.HasChanges.ShouldBeTrue();
+        section.FieldState(Case6Section.SparsePath.Note).IsChanged.ShouldBeTrue();
         // A pending draft is not parent-owned yet.
         RootView(session).FieldState(SectionPath).HasChanges.ShouldBeFalse();
 
         sectionChild.TryAcceptChanges(out _).ShouldBeTrue();
         sectionChild.HasChanges.ShouldBeFalse();
+        section.FieldState(Case6Section.SparsePath.Note).IsChanged.ShouldBeFalse();
 
-        // Save section draft leaves the section and its field marked while
-        // the root session still has unpersisted changes.
+        // The accepted delta remains in the root change set while the child
+        // session no longer reports a draft.
         var merged = RootView(session);
         SubtreeChanged(merged, SectionPath).ShouldBeTrue();
         FieldChanged(merged, SectionPath.Append(Case6Section.SparsePath.Note.UntypedPath))
@@ -135,9 +133,8 @@ public sealed class Case6PendingMarkingTests
         ).OpenChildSession(Case6Section.SparsePath.Tiers.Key("standard"));
         var tier = (Case6Tier.EditSession)tierChild.Session;
 
-        // A nested band edit marks the band row, its tier row, the
-        // collection, and the section through descendants, without painting
-        // the sibling tier.
+        // A nested band edit appears at its row, tier, collection, and section
+        // paths without affecting the sibling tier.
         tier.Observable.Bands.AddModel(new Case6Band { Code = "promo", Percent = 7m });
         tierChild.TryAcceptChanges(out _).ShouldBeTrue();
         sectionChild.TryAcceptChanges(out _).ShouldBeTrue();
@@ -214,10 +211,9 @@ public sealed class Case6PendingMarkingTests
             .Select(record => record.Path)
             .ToArray();
         order.ShouldContain(TiersPath);
-        // No exact or descendant record per row: a pure reorder only leaves
-        // the collection-level Order (rows also see it as an ancestor
-        // change), so moved marking compares against the saved order instead
-        // of painting rows from the collection record.
+        // A pure reorder leaves only the collection-level Order. Broad field
+        // ancestry remains available to existing callers; row highlighting
+        // uses keyed item state from the active draft instead.
         var standard = merged.FieldState(TierRow("standard"));
         standard.IsChanged.ShouldBeFalse();
         standard.HasDescendantChange.ShouldBeFalse();
@@ -255,7 +251,7 @@ public sealed class Case6PendingMarkingTests
     }
 
     [Test]
-    public async Task AutoAcceptedEditsStayMarkedWithoutDraft()
+    public async Task AutoAcceptedEditsClearDraftStateAndRemainInRootChangeSet()
     {
         var live = Catalog();
         var session = live.CreateEditSession();
@@ -273,10 +269,11 @@ public sealed class Case6PendingMarkingTests
         section.Observable.Note = "Auto";
         await tree.FlushAsync();
 
-        // AutoAccept merged into the parent: no unsaved child draft, but the
-        // root still owns the change.
+        // AutoAccept merged into the parent: the child draft is clear, while
+        // the root retains the unsaved change.
         sectionContext.HasChanges.ShouldBeFalse();
         session.HasOwnChanges.ShouldBeTrue();
+        section.FieldState(Case6Section.SparsePath.Note).IsChanged.ShouldBeFalse();
         var merged = RootView(session);
         SubtreeChanged(merged, SectionPath).ShouldBeTrue();
         FieldChanged(merged, SectionPath.Append(Case6Section.SparsePath.Note.UntypedPath))

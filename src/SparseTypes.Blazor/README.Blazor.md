@@ -71,6 +71,12 @@ customer.Undo();
 customer.Redo();
 ```
 
+For Razor, `SparseChildEditDefault` uses the built-in `SparseConflict` type and
+infers the parent, child, path-builder, and child-session types from `Path`.
+Nested child paths can use the context's `Path` directly without naming
+generated path-builder types. Keep `SparseChildEdit` for applications that use
+a custom conflict type.
+
 The child context provides generated paths, a child-bound `EditContext`,
 change state, acceptance conflicts, child-local history actions, and an
 `AutoAccepted` event for successful automatic merges. The scope enables

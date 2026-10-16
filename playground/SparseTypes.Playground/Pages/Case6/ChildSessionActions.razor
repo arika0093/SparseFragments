@@ -1,23 +1,25 @@
 @using SparseTypes
 @using SparseTypes.Playground.Models
+@using SparseTypes.Blazor
+@typeparam TModel where TModel : class
 
 <div class="pg-stack">
     @if (SectionDraftsEnabled)
     {
         <div class="pg-actions">
-            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!CanUndo())" @onclick="UndoDraft">
+            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!Context.CanUndo)" @onclick="UndoDraft">
                 Undo
             </FluentButton>
-            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!CanRedo())" @onclick="RedoDraft">
+            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!Context.CanRedo)" @onclick="RedoDraft">
                 Redo
             </FluentButton>
             <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
-                Disabled="@(!HasChanges())" @onclick="AcceptChildSessionAsync">Save section draft</FluentButton>
-            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!HasChanges())"
+                Disabled="@(!Context.HasChanges)" @onclick="AcceptChildSessionAsync">Save section draft</FluentButton>
+            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!Context.HasChanges)"
                 @onclick="DiscardChildSessionAsync">Discard section draft</FluentButton>
         </div>
     }
-    @if (AutoAcceptConflicts is not null)
+    @if (Context.AutoAcceptConflicts is not null)
     {
         <p class="pg-hint">The latest edit could not be applied automatically. Correct the conflicting value or discard the draft.</p>
         <FluentButton Appearance="ButtonAppearance.Default" @onclick="DiscardChildSessionAsync">
@@ -51,34 +53,19 @@
 
 @code {
     [Parameter, EditorRequired]
-    public Func<bool> HasChanges { get; set; } = null!;
+    public ISparseChildEditContext<TModel, SparseConflict> Context { get; set; } = null!;
 
     [Parameter]
     public bool SectionDraftsEnabled { get; set; } = true;
 
     [Parameter]
-    public IReadOnlyList<SparseConflict>? AutoAcceptConflicts { get; set; }
-
-    [Parameter, EditorRequired]
-    public Func<bool> CanUndo { get; set; } = null!;
-
-    [Parameter, EditorRequired]
-    public Func<bool> CanRedo { get; set; } = null!;
-
-    [Parameter, EditorRequired]
-    public Action Undo { get; set; } = null!;
-
-    [Parameter, EditorRequired]
-    public Action Redo { get; set; } = null!;
-
-    [Parameter, EditorRequired]
-    public Func<(bool Accepted, IReadOnlyList<SparseConflict>? Conflicts)> Accept { get; set; } = null!;
-
-    [Parameter, EditorRequired]
-    public Action Discard { get; set; } = null!;
+    public ISparseEditSessionWithBatchEdit? AcceptanceBatchSession { get; set; }
 
     [Parameter]
     public EventCallback OnFinished { get; set; }
+
+    [Parameter]
+    public Action? OnAccepted { get; set; }
 
     [Parameter]
     public EventCallback OnChanged { get; set; }
@@ -89,17 +76,44 @@
     private IReadOnlyList<SparseConflict> _conflicts = [];
     private string? _message;
     private IReadOnlyList<SparseConflict> DisplayedConflicts =>
-        _conflicts.Count > 0 ? _conflicts : AutoAcceptConflicts ?? [];
+        _conflicts.Count > 0 ? _conflicts : Context.AutoAcceptConflicts ?? [];
 
     public async Task<bool> AcceptChildSessionAsync()
     {
-        if (!HasChanges())
+        if (!Context.HasChanges)
         {
             return true;
         }
 
-        var result = Accept();
-        if (result.Accepted)
+        var accepted = false;
+        IReadOnlyList<SparseConflict>? conflicts = null;
+        void Accept()
+        {
+            accepted = Context.TryAcceptChanges(out conflicts);
+            if (accepted)
+            {
+                OnAccepted?.Invoke();
+            }
+        }
+
+        try
+        {
+            if (AcceptanceBatchSession is null)
+            {
+                Accept();
+            }
+            else
+            {
+                AcceptanceBatchSession.BatchEdit(Accept);
+            }
+        }
+        catch (InvalidOperationException exception)
+        {
+            _message = exception.Message;
+            return false;
+        }
+
+        if (accepted)
         {
             _conflicts = [];
             _message = "Section draft saved to the catalog session.";
@@ -107,14 +121,14 @@
             return true;
         }
 
-        _conflicts = result.Conflicts ?? [];
+        _conflicts = conflicts ?? [];
         _message = "The child session overlaps newer parent-session edits. Discard it to reload the current section, then reapply the intended changes.";
         return false;
     }
 
     private async Task DiscardChildSessionAsync()
     {
-        Discard();
+        Context.DiscardChanges();
         _conflicts = [];
         _message = "Section draft discarded. The section is ready for more edits.";
         await OnFinished.InvokeAsync();
@@ -124,9 +138,9 @@
     {
         try
         {
-            Undo();
+            Context.Undo();
             _message = null;
-            await OnStatusChanged.InvokeAsync(HasChanges());
+            await OnStatusChanged.InvokeAsync(Context.HasChanges);
             await OnChanged.InvokeAsync();
         }
         catch (InvalidOperationException exception)
@@ -139,9 +153,9 @@
     {
         try
         {
-            Redo();
+            Context.Redo();
             _message = null;
-            await OnStatusChanged.InvokeAsync(HasChanges());
+            await OnStatusChanged.InvokeAsync(Context.HasChanges);
             await OnChanged.InvokeAsync();
         }
         catch (InvalidOperationException exception)

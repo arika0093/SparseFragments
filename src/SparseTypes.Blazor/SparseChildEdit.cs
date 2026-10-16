@@ -9,8 +9,7 @@ namespace SparseTypes.Blazor;
 /// <typeparam name="TChildPaths">The generated path builder rooted at the child model.</typeparam>
 /// <typeparam name="TConflict">The generated structured conflict type for the parent session.</typeparam>
 /// <typeparam name="TChildSession">The generated child edit-session type.</typeparam>
-public sealed class SparseChildEdit<TParent, TChild, TChildPaths, TConflict, TChildSession>
-    : ComponentBase
+public class SparseChildEdit<TParent, TChild, TChildPaths, TConflict, TChildSession> : ComponentBase
     where TParent : class
     where TChild : class
     where TChildPaths : ISparseTypedPath<TChild, TChild>
@@ -266,3 +265,15 @@ public sealed class SparseChildEdit<TParent, TChild, TChildPaths, TConflict, TCh
         builder.CloseComponent();
     }
 }
+
+/// <summary>Opens a child session using the standard <see cref="SparseConflict"/> conflict type.</summary>
+/// <typeparam name="TParent">The model owned by the parent session scope.</typeparam>
+/// <typeparam name="TChild">The child model addressed by <see cref="Path"/>.</typeparam>
+/// <typeparam name="TChildPaths">The generated path builder rooted at the child model.</typeparam>
+/// <typeparam name="TChildSession">The generated child edit-session type.</typeparam>
+public sealed class SparseChildEditDefault<TParent, TChild, TChildPaths, TChildSession>
+    : SparseChildEdit<TParent, TChild, TChildPaths, SparseConflict, TChildSession>
+    where TParent : class
+    where TChild : class
+    where TChildPaths : ISparseTypedPath<TChild, TChild>
+    where TChildSession : ISparseEditSessionWithPaths<TChild, TChildPaths> { }

@@ -17,9 +17,7 @@ public sealed class CollectionStateTests
     private static KeyedServerHolder Holder(params (string Id, string Name)[] rows) =>
         new()
         {
-            Items = rows
-                .Select(row => new KeyedServer { Id = row.Id, Name = row.Name })
-                .ToList(),
+            Items = rows.Select(row => new KeyedServer { Id = row.Id, Name = row.Name }).ToList(),
         };
 
     [Test]
@@ -97,8 +95,7 @@ public sealed class CollectionStateTests
     [Test]
     public void PureReorderMarksSurvivorRank()
     {
-        var session = Holder(("a", "a"), ("b", "b"), ("c", "c"), ("d", "d"))
-            .CreateEditSession();
+        var session = Holder(("a", "a"), ("b", "b"), ("c", "c"), ("d", "d")).CreateEditSession();
         var items = session.Observable.Items;
         (items[0], items[1]) = (items[1], items[0]);
 
@@ -111,6 +108,52 @@ public sealed class CollectionStateTests
         view.GetItemState("c").IsReordered.ShouldBeFalse();
         view.GetItemState("c").IsEmpty.ShouldBeTrue();
         view.GetItemState("d").IsReordered.ShouldBeFalse();
+    }
+
+    [Test]
+    public void AddingAKeyDoesNotReorderExistingRows()
+    {
+        var session = Holder(("a", "a"), ("b", "b")).CreateEditSession();
+        session.Observable.Items.InsertModel(0, new KeyedServer { Id = "new", Name = "New" });
+
+        var view = session.CollectionState(KeyedServerHolder.SparsePath.Items);
+        view.IsChanged.ShouldBeTrue();
+        view.OrderChanged.ShouldBeTrue();
+        view.GetItemState("new").IsAdded.ShouldBeTrue();
+        view.GetItemState("new").IsReordered.ShouldBeFalse();
+        view.GetItemState("a").IsEmpty.ShouldBeTrue();
+        view.GetItemState("a").IsReordered.ShouldBeFalse();
+        view.GetItemState("b").IsEmpty.ShouldBeTrue();
+        view.GetItemState("b").IsReordered.ShouldBeFalse();
+    }
+
+    [Test]
+    public void AppendingAKeyDoesNotReorderExistingRows()
+    {
+        var session = Holder(("a", "a"), ("b", "b")).CreateEditSession();
+        session.Observable.Items.AddModel(new KeyedServer { Id = "new", Name = "New" });
+
+        var view = session.CollectionState(KeyedServerHolder.SparsePath.Items);
+        view.OrderChanged.ShouldBeTrue();
+        view.GetItemState("new").IsAdded.ShouldBeTrue();
+        view.GetItemState("a").IsReordered.ShouldBeFalse();
+        view.GetItemState("b").IsReordered.ShouldBeFalse();
+    }
+
+    [Test]
+    public void RemovingAKeyDoesNotReorderSurvivingRows()
+    {
+        var session = Holder(("a", "a"), ("b", "b"), ("c", "c")).CreateEditSession();
+        session.Observable.Items.RemoveAt(0);
+
+        var view = session.CollectionState(KeyedServerHolder.SparsePath.Items);
+        view.IsChanged.ShouldBeTrue();
+        view.OrderChanged.ShouldBeTrue();
+        view.GetItemState("a").IsRemoved.ShouldBeTrue();
+        view.GetItemState("b").IsEmpty.ShouldBeTrue();
+        view.GetItemState("b").IsReordered.ShouldBeFalse();
+        view.GetItemState("c").IsEmpty.ShouldBeTrue();
+        view.GetItemState("c").IsReordered.ShouldBeFalse();
     }
 
     [Test]
@@ -159,7 +202,15 @@ public sealed class CollectionStateTests
         var temp = Guid.NewGuid();
         var session = new TempOrderHolder
         {
-            Lines = [new TempOrderLine { Id = 7, Name = "kept", TemporaryId = temp }],
+            Lines =
+            [
+                new TempOrderLine
+                {
+                    Id = 7,
+                    Name = "kept",
+                    TemporaryId = temp,
+                },
+            ],
         }.CreateEditSession();
         session.Observable.Lines[0].Name = "edited";
 
@@ -179,10 +230,7 @@ public sealed class CollectionStateTests
     {
         var model = new StateNullableHolder();
         var session = model.CreateEditSession();
-        model.MaybeItems =
-        [
-            new KeyedServer { Id = "a", Name = "a" },
-        ];
+        model.MaybeItems = [new KeyedServer { Id = "a", Name = "a" }];
         model.MaybeScores = new Dictionary<string, int> { ["k"] = 1 };
 
         // Null-to-populated reads as one member-level Changed transition with
@@ -287,9 +335,7 @@ public sealed class CollectionStateTests
         entry.IsRemoved.ShouldBeFalse();
 
         // The edited leaf stays queryable through field state.
-        var leaf = session.FieldState(
-            StructuralDictHolder.SparsePath.Servers.Key("s").Name
-        );
+        var leaf = session.FieldState(StructuralDictHolder.SparsePath.Servers.Key("s").Name);
         leaf.IsChanged.ShouldBeTrue();
         leaf.After.Value.ShouldBe("after");
     }
@@ -313,9 +359,9 @@ public sealed class CollectionStateTests
         // Session collection state is root-only; nested rows resolve through
         // the typed change-set navigation with full type inference.
         var changes = session.CreateChangeSet();
-        var nested = changes.Groups.GetChange("g").Edit.Servers.KeyedState(
-            ClusterHolder.SparsePath.Groups.Key("g").Servers
-        );
+        var nested = changes
+            .Groups.GetChange("g")
+            .Edit.Servers.KeyedState(ClusterHolder.SparsePath.Groups.Key("g").Servers);
 
         nested.IsChanged.ShouldBeTrue();
         var row = nested.GetItemState("s");
@@ -333,12 +379,8 @@ public sealed class CollectionStateTests
     public void NonCollectionPathsThrowDeterministically()
     {
         var scalar = new Settings().CreateEditSession();
-        Should.Throw<ArgumentException>(() =>
-            scalar.CollectionState(Settings.SparsePath.Label)
-        );
-        Should.Throw<ArgumentException>(() =>
-            scalar.CollectionState(Settings.SparsePath.Nested)
-        );
+        Should.Throw<ArgumentException>(() => scalar.CollectionState(Settings.SparsePath.Label));
+        Should.Throw<ArgumentException>(() => scalar.CollectionState(Settings.SparsePath.Nested));
         Should.Throw<ArgumentException>(() =>
             scalar.CollectionState(SparsePath.Root<Settings>().Member("Missing"))
         );
@@ -355,8 +397,6 @@ public sealed class CollectionStateTests
         );
 
         // A model without keyed or dictionary members always throws.
-        Should.Throw<ArgumentException>(() =>
-            scalar.CollectionState(Settings.SparsePath.Label)
-        );
+        Should.Throw<ArgumentException>(() => scalar.CollectionState(Settings.SparsePath.Label));
     }
 }

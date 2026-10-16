@@ -353,7 +353,7 @@ test("case 6 keeps a post-save edit as a new pending draft", async ({ page }) =>
   await expect(itemCode).toHaveValue("e2e-item-code-v2");
 });
 
-test("case 6 keeps Edited marking after saving a section draft", async ({ page }) => {
+test("case 6 clears section draft markers but keeps catalog changes pending", async ({ page }) => {
   await openCase(page, "case-6", "Enterprise master editing with child sessions");
   const itemCode = page.locator(".pg-edit-fields .pg-row").filter({ hasText: "ItemCode" }).locator("input").first();
   const itemCodeRow = page.locator(".pg-edit-fields .pg-row").filter({ hasText: "ItemCode" }).first();
@@ -364,18 +364,135 @@ test("case 6 keeps Edited marking after saving a section draft", async ({ page }
 
   await fluentButton(page.locator("#case-6-overview-panel"), "Save section draft").click();
   await expect(page.getByText("Section draft saved to the catalog session.")).toBeVisible();
-  await expect(page.locator(".pg-catalog-tab-badge").filter({ hasText: "Edited" }).first()).toBeVisible();
-  await expect(itemCodeRow).toHaveClass(/pg-changed/);
+  await expect(page.locator(".pg-catalog-tab-badge").filter({ hasText: "Edited" })).toHaveCount(0);
+  await expect(itemCodeRow).not.toHaveClass(/pg-changed/);
+  await expect(page.locator(".pg-catalog-header .pg-has-changes-badge")).toHaveText("Changes pending");
 
   await fluentButton(page, "Save").first().click();
   const reviewDialog = page.locator(".pg-catalog-review-dialog");
   await expect(reviewDialog.locator("dialog[open]")).toBeVisible();
+  await expect(reviewDialog).toContainText("e2e-marked-code");
   await fluentButton(reviewDialog, "Save").click();
   await expect(page.getByText("No committed changes", { exact: true })).toBeVisible();
   await expect(page.locator(".pg-catalog-tab-badge").filter({ hasText: "Edited" })).toHaveCount(0);
 });
 
-test("case 6 undo after disabling section drafts keeps rendering", async ({ page }) => {
+test("case 6 only marks added workflow rows until an existing row moves", async ({ page }) => {
+  await openCase(page, "case-6", "Enterprise master editing with child sessions");
+  await page.getByText("4. Workflow", { exact: true }).click();
+  const rows = page.locator("#case6-workflow .pg-roster-row");
+  const initialCount = await rows.count();
+  const template = page.locator(".pg-catalog-template").filter({ hasText: "Visual inspection" });
+
+  await template.locator('fluent-button[title="Add step"]').click();
+  await expect(rows).toHaveCount(initialCount + 1);
+  const addedRow = rows.filter({ hasText: "Visual inspection" });
+  await expect(addedRow).toHaveClass(/pg-added/);
+  for (let index = 0; index < initialCount; index++) {
+    await addedRow.locator('fluent-button[title="Move up"]').click();
+  }
+  await expect(rows.first()).toContainText("Visual inspection");
+  for (let index = 0; index < initialCount; index++) {
+    await expect(rows.nth(index)).not.toHaveClass(/pg-moved/);
+  }
+
+  await rows.filter({ hasText: "Cutting" }).locator('fluent-button[title="Move down"]').click();
+  await expect(rows.filter({ hasText: "Cutting" })).toHaveClass(/pg-moved/);
+  await expect(rows.filter({ hasText: "Assembly" })).toHaveClass(/pg-moved/);
+  await expect(addedRow).toHaveClass(/pg-added/);
+});
+
+test("case 6 synchronizes work-master tabs after removing a workflow step", async ({ page }) => {
+  await openCase(page, "case-6", "Enterprise master editing with child sessions");
+  await page.getByText("4. Workflow", { exact: true }).click();
+  const rows = page.locator("#case6-workflow .pg-roster-row");
+  const assembly = rows.filter({ hasText: "Assembly" });
+
+  await assembly.locator('fluent-button[title="Remove step"]').click();
+  await expect(rows).toHaveCount(2);
+  await expect(rows.filter({ hasText: "Cutting" })).not.toHaveClass(/pg-moved/);
+  await expect(rows.filter({ hasText: "Final inspection" })).not.toHaveClass(/pg-moved/);
+  await fluentButton(page.locator("#case-6-workflow-panel"), "Save section draft").click();
+
+  await page.getByText("5. Work masters", { exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Cutting master" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Assembly" })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "Final inspection" })).toBeVisible();
+
+  await page.getByText("Enable section drafts", { exact: true }).click();
+  await fluentButton(page, "Undo").first().click();
+  await page.getByText("4. Workflow", { exact: true }).click();
+  await expect(rows.filter({ hasText: "Assembly" })).toHaveCount(1);
+  await page.getByText("5. Work masters", { exact: true }).click();
+  await expect(page.getByRole("tab", { name: "Assembly" })).toBeVisible();
+
+  await fluentButton(page, "Redo").first().click();
+  await page.getByText("4. Workflow", { exact: true }).click();
+  await expect(rows.filter({ hasText: "Assembly" })).toHaveCount(0);
+  await page.getByText("5. Work masters", { exact: true }).click();
+  await expect(page.getByRole("tab", { name: "Assembly" })).toHaveCount(0);
+});
+
+test("case 6 saves and resets a work-master draft", async ({ page }) => {
+  await openCase(page, "case-6", "Enterprise master editing with child sessions");
+  await page.getByText("5. Work masters", { exact: true }).click();
+  const masterPanel = page.locator("#case-6-master-cut-panel");
+  const workCenterRow = masterPanel.locator(".pg-edit-fields .pg-row").filter({ hasText: "WorkCenter" });
+  const workCenter = workCenterRow.locator("input").first();
+
+  await enterText(workCenter, "e2e-work-center");
+  await expect(workCenterRow).toHaveClass(/pg-changed/);
+  await expect(page.locator(".pg-catalog-tab-badge").filter({ hasText: "Edited" }).first()).toBeVisible();
+  await fluentButton(masterPanel, "Save section draft").click();
+  await expect(workCenterRow).not.toHaveClass(/pg-changed/);
+  await expect(page.locator(".pg-catalog-tab-badge").filter({ hasText: "Edited" })).toHaveCount(0);
+  await expect(page.locator(".pg-catalog-header .pg-has-changes-badge")).toHaveText("Changes pending");
+
+  await fluentButton(page, "Reset").first().click();
+  await expect(workCenter).toHaveValue("WC-12");
+  await expect(page.locator(".pg-catalog-header .pg-has-changes-badge")).toHaveText("No committed changes");
+});
+
+test("case 6 auto-accepts a workflow insertion and creates its work master", async ({ page }) => {
+  await openCase(page, "case-6", "Enterprise master editing with child sessions");
+  await page.getByText("Enable section drafts", { exact: true }).click();
+  const itemCode = page
+    .locator("#case-6-overview-panel .pg-edit-fields .pg-row")
+    .filter({ hasText: "ItemCode" })
+    .locator("input")
+    .first();
+  await enterText(itemCode, "e2e-reset-before-workflow");
+  await expect(page.locator(".pg-catalog-header .pg-has-changes-badge")).toHaveText("Changes pending");
+  await fluentButton(page, "Reset").first().click();
+  await expect(itemCode).toHaveValue("EQ-2048");
+  await expect(page.locator(".pg-catalog-header .pg-has-changes-badge")).toHaveText("No committed changes");
+
+  await page.getByText("4. Workflow", { exact: true }).click();
+  const template = page.locator(".pg-catalog-template").filter({ hasText: "Visual inspection" });
+
+  await template.locator('fluent-button[title="Add step"]').click();
+  await expect(page.locator("#case6-workflow .pg-roster-row").filter({ hasText: "Visual inspection" }))
+    .toHaveCount(1);
+  await expect(page.locator(".pg-catalog-header .pg-has-changes-badge")).toHaveText("Changes pending");
+
+  await page.getByText("5. Work masters", { exact: true }).click();
+  await page.getByRole("tab", { name: "Visual inspection" }).click();
+  await expect(page.getByRole("heading", { name: "Visual inspection master" })).toBeVisible();
+  const stepId = await page
+    .getByRole("heading", { name: "Visual inspection master" })
+    .locator("xpath=following-sibling::p/code")
+    .textContent();
+  const masterPanel = page.locator(`#case-6-master-${stepId}-panel`);
+  await expect(
+    masterPanel.locator(".pg-edit-fields .pg-row").filter({ hasText: "WorkCenter" }).locator("input").first(),
+  ).toHaveValue("QC-04");
+  await expect(
+    masterPanel.locator(".pg-edit-fields .pg-row").filter({ hasText: "Equipment" }).locator("input").first(),
+  ).toHaveValue("Inspection Station");
+  await expect(page.locator("#blazor-error-ui")).toBeHidden();
+});
+
+test("case 6 catalog undo and redo do not restore section draft markers", async ({ page }) => {
   await openCase(page, "case-6", "Enterprise master editing with child sessions");
   const itemCode = page.locator(".pg-edit-fields .pg-row").filter({ hasText: "ItemCode" }).locator("input").first();
 
@@ -383,13 +500,16 @@ test("case 6 undo after disabling section drafts keeps rendering", async ({ page
   await fluentButton(page.locator("#case-6-overview-panel"), "Save section draft").click();
   await expect(page.getByText("Section draft saved to the catalog session.")).toBeVisible();
 
-  await page.locator("fluent-checkbox").filter({ hasText: "Enable section drafts" }).click();
+  await page.getByText("Enable section drafts", { exact: true }).click();
   await expect(fluentButton(page, "Undo").first()).toBeVisible();
-  await expect(page.locator(".pg-catalog-tab-badge").filter({ hasText: "Edited" }).first()).toBeVisible();
+  await expect(page.locator(".pg-catalog-header .pg-has-changes-badge")).toHaveText("Changes pending");
+  await expect(page.locator(".pg-catalog-tab-badge").filter({ hasText: "Edited" })).toHaveCount(0);
   await fluentButton(page, "Undo").first().click();
   await expect(itemCode).toHaveValue("EQ-2048");
+  await expect(page.locator(".pg-catalog-header .pg-has-changes-badge")).toHaveText("No committed changes");
   await expect(page.locator(".pg-catalog-tab-badge").filter({ hasText: "Edited" })).toHaveCount(0);
   await fluentButton(page, "Redo").first().click();
   await expect(itemCode).toHaveValue("e2e-undo-code");
-  await expect(page.locator(".pg-catalog-tab-badge").filter({ hasText: "Edited" }).first()).toBeVisible();
+  await expect(page.locator(".pg-catalog-header .pg-has-changes-badge")).toHaveText("Changes pending");
+  await expect(page.locator(".pg-catalog-tab-badge").filter({ hasText: "Edited" })).toHaveCount(0);
 });
