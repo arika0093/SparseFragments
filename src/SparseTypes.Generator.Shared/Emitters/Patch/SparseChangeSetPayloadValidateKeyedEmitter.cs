@@ -213,6 +213,60 @@ internal static class SparseChangeSetPayloadValidateKeyedEmitter
                     + path
                     + ", Message = \"A temporary-keyed payload must contain temporary orders.\" });"
             );
+            code.AppendLineAt(
+                6,
+                "if (item.TempAfterOrder is not null && item.AfterOrder is not null) { var __validateUnassignedSlots"
+                    + id
+                    + " = 0; foreach (var __validateAfterKey"
+                    + id
+                    + " in item.AfterOrder) if ("
+                    + SparseKeyedCollectionEmitter.IsUnassignedExpression(
+                        member,
+                        "__validateAfterKey" + id
+                    )
+                    + ") __validateUnassignedSlots"
+                    + id
+                    + "++; if (__validateUnassignedSlots"
+                    + id
+                    + " != item.TempAfterOrder.Count) errors.Add(new "
+                    + error
+                    + " { Kind = "
+                    + kind
+                    + ".Order, Path = "
+                    + path
+                    + ", Message = \"The temporary-key order count must match the unassigned-key slots.\" }); }"
+            );
+        }
+        if (isKeyed)
+        {
+            code.AppendLineAt(
+                6,
+                "var __validateNeedsOrder"
+                    + id
+                    + " = false; foreach (var __validateOrderItem"
+                    + id
+                    + " in item.Items) if (__validateOrderItem"
+                    + id
+                    + " is not null && __validateOrderItem"
+                    + id
+                    + ".Kind == "
+                    + runtime
+                    + "ChangePayloadItemKind.Reorder) { __validateNeedsOrder"
+                    + id
+                    + " = true; break; }"
+            );
+            code.AppendLineAt(
+                6,
+                "if (__validateNeedsOrder"
+                    + id
+                    + " && item.AfterOrder is null) errors.Add(new "
+                    + error
+                    + " { Kind = "
+                    + kind
+                    + ".Order, Path = "
+                    + path
+                    + ", Message = \"A reordered payload item requires an after-order.\" });"
+            );
         }
         code.AppendLineAt(6, "break;");
     }

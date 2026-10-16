@@ -22,6 +22,13 @@ public sealed class ChangePayloadValidateTests
         }
     }
 
+    private static void SetDtoProperty(object dto, string propertyName, object? value)
+    {
+        var property = dto.GetType().GetProperty(propertyName);
+        property.ShouldNotBeNull();
+        property.SetValue(dto, value);
+    }
+
     private static Optional<Settings.Fragment?> SettingsState(string? label, int retry) =>
         Optional<Settings.Fragment?>.Present(
             Settings.Fragment.From(new Settings { Label = label, RetryCount = retry })
@@ -270,6 +277,107 @@ public sealed class ChangePayloadValidateTests
         result.Errors.ShouldAllBe(static error =>
             error.Kind == ChangePayloadValidationKind.Order && error.Path == "Items"
         );
+    }
+
+    [Test]
+    public void KeyedReorderRequiresAfterOrderWithoutSerializer()
+    {
+        Optional<KeyedServerHolder.Fragment?> State(params string[] ids) =>
+            Optional<KeyedServerHolder.Fragment?>.Present(
+                KeyedServerHolder.Fragment.From(
+                    new KeyedServerHolder
+                    {
+                        Items = ids.Select(static id => new KeyedServer { Id = id }).ToList(),
+                    }
+                )
+            );
+
+        var payload = KeyedServerHolder
+            .ChangeSet.Between(State("a", "b"), State("b", "a"))
+            .ToPayload();
+        var change = payload.Changes!.Single();
+        SetDtoProperty(change, "BeforeOrder", null);
+        SetDtoProperty(change, "AfterOrder", null);
+
+        var result = payload.Validate();
+
+        result.IsValid.ShouldBeFalse();
+        result
+            .Errors.Select(static error => error.Kind)
+            .ShouldBe([ChangePayloadValidationKind.Order]);
+        result.Errors.Single().Path.ShouldBe("Items");
+        result.Errors.Single().Message.ShouldContain("after-order");
+        ShouldNotLeakSecrets(result);
+    }
+
+    [Test]
+    public void TemporaryOrderCountMustMatchUnassignedSlotsWithoutSerializer()
+    {
+        var temp = Guid.NewGuid();
+        Optional<MixedTempHolder.Fragment?> State(params MixedTempItem[] items) =>
+            Optional<MixedTempHolder.Fragment?>.Present(
+                MixedTempHolder.Fragment.From(new MixedTempHolder { Items = items.ToList() })
+            );
+
+        var payload = MixedTempHolder
+            .ChangeSet.Between(
+                State(),
+                State(
+                    new MixedTempItem
+                    {
+                        Id = 0,
+                        TemporaryId = temp,
+                        Name = AfterSecret,
+                    }
+                )
+            )
+            .ToPayload();
+        var change = payload.Changes!.Single();
+        SetDtoProperty(change, "BeforeOrder", new List<int>());
+        SetDtoProperty(change, "AfterOrder", new List<int> { 0 });
+        SetDtoProperty(change, "TempBeforeOrder", new List<Guid>());
+        SetDtoProperty(change, "TempAfterOrder", new List<Guid>());
+
+        var result = payload.Validate();
+
+        result.IsValid.ShouldBeFalse();
+        result
+            .Errors.Select(static error => error.Kind)
+            .ShouldBe([ChangePayloadValidationKind.Order]);
+        result.Errors.Single().Path.ShouldBe("Items");
+        result.Errors.Single().Message.ShouldContain("unassigned-key slots");
+        ShouldNotLeakSecrets(result);
+    }
+
+    [Test]
+    public void AssignedAndTemporaryKeyOrdersRemainValidWithoutSerializer()
+    {
+        var temp = Guid.NewGuid();
+        Optional<MixedTempHolder.Fragment?> State(params MixedTempItem[] items) =>
+            Optional<MixedTempHolder.Fragment?>.Present(
+                MixedTempHolder.Fragment.From(new MixedTempHolder { Items = items.ToList() })
+            );
+
+        var payload = MixedTempHolder
+            .ChangeSet.Between(
+                State(new MixedTempItem { Id = 7, Name = "assigned" }),
+                State(
+                    new MixedTempItem { Id = 7, Name = "assigned" },
+                    new MixedTempItem
+                    {
+                        Id = 0,
+                        TemporaryId = temp,
+                        Name = AfterSecret,
+                    }
+                )
+            )
+            .ToPayload();
+
+        var result = payload.Validate();
+
+        result.IsValid.ShouldBeTrue();
+        result.Errors.ShouldBeEmpty();
+        ShouldNotLeakSecrets(result);
     }
 
     [Test]
