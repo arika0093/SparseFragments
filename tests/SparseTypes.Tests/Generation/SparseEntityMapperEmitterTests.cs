@@ -95,7 +95,10 @@ public sealed class SparseEntityMapperEmitterTests
         }
         """;
 
-    private static CSharpCompilation ProbeCompilation(string source)
+    private static CSharpCompilation ProbeCompilation(
+        string source,
+        params MetadataReference[] additionalReferences
+    )
     {
         var tree = CSharpSyntaxTree.ParseText(StubUsings + source + Stubs);
         var tpa = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(
@@ -108,6 +111,7 @@ public sealed class SparseEntityMapperEmitterTests
         references.Add(
             MetadataReference.CreateFromFile(typeof(SparseModelAttribute).Assembly.Location)
         );
+        references.AddRange(additionalReferences);
         return CSharpCompilation.Create(
             "SparseEntityMapperProbe",
             [tree],
@@ -134,9 +138,13 @@ public sealed class SparseEntityMapperEmitterTests
         return (runResult.Diagnostics, sources);
     }
 
-    private static string RenderDirect(string source, string mapperMetadataName)
+    private static string RenderDirect(
+        string source,
+        string mapperMetadataName,
+        params MetadataReference[] additionalReferences
+    )
     {
-        var compilation = ProbeCompilation(source);
+        var compilation = ProbeCompilation(source, additionalReferences);
         var mapper = compilation.GetTypeByMetadataName(mapperMetadataName);
         mapper.ShouldNotBeNull($"probe mapper '{mapperMetadataName}' should resolve");
         var result = SparseEntityMapperEmitter.RenderMapper(mapper!, CancellationToken.None);
@@ -391,6 +399,75 @@ public sealed class SparseEntityMapperEmitterTests
         diagnostics
             .Where(static d => d.Id.StartsWith("SPF", StringComparison.Ordinal))
             .ShouldBeEmpty();
+    }
+
+    [Test]
+    public void PrivateProtectedIsInaccessibleButProtectedInternalIsAccessibleInSameAssembly()
+    {
+        const string source = """
+            using SparseTypes.EntityFrameworkCore;
+            namespace Probe
+            {
+                public class BaseDto
+                {
+                    private protected string PrivateProtected { get; set; } = string.Empty;
+                    protected internal string ProtectedInternal { get; set; } = string.Empty;
+                }
+                public sealed class OrderDto : BaseDto { }
+                public class BaseEntity
+                {
+                    private protected string PrivateProtected { get; set; } = string.Empty;
+                    protected internal string ProtectedInternal { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity : BaseEntity { }
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
+                {
+                    private void Configure() { }
+                }
+            }
+            """;
+        var emitted = RenderDirect(source, "Probe.OrderMapper");
+        emitted.ShouldContain(
+            "builder.Member(static dto => dto.ProtectedInternal, static entity => entity.ProtectedInternal);"
+        );
+        emitted.ShouldNotContain("PrivateProtected");
+        CompileEmitted(source, emitted);
+    }
+
+    [Test]
+    public void CrossAssemblyInheritedMembersEmitOnlyPublicMappings()
+    {
+        const string source = """
+            using SparseTypes.EntityFrameworkCore;
+            namespace Probe
+            {
+                public sealed class OrderDto : External.BaseDto
+                {
+                    public string Own { get; set; } = string.Empty;
+                }
+                public sealed class OrderEntity : External.BaseEntity
+                {
+                    public string Own { get; set; } = string.Empty;
+                }
+                [SparseFragmentMapper<OrderEntity, OrderDto>]
+                public sealed partial class OrderMapper
+                {
+                    private void Configure() { }
+                }
+            }
+            """;
+        var externalReference = ExternalBaseTypesReference();
+        var emitted = RenderDirect(source, "Probe.OrderMapper", externalReference);
+        emitted.ShouldContain(
+            "builder.Member(static dto => dto.Inherited, static entity => entity.Inherited);"
+        );
+        emitted.ShouldContain(
+            "builder.Member(static dto => dto.Own, static entity => entity.Own);"
+        );
+        emitted.ShouldNotContain("ProtectedInternal");
+        emitted.ShouldNotContain("PrivateProtected");
+        CompileEmitted(source, emitted, externalReference);
     }
 
     [Test]
@@ -895,7 +972,11 @@ public sealed class SparseEntityMapperEmitterTests
         sources.ShouldNotContain("dto.Code");
     }
 
-    private static void CompileEmitted(string source, string emitted)
+    private static void CompileEmitted(
+        string source,
+        string emitted,
+        params MetadataReference[] additionalReferences
+    )
     {
         var tree = CSharpSyntaxTree.ParseText(StubUsings + source + Stubs + emitted);
         var tpa = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(
@@ -908,6 +989,7 @@ public sealed class SparseEntityMapperEmitterTests
         references.Add(
             MetadataReference.CreateFromFile(typeof(SparseModelAttribute).Assembly.Location)
         );
+        references.AddRange(additionalReferences);
         var compilation = CSharpCompilation.Create(
             "SparseEntityMapperCompileProbe",
             [tree],
@@ -924,6 +1006,51 @@ public sealed class SparseEntityMapperEmitterTests
             .GetDiagnostics()
             .Where(static d => d.Severity == DiagnosticSeverity.Error)
             .ShouldBeEmpty();
+    }
+
+    private static MetadataReference ExternalBaseTypesReference()
+    {
+        const string source = """
+            namespace External
+            {
+                public class BaseDto
+                {
+                    public string Inherited { get; set; } = string.Empty;
+                    private protected string PrivateProtected { get; set; } = string.Empty;
+                    protected internal string ProtectedInternal { get; set; } = string.Empty;
+                }
+                public class BaseEntity
+                {
+                    public string Inherited { get; set; } = string.Empty;
+                    private protected string PrivateProtected { get; set; } = string.Empty;
+                    protected internal string ProtectedInternal { get; set; } = string.Empty;
+                }
+            }
+            """;
+        var trustedAssemblies = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(
+            Path.PathSeparator
+        );
+        var references = trustedAssemblies.Select(path =>
+            (MetadataReference)MetadataReference.CreateFromFile(path)
+        );
+        var compilation = CSharpCompilation.Create(
+            "SparseEntityMapperExternalTypes",
+            [CSharpSyntaxTree.ParseText(source)],
+            references,
+            new CSharpCompilationOptions(
+                OutputKind.DynamicallyLinkedLibrary
+            ).WithNullableContextOptions(NullableContextOptions.Enable)
+        );
+        using var image = new MemoryStream();
+        var result = compilation.Emit(image);
+        if (!result.Success)
+        {
+            throw new InvalidOperationException(
+                string.Join(Environment.NewLine, result.Diagnostics)
+            );
+        }
+
+        return MetadataReference.CreateFromImage(image.ToArray());
     }
 
     [Test]

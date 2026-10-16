@@ -15,7 +15,7 @@ internal static class SparseEntityMapperSymbolHelpers
         }
 
         if (
-            accessibility is Accessibility.Internal or Accessibility.ProtectedAndInternal
+            accessibility is Accessibility.Internal or Accessibility.ProtectedOrInternal
             && SymbolEqualityComparer.Default.Equals(
                 symbol.ContainingAssembly,
                 mapper.ContainingAssembly
@@ -65,7 +65,7 @@ internal static class SparseEntityMapperSymbolHelpers
             }
 
             if (
-                access is Accessibility.Internal or Accessibility.ProtectedAndInternal
+                access is Accessibility.Internal or Accessibility.ProtectedOrInternal
                 && SymbolEqualityComparer.Default.Equals(
                     containing.ContainingAssembly,
                     mapper.ContainingAssembly
