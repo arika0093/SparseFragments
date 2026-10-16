@@ -230,12 +230,24 @@ public sealed class SparseValidationStore<TModel> : INotifyDataErrorInfo, IDispo
         ArgumentException.ThrowIfNullOrEmpty(options.Origin);
 
         // Messages render before mutating so a throwing factory leaves the
-        // store untouched.
-        var materialized = new List<(SparsePath Path, string Message)>();
+        // store untouched. Group by typed path, not wire text: key types can
+        // share a display spelling while remaining distinct paths.
+        var groups = new List<ConflictPathGroup>();
+        var groupsByPath = new Dictionary<SparsePath, ConflictPathGroup>();
+        var messageCount = 0;
         foreach (var conflict in conflicts)
         {
             ArgumentNullException.ThrowIfNull(conflict);
-            materialized.Add((conflict.Path, options.GetMessage(conflict)));
+            var message = options.GetMessage(conflict);
+            if (!groupsByPath.TryGetValue(conflict.Path, out var group))
+            {
+                group = new ConflictPathGroup(conflict.Path);
+                groupsByPath.Add(conflict.Path, group);
+                groups.Add(group);
+            }
+
+            group.Messages.Add(message);
+            messageCount++;
         }
 
         List<string> notifications = new();
@@ -243,62 +255,76 @@ public sealed class SparseValidationStore<TModel> : INotifyDataErrorInfo, IDispo
         lock (_sync)
         {
             ThrowIfDisposed();
+            var beforeByPath = new Dictionary<SparsePath, List<object?>>(groups.Count);
+            for (var index = 0; index < groups.Count; index++)
+            {
+                var group = groups[index];
+                beforeByPath.Add(group.Path, GetExactErrorsLocked(group.Path));
+            }
+
+            var replacedOnlyPaths = new List<SparsePath>();
             if (options.ReplaceOriginFirst)
             {
-                // One ordered pass without per-path whole-store sorts.
-                var sink = new OrderedNotifications();
                 foreach (var path in SortedPathsLocked())
                 {
-                    var before = GetExactErrorsLocked(path);
-                    RemoveBucketLocked(path, options.Origin);
-                    sink.AppendChangedChain(path, before, GetExactErrorsLocked(path));
-                }
-
-                notifications.AddRange(sink.Names);
-            }
-
-            // Group appends by path so each affected path compares once; the
-            // sink keeps first-seen path order with ancestor deduplication.
-            var sinkAfterReplace = OrderedNotifications.From(notifications);
-            var hasOpenPath = false;
-            var openPath = default(SparsePath);
-            List<object?>? beforeForPath = null;
-            foreach (var (path, message) in materialized)
-            {
-                if (beforeForPath is null || !path.Equals(openPath))
-                {
-                    if (beforeForPath is not null)
+                    if (
+                        !_buckets.TryGetValue(path, out var origins)
+                        || !origins.ContainsKey(options.Origin)
+                    )
                     {
-                        sinkAfterReplace.AppendChangedChain(
-                            openPath,
-                            beforeForPath,
-                            GetExactErrorsLocked(openPath)
-                        );
+                        continue;
                     }
 
-                    openPath = path;
-                    hasOpenPath = true;
-                    beforeForPath = GetExactErrorsLocked(path);
-                }
+                    if (!beforeByPath.ContainsKey(path))
+                    {
+                        beforeByPath.Add(path, GetExactErrorsLocked(path));
+                        replacedOnlyPaths.Add(path);
+                    }
 
-                AppendLocked(path, options.Origin, message);
+                    RemoveBucketLocked(path, options.Origin);
+                }
             }
 
-            if (hasOpenPath)
+            foreach (var group in groups)
             {
-                sinkAfterReplace.AppendChangedChain(
-                    openPath,
-                    beforeForPath!,
-                    GetExactErrorsLocked(openPath)
+                if (!_buckets.TryGetValue(group.Path, out var origins))
+                {
+                    origins = new Dictionary<string, List<object?>>(StringComparer.Ordinal);
+                    _buckets.Add(group.Path, origins);
+                }
+
+                if (!origins.TryGetValue(options.Origin, out var bucket))
+                {
+                    bucket = new List<object?>(group.Messages.Count);
+                    origins.Add(options.Origin, bucket);
+                }
+
+                bucket.AddRange(group.Messages);
+                _totalCount += group.Messages.Count;
+            }
+
+            var sink = new OrderedNotifications();
+            for (var index = 0; index < groups.Count; index++)
+            {
+                var group = groups[index];
+                sink.AppendChangedChain(
+                    group.Path,
+                    beforeByPath[group.Path],
+                    GetExactErrorsLocked(group.Path)
                 );
             }
 
-            notifications = sinkAfterReplace.Names;
+            foreach (var path in replacedOnlyPaths)
+            {
+                sink.AppendChangedChain(path, beforeByPath[path], GetExactErrorsLocked(path));
+            }
+
+            notifications = sink.Names;
             handler = ErrorsChanged;
         }
 
         Raise(notifications, handler);
-        return materialized.Count;
+        return messageCount;
     }
 
     /// <summary>Determines whether a path or anything below it holds errors.</summary>
@@ -494,24 +520,6 @@ public sealed class SparseValidationStore<TModel> : INotifyDataErrorInfo, IDispo
         }
     }
 
-    private void AppendLocked(SparsePath path, string origin, object error)
-    {
-        if (!_buckets.TryGetValue(path, out var origins))
-        {
-            origins = new Dictionary<string, List<object?>>(StringComparer.Ordinal);
-            _buckets.Add(path, origins);
-        }
-
-        if (!origins.TryGetValue(origin, out var bucket))
-        {
-            bucket = new List<object?>();
-            origins.Add(origin, bucket);
-        }
-
-        bucket.Add(error);
-        _totalCount++;
-    }
-
     private void RemoveBucketLocked(SparsePath path, string origin)
     {
         if (
@@ -596,6 +604,14 @@ public sealed class SparseValidationStore<TModel> : INotifyDataErrorInfo, IDispo
         return sink.Names;
     }
 
+    private sealed class ConflictPathGroup
+    {
+        public ConflictPathGroup(SparsePath path) => Path = path;
+
+        public SparsePath Path { get; }
+        public List<string> Messages { get; } = new();
+    }
+
     // Ordered, deduplicated ancestor notifications: wire-text identity stays
     // separate from typed path identity, compared ordinally.
     private sealed class OrderedNotifications
@@ -609,15 +625,7 @@ public sealed class SparseValidationStore<TModel> : INotifyDataErrorInfo, IDispo
             _seen = new HashSet<string>(StringComparer.Ordinal);
         }
 
-        private OrderedNotifications(List<string> names)
-        {
-            _names = names;
-            _seen = new HashSet<string>(names, StringComparer.Ordinal);
-        }
-
         public List<string> Names => _names;
-
-        public static OrderedNotifications From(List<string> names) => new(names);
 
         public static List<string> ForPaths(List<SparsePath> paths)
         {

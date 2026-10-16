@@ -24,6 +24,16 @@ public sealed class SparseValidationStoreTests
     private static List<object?> NameErrors(INotifyDataErrorInfo store, string? propertyName) =>
         store.GetErrors(propertyName).Cast<object?>().ToList();
 
+    private static SparseConflict Conflict(SparsePath path, string reason) =>
+        new(
+            path,
+            SparseConflictKind.Scalar,
+            Optional<object?>.Missing,
+            Optional<object?>.Missing,
+            Optional<object?>.Missing,
+            reason
+        );
+
     [Test]
     public void Contract_AddReplaceClearRaiseNotifications()
     {
@@ -353,6 +363,76 @@ public sealed class SparseValidationStoreTests
         (merged[0]?.ToString() ?? string.Empty).ShouldContain("Conflict at 'Label'");
         (merged[1]?.ToString() ?? string.Empty).ShouldContain("Conflict at 'Label'");
         merged[2].ShouldBe("local");
+    }
+
+    [Test]
+    public void AddConflicts_GroupsAlternatingPaths_AndPreservesPathAndOriginOrder()
+    {
+        var store = Store();
+        var first = SparsePath.Root<Settings>().Member("First");
+        var second = SparsePath.Root<Settings>().Member("Second");
+        store.SetErrors(first, SparseValidationOrigins.LocalValidation, ["local"]);
+        store.SetErrors(first, SparseValidationOrigins.ServerValidation, ["server"]);
+        var events = Notifications(store);
+
+        var added = store.AddConflicts(
+            [
+                Conflict(first, "first-1"),
+                Conflict(second, "second-1"),
+                Conflict(first, "first-2"),
+                Conflict(second, "second-2"),
+            ],
+            new SparseValidationConflictOptions { MessageFactory = static c => c.Reason! }
+        );
+
+        added.ShouldBe(4);
+        store.GetPathErrors(first).ShouldBe(["first-1", "first-2", "local", "server"]);
+        store.GetPathErrors(second).ShouldBe(["second-1", "second-2"]);
+        events.ShouldBe(["First", string.Empty, "Second"]);
+    }
+
+    [Test]
+    public void AddConflicts_KeepsDifferentKeyTypesWithTheSameDisplayText()
+    {
+        var store = Store();
+        var numberKey = SparsePath.Root<Settings>().Member("Items").Key(1);
+        var stringKey = SparsePath.Root<Settings>().Member("Items").Key("1");
+        numberKey.ToString().ShouldBe(stringKey.ToString());
+        var events = Notifications(store);
+
+        store.AddConflicts(
+            [Conflict(numberKey, "number"), Conflict(stringKey, "string")],
+            new SparseValidationConflictOptions { MessageFactory = static c => c.Reason! }
+        );
+
+        store.GetPathErrors(numberKey).ShouldBe(["number"]);
+        store.GetPathErrors(stringKey).ShouldBe(["string"]);
+        events.ShouldBe([numberKey.ToString(), "Items", string.Empty]);
+    }
+
+    [Test]
+    public void AddConflicts_ThrowingMessageFactoryDoesNotMutateStore()
+    {
+        var store = Store();
+        var path = Settings.SparsePath.Label;
+        store.SetErrors(path, SparseValidationOrigins.LocalValidation, ["existing"]);
+        var events = Notifications(store);
+        var calls = 0;
+        var options = new SparseValidationConflictOptions
+        {
+            MessageFactory = _ =>
+            {
+                calls++;
+                return calls == 2 ? throw new InvalidOperationException("cannot render") : "new";
+            },
+        };
+
+        Should.Throw<InvalidOperationException>(() =>
+            store.AddConflicts([Conflict(path, "one"), Conflict(path, "two")], options)
+        );
+
+        store.GetPathErrors(path).ShouldBe(["existing"]);
+        events.ShouldBeEmpty();
     }
 
     [Test]

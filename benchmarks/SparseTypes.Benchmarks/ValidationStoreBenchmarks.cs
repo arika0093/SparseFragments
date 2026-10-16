@@ -11,6 +11,8 @@ public sealed class BenchValidationModel
 [MemoryDiagnoser]
 public class ValidationStoreBenchmarks
 {
+    private const int BulkConflictCount = 1000;
+
     [Params(1, 100, 1000, 10000)]
     public int PathCount { get; set; }
 
@@ -20,6 +22,13 @@ public class ValidationStoreBenchmarks
     private SparseValidationStore<BenchValidationModel> _store = null!;
     private SparsePath _target = default;
     private List<SparseConflict> _conflicts = [];
+    private List<SparseConflict> _groupedConflicts = [];
+    private List<SparseConflict> _alternatingConflicts = [];
+    private readonly SparseValidationConflictOptions _bulkOptions = new()
+    {
+        Origin = "origin-0",
+        MessageFactory = static _ => "conflict",
+    };
     private int _notifications;
 
     [GlobalSetup]
@@ -37,6 +46,17 @@ public class ValidationStoreBenchmarks
                 "conflict"
             ))
             .ToList();
+        var first = PathAt(0);
+        var second = PathAt(1);
+        _groupedConflicts = new List<SparseConflict>(BulkConflictCount);
+        _alternatingConflicts = new List<SparseConflict>(BulkConflictCount);
+        for (var index = 0; index < BulkConflictCount; index++)
+        {
+            var path = index < BulkConflictCount / 2 ? first : second;
+            _groupedConflicts.Add(CreateConflict(path));
+            _alternatingConflicts.Add(CreateConflict(index % 2 == 0 ? first : second));
+        }
+
         Refill();
     }
 
@@ -50,6 +70,8 @@ public class ValidationStoreBenchmarks
             nameof(Clear_Notified),
             nameof(DisposeStore),
             nameof(AddConflicts_Replace),
+            nameof(AddConflicts_Grouped),
+            nameof(AddConflicts_Alternating),
         }
     )]
     public void Refill() => _store = FilledStore();
@@ -135,11 +157,28 @@ public class ValidationStoreBenchmarks
         );
     }
 
+    [Benchmark(Description = "AddConflicts with grouped repeated paths")]
+    public int AddConflicts_Grouped() => _store.AddConflicts(_groupedConflicts, _bulkOptions);
+
+    [Benchmark(Description = "AddConflicts with alternating repeated paths")]
+    public int AddConflicts_Alternating() =>
+        _store.AddConflicts(_alternatingConflicts, _bulkOptions);
+
     private void OnChanged(object? sender, System.ComponentModel.DataErrorsChangedEventArgs args) =>
         _notifications++;
 
     private SparsePath PathAt(int index) =>
         SparsePath.Root<BenchValidationModel>().Member("F" + index);
+
+    private static SparseConflict CreateConflict(SparsePath path) =>
+        new(
+            path,
+            SparseConflictKind.Reconciliation,
+            Optional<object?>.Missing,
+            Optional<object?>.Missing,
+            Optional<object?>.Missing,
+            "conflict"
+        );
 
     private SparseValidationStore<BenchValidationModel> FilledStore()
     {
