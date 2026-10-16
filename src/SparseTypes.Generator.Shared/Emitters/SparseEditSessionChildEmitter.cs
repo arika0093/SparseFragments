@@ -269,7 +269,10 @@ internal static class SparseEditSessionChildEmitter
             3,
             "var aggregateChanges = " + modelType + ".ChangeSet.Between(liveModel, candidate);"
         );
-        code.AppendLineAt(3, "if (aggregateChanges.IsEmpty) { conflicts = null; return true; }");
+        code.AppendLineAt(
+            3,
+            "if (aggregateChanges.IsEmpty) { ConfirmChildSessions(); conflicts = null; return true; }"
+        );
         code.AppendLineAt(3, "try");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(
