@@ -2,152 +2,155 @@
 @using SparseTypes.Blazor
 @using SparseTypes.Playground.Models
 @using SparseTypes.Playground.Components
+
 <SparseSessionScope @key="_session" Session="_session" AutoAccept="@(!_sectionDraftsEnabled)">
-<div class="pg-stack">
-    <FluentCard Class="pg-fluent-card pg-catalog-header" Shadow="CardShadow.None">
-        <div class="pg-catalog-header-main">
-            <h3>Catalog editor</h3>
-            <div class="pg-catalog-header-controls">
-                <span class="pg-has-changes-badge @(HasChanges ? "pg-has-changes" : "pg-no-changes")">
-                    <span aria-hidden="true"></span>@(HasChanges ? "Changes pending" : "No committed changes")
-                </span>
-                <div class="pg-actions pg-catalog-header-actions">
-                    @if (!_sectionDraftsEnabled)
-                    {
-                        <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!_history.CanUndo)"
-                            @onclick="UndoCatalog">Undo</FluentButton>
-                        <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!_history.CanRedo)"
-                            @onclick="RedoCatalog">Redo</FluentButton>
-                    }
-                    <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!HasChanges)" @onclick="Reset">
-                        Reset
-                    </FluentButton>
-                    <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
-                        Disabled="@(!HasChanges)" @onclick="OpenSavePreview">
-                        Save
-                    </FluentButton>
+    <div class="pg-stack">
+        <FluentCard Class="pg-fluent-card pg-catalog-header" Shadow="CardShadow.None">
+            <div class="pg-catalog-header-main">
+                <h3>Catalog editor</h3>
+                <div class="pg-catalog-header-controls">
+                    <span class="pg-has-changes-badge @(HasChanges ? "pg-has-changes" : "pg-no-changes")">
+                        <span aria-hidden="true"></span>@(HasChanges ? "Changes pending" : "No committed changes")
+                    </span>
+                    <div class="pg-actions pg-catalog-header-actions">
+                        @if (!_sectionDraftsEnabled)
+                        {
+                            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!_history.CanUndo)"
+                                @onclick="UndoCatalog">Undo</FluentButton>
+                            <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!_history.CanRedo)"
+                                @onclick="RedoCatalog">Redo</FluentButton>
+                        }
+                        <FluentButton Appearance="ButtonAppearance.Default" Disabled="@(!HasChanges)" @onclick="Reset">
+                            Reset
+                        </FluentButton>
+                        <FluentButton Appearance="ButtonAppearance.Primary" Class="pg-submit-button"
+                            Disabled="@(!HasChanges)" @onclick="OpenSavePreview">
+                            Save
+                        </FluentButton>
+                    </div>
                 </div>
             </div>
-        </div>
-        @if (_error is not null)
-        {
-            <FluentMessageBar Intent="MessageBarIntent.Error">@_error</FluentMessageBar>
-        }
-    </FluentCard>
+            @if (_error is not null)
+            {
+                <FluentMessageBar Intent="MessageBarIntent.Error">@_error</FluentMessageBar>
+            }
+        </FluentCard>
 
-    <FluentTabs ActiveTabId="@_activeSectionTab" ActiveTabIdChanged="OnSectionTabChanged"
-        Orientation="Orientation.Horizontal" Class="pg-section-tabs-inline pg-catalog-section-tabs">
-        <FluentTab Id="case-6-overview">
-            <HeaderTemplate>
-                <span class="pg-catalog-tab-label">1. Overview</span>
-                @if (HasChildChanges(EnterpriseCatalogItem.SparsePath.Overview))
-                {
-                    <span class="pg-catalog-tab-badge">Edited</span>
-                }
-            </HeaderTemplate>
-            <ChildContent>
-                <div class="pg-section-content">
-                    <OverviewEditor SectionDraftsEnabled="_sectionDraftsEnabled" OnChanged="Refresh" />
-                </div>
-            </ChildContent>
-        </FluentTab>
-        <FluentTab Id="case-6-commercial">
-            <HeaderTemplate>
-                <span class="pg-catalog-tab-label">2. Commercial</span>
-                @if (HasChildChanges(EnterpriseCatalogItem.SparsePath.Commercial))
-                {
-                    <span class="pg-catalog-tab-badge">Edited</span>
-                }
-            </HeaderTemplate>
-            <ChildContent>
-                <div class="pg-section-content">
-                    <CommercialEditor SectionDraftsEnabled="_sectionDraftsEnabled" OnChanged="Refresh" />
-                </div>
-            </ChildContent>
-        </FluentTab>
-        <FluentTab Id="case-6-operations">
-            <HeaderTemplate>
-                <span class="pg-catalog-tab-label">3. Operations</span>
-                @if (HasChildChanges(EnterpriseCatalogItem.SparsePath.Operations))
-                {
-                    <span class="pg-catalog-tab-badge">Edited</span>
-                }
-            </HeaderTemplate>
-            <ChildContent>
-                <div class="pg-section-content">
-                    <OperationsEditor SectionDraftsEnabled="_sectionDraftsEnabled" OnChanged="Refresh" />
-                </div>
-            </ChildContent>
-        </FluentTab>
-        <FluentTab Id="case-6-workflow">
-            <HeaderTemplate>
-                <span class="pg-catalog-tab-label">4. Workflow</span>
-                @if (HasChildChanges(EnterpriseCatalogItem.SparsePath.Workflow))
-                {
-                    <span class="pg-catalog-tab-badge">Edited</span>
-                }
-            </HeaderTemplate>
-            <ChildContent>
-                <div class="pg-section-content">
-                    <WorkflowEditor @ref="_workflowEditor" SectionDraftsEnabled="_sectionDraftsEnabled"
-                        OnAccepted="EnsureAcceptedWorkMasters" OnChanged="Refresh" />
-                </div>
-            </ChildContent>
-        </FluentTab>
-        <FluentTab Id="case-6-work-masters">
-            <HeaderTemplate>
-                <span class="pg-catalog-tab-label">5. Work masters</span>
-                @if (_model.Workflow.Steps.Any(step =>
-                    HasChildChanges(EnterpriseCatalogItem.SparsePath.WorkMasters.Key(step.Id))))
-                {
-                    <span class="pg-catalog-tab-badge">Edited</span>
-                }
-            </HeaderTemplate>
-            <ChildContent>
-                <div class="pg-section-content">
-                    @if (_model.Workflow.Steps.Count == 0)
+        <FluentTabs ActiveTabId="@_activeSectionTab" ActiveTabIdChanged="OnSectionTabChanged"
+            Orientation="Orientation.Horizontal" Class="pg-section-tabs-inline pg-catalog-section-tabs">
+            <FluentTab Id="case-6-overview">
+                <HeaderTemplate>
+                    <span class="pg-catalog-tab-label">1. Overview</span>
+                    @if (HasChildChanges(EnterpriseCatalogItem.SparsePath.Overview))
                     {
-                        <p class="pg-hint">Save the workflow section draft to update the work-master tabs.</p>
+                        <span class="pg-catalog-tab-badge">Edited</span>
                     }
-                    else
+                </HeaderTemplate>
+                <ChildContent>
+                    <div class="pg-section-content">
+                        <OverviewEditor SectionDraftsEnabled="_sectionDraftsEnabled" OnChanged="Refresh" />
+                    </div>
+                </ChildContent>
+            </FluentTab>
+            <FluentTab Id="case-6-commercial">
+                <HeaderTemplate>
+                    <span class="pg-catalog-tab-label">2. Commercial</span>
+                    @if (HasChildChanges(EnterpriseCatalogItem.SparsePath.Commercial))
                     {
-                        <FluentTabs ActiveTabId="@ActiveMasterTabId" ActiveTabIdChanged="OnMasterTabChanged"
-                            Orientation="Orientation.Vertical">
-                            @foreach (var step in _model.Workflow.Steps)
-                            {
-                                <FluentTab @key="step.Id" Id="@MasterTabId(step.Id)">
-                                    <HeaderTemplate>
-                                        <span class="pg-catalog-tab-label">@step.Name</span>
-                                        @if (HasChildChanges(EnterpriseCatalogItem.SparsePath.WorkMasters.Key(step.Id)))
-                                        {
-                                            <span class="pg-catalog-tab-badge">Edited</span>
-                                        }
-                                    </HeaderTemplate>
-                                    <ChildContent>
-                                        <StepMasterEditor @key="step.Id" Step="step"
-                                            SectionDraftsEnabled="_sectionDraftsEnabled"
-                                            OnChanged="Refresh" />
-                                    </ChildContent>
-                                </FluentTab>
-                            }
-                        </FluentTabs>
+                        <span class="pg-catalog-tab-badge">Edited</span>
                     }
-                </div>
-            </ChildContent>
-        </FluentTab>
-    </FluentTabs>
-    <div class="pg-catalog-draft-mode">
-        <FluentCheckbox Value="@_sectionDraftsEnabled" ValueChanged="OnSectionDraftsEnabledChanged"
-            Disabled="@_session.HasPendingChildSessions">
-            Enable section drafts
-        </FluentCheckbox>
-        <p class="pg-hint">When enabled, section edits stay in drafts until saved. Turn it off to apply each edit to the catalog immediately.</p>
-        @if (_session.HasPendingChildSessions)
-        {
-            <p class="pg-hint">Save or discard every section draft before changing this setting.</p>
-        }
+                </HeaderTemplate>
+                <ChildContent>
+                    <div class="pg-section-content">
+                        <CommercialEditor SectionDraftsEnabled="_sectionDraftsEnabled" OnChanged="Refresh" />
+                    </div>
+                </ChildContent>
+            </FluentTab>
+            <FluentTab Id="case-6-operations">
+                <HeaderTemplate>
+                    <span class="pg-catalog-tab-label">3. Operations</span>
+                    @if (HasChildChanges(EnterpriseCatalogItem.SparsePath.Operations))
+                    {
+                        <span class="pg-catalog-tab-badge">Edited</span>
+                    }
+                </HeaderTemplate>
+                <ChildContent>
+                    <div class="pg-section-content">
+                        <OperationsEditor SectionDraftsEnabled="_sectionDraftsEnabled" OnChanged="Refresh" />
+                    </div>
+                </ChildContent>
+            </FluentTab>
+            <FluentTab Id="case-6-workflow">
+                <HeaderTemplate>
+                    <span class="pg-catalog-tab-label">4. Workflow</span>
+                    @if (HasChildChanges(EnterpriseCatalogItem.SparsePath.Workflow))
+                    {
+                        <span class="pg-catalog-tab-badge">Edited</span>
+                    }
+                </HeaderTemplate>
+                <ChildContent>
+                    <div class="pg-section-content">
+                        <WorkflowEditor @ref="_workflowEditor" SectionDraftsEnabled="_sectionDraftsEnabled"
+                            OnAccepted="EnsureAcceptedWorkMasters" OnChanged="Refresh" />
+                    </div>
+                </ChildContent>
+            </FluentTab>
+            <FluentTab Id="case-6-work-masters">
+                <HeaderTemplate>
+                    <span class="pg-catalog-tab-label">5. Work masters</span>
+                    @if (_model.Workflow.Steps.Any(step =>
+                        HasChildChanges(EnterpriseCatalogItem.SparsePath.WorkMasters.Key(step.Id))))
+                    {
+                        <span class="pg-catalog-tab-badge">Edited</span>
+                    }
+                </HeaderTemplate>
+                <ChildContent>
+                    <div class="pg-section-content">
+                        @if (_model.Workflow.Steps.Count == 0)
+                        {
+                            <p class="pg-hint">Save the workflow section draft to update the work-master tabs.</p>
+                        }
+                        else
+                        {
+                            <FluentTabs ActiveTabId="@ActiveMasterTabId" ActiveTabIdChanged="OnMasterTabChanged"
+                                Orientation="Orientation.Vertical">
+                                @foreach (var step in _model.Workflow.Steps)
+                                {
+                                    <FluentTab @key="step.Id" Id="@MasterTabId(step.Id)">
+                                        <HeaderTemplate>
+                                            <span class="pg-catalog-tab-label">@step.Name</span>
+                                            @if (HasChildChanges(EnterpriseCatalogItem.SparsePath.WorkMasters.Key(step.Id)))
+                                            {
+                                                <span class="pg-catalog-tab-badge">Edited</span>
+                                            }
+                                        </HeaderTemplate>
+                                        <ChildContent>
+                                            <StepMasterEditor @key="step.Id" Step="step"
+                                                SectionDraftsEnabled="_sectionDraftsEnabled"
+                                                OnChanged="Refresh" />
+                                        </ChildContent>
+                                    </FluentTab>
+                                }
+                            </FluentTabs>
+                        }
+                    </div>
+                </ChildContent>
+            </FluentTab>
+        </FluentTabs>
+        <div class="pg-catalog-draft-mode">
+            <FluentCheckbox Value="@_sectionDraftsEnabled" ValueChanged="OnSectionDraftsEnabledChanged"
+                Disabled="@_session.HasPendingChildSessions">
+                Enable section drafts
+            </FluentCheckbox>
+            <p class="pg-hint">
+                When enabled, section edits stay in drafts until saved. Turn it off to apply each edit to the catalog immediately.
+            </p>
+            @if (_session.HasPendingChildSessions)
+            {
+                <p class="pg-hint">Save or discard every section draft before changing this setting.</p>
+            }
+        </div>
     </div>
-</div>
 </SparseSessionScope>
 
 <FluentDialog @ref="_saveDialog" Hidden="@_saveDialogHidden" Modal="true" TrapFocus="true"
