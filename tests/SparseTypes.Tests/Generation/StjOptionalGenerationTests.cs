@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using SparseTypes.Generator;
@@ -83,6 +84,33 @@ public sealed class StjOptionalGenerationTests
     {
         GeneratorDriver driver = CSharpGeneratorDriver.Create(new SparseTypesGenerator());
         driver = driver.RunGenerators(compilation);
+        var result = driver.GetRunResult();
+        var sources = result
+            .Results.SelectMany(static result => result.GeneratedSources)
+            .GroupBy(static source => source.HintName)
+            .ToDictionary(
+                static group => group.Key,
+                static group => group.First().SourceText.ToString(),
+                StringComparer.Ordinal
+            );
+        return (sources, result.Diagnostics);
+    }
+
+    private static (
+        Dictionary<string, string> Sources,
+        ImmutableArray<Diagnostic> Diagnostics
+    ) RunIncremental(ref GeneratorDriver driver, CSharpCompilation compilation)
+    {
+        driver = driver.RunGeneratorsAndUpdateCompilation(
+            compilation,
+            out var outputCompilation,
+            out _
+        );
+        outputCompilation
+            .GetDiagnostics()
+            .Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
+            .ShouldBeEmpty();
+
         var result = driver.GetRunResult();
         var sources = result
             .Results.SelectMany(static result => result.GeneratedSources)
@@ -329,6 +357,36 @@ public sealed class StjOptionalGenerationTests
         CombinedCompilationHasNoErrors(compilation, sources);
     }
 
+    private static void HasSpf028(
+        ImmutableArray<Diagnostic> diagnostics,
+        bool expected,
+        string? expectedMessage = null
+    )
+    {
+        var spf028 = diagnostics.Where(static diagnostic => diagnostic.Id == "SPF028").ToList();
+        if (expected)
+        {
+            spf028.ShouldHaveSingleItem();
+            if (expectedMessage is not null)
+                spf028[0].GetMessage().ShouldContain(expectedMessage);
+        }
+        else
+        {
+            spf028.ShouldBeEmpty();
+        }
+    }
+
+    private static void HasNoJsonArtifacts(Dictionary<string, string> sources)
+    {
+        foreach (var source in sources.Values)
+            source.ShouldNotContain("System.Text.Json");
+    }
+
+    private static void HasStableHints(
+        Dictionary<string, string> expected,
+        Dictionary<string, string> actual
+    ) => actual.Keys.ShouldBe(expected.Keys, ignoreOrder: true);
+
     [Test]
     public void WithoutStj_EmitsSerializerIndependentCoreOnly()
     {
@@ -361,25 +419,6 @@ public sealed class StjOptionalGenerationTests
         merged.ShouldContain("JsonUnmappedMemberHandling");
 
         CombinedCompilationHasNoErrors(compilation, sources);
-    }
-
-    [Test]
-    public void LosingStjReferenceDropsOnlyJsonArtifacts()
-    {
-        var withStj = Run(CreateCompilation(includeStj: true));
-        var withoutStj = Run(CreateCompilation(includeStj: false));
-
-        // Deterministic regeneration: identical hint names, no stale sources.
-        withoutStj.Keys.ShouldBe(withStj.Keys, ignoreOrder: true);
-        foreach (var hint in withStj.Keys)
-        {
-            var hadJson = withStj[hint].Contains("System.Text.Json");
-            var hasJson = withoutStj[hint].Contains("System.Text.Json");
-            if (hadJson)
-                hasJson.ShouldBeFalse(hint);
-        }
-        foreach (var source in withoutStj.Values)
-            source.ShouldNotContain("System.Text.Json");
     }
 
     [Test]
@@ -557,6 +596,75 @@ public sealed class StjOptionalGenerationTests
             CreateStubCompilation(stub),
             "JsonIgnoreAttribute/Condition"
         );
+    }
+
+    [Test]
+    public void StjReferenceAndApiChangesRegenerateOnSameIncrementalDriver()
+    {
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(new SparseTypesGenerator());
+        var withoutStjCompilation = CreateCompilation(includeStj: false);
+        var withoutStj = RunIncremental(ref driver, withoutStjCompilation);
+
+        HasSpf028(withoutStj.Diagnostics, expected: false);
+        HasNoJsonArtifacts(withoutStj.Sources);
+
+        var withStjCompilation = withoutStjCompilation.WithReferences(
+            TrustedReferences(includeStj: true)
+        );
+        var withStj = RunIncremental(ref driver, withStjCompilation);
+
+        HasSpf028(withStj.Diagnostics, expected: false);
+        string.Concat(withStj.Sources.Values).ShouldContain("ChangePayloadEndpointJsonConverter");
+        HasStableHints(withoutStj.Sources, withStj.Sources);
+        JsonFreeSourcesAreIdentical(withStj.Sources, withoutStj.Sources);
+
+        var withoutStjAgainCompilation = withStjCompilation.WithReferences(
+            TrustedReferences(includeStj: false)
+        );
+        var withoutStjAgain = RunIncremental(ref driver, withoutStjAgainCompilation);
+
+        HasSpf028(withoutStjAgain.Diagnostics, expected: false);
+        HasNoJsonArtifacts(withoutStjAgain.Sources);
+        HasStableHints(withStj.Sources, withoutStjAgain.Sources);
+        JsonFreeSourcesAreIdentical(withStj.Sources, withoutStjAgain.Sources);
+
+        var partialStubTree = CSharpSyntaxTree.ParseText(
+            StjStubSource(
+                includePropertyOrder: false,
+                includeUnmappedHandling: true,
+                includeTypeInfoLookup: false
+            ),
+            path: "StjStubs.cs"
+        );
+        var partialStubCompilation = withoutStjAgainCompilation.AddSyntaxTrees(partialStubTree);
+        var partialStub = RunIncremental(ref driver, partialStubCompilation);
+
+        HasSpf028(
+            partialStub.Diagnostics,
+            expected: true,
+            expectedMessage: "JsonPropertyOrderAttribute"
+        );
+        HasNoJsonArtifacts(partialStub.Sources);
+        HasStableHints(withStj.Sources, partialStub.Sources);
+        JsonFreeSourcesAreIdentical(withStj.Sources, partialStub.Sources);
+
+        var upgradedStubTree = CSharpSyntaxTree.ParseText(
+            StjStubSource(
+                includePropertyOrder: true,
+                includeUnmappedHandling: true,
+                includeTypeInfoLookup: true
+            ),
+            path: "StjStubs.cs"
+        );
+        var upgradedStubCompilation = (CSharpCompilation)
+            partialStubCompilation.ReplaceSyntaxTree(partialStubTree, upgradedStubTree);
+        var upgradedStub = RunIncremental(ref driver, upgradedStubCompilation);
+
+        HasSpf028(upgradedStub.Diagnostics, expected: false);
+        string.Concat(upgradedStub.Sources.Values)
+            .ShouldContain("ChangePayloadEndpointJsonConverter");
+        HasStableHints(partialStub.Sources, upgradedStub.Sources);
+        JsonFreeSourcesAreIdentical(upgradedStub.Sources, partialStub.Sources);
     }
 
     [Test]

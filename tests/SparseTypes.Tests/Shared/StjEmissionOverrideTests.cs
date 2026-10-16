@@ -64,6 +64,19 @@ public sealed class StjEmissionOverrideTests
     }
 
     [Test]
+    public void ExplicitJsonOptOutRemainsDisabledWithPartialCapabilities()
+    {
+        MinimalConfig(
+            emissionFeatures: new SparseEmissionFeatures(EmitJsonConverters: false),
+            stjCapabilities: SparseStjCapabilities.All with
+            {
+                HasJsonPropertyOrder = false,
+            }
+        )
+            .EffectiveEmitJson.ShouldBeFalse();
+    }
+
+    [Test]
     public void PartialSurfaceSuppressesJsonEvenWhenRequested()
     {
         MinimalConfig(
