@@ -1066,6 +1066,98 @@ public sealed class EditSessionGroupTests
     }
 
     [Test]
+    public async Task PrepareAsyncFailsWhenGroupAcknowledgesWhileAwaiting()
+    {
+        var session = new NeutralSessionModel { Name = "before" }.CreateEditSession();
+        var group = new EditSessionGroup();
+        var validationStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        var releaseValidation = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        var callCount = 0;
+        var handle = group.Register(
+            "profile",
+            Registration(
+                session,
+                validateAsync: async (changes, cancellationToken) =>
+                {
+                    if (Interlocked.Increment(ref callCount) == 1)
+                        return null;
+                    changes.Name.After.Value.ShouldBe("second");
+                    validationStarted.TrySetResult(true);
+                    await releaseValidation.Task.WaitAsync(cancellationToken);
+                    return null;
+                }
+            )
+        );
+        session.Observable.Name = "first";
+        var first = await group.PrepareAsync(CancellationToken.None);
+
+        session.Observable.Name = "second";
+        var preparing = group.PrepareAsync(CancellationToken.None);
+        await validationStarted.Task;
+        group.AcceptChanges(first, handle);
+        releaseValidation.TrySetResult(true);
+
+        var failure = await Should.ThrowAsync<EditSessionGroupValidationException>(async () =>
+            await preparing
+        );
+
+        failure.Issues.ShouldHaveSingleItem().Message.ShouldContain("baseline changed");
+        session.HasChanges.ShouldBeTrue();
+    }
+
+    [Test]
+    public async Task PrepareAsyncFailsWhenDirectTryReconcileRunsWhileAwaiting()
+    {
+        var model = new NeutralSessionModel { Name = "before", Version = 1 };
+        var session = model.CreateEditSession();
+        var group = new EditSessionGroup();
+        var validationStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        var releaseValidation = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        group.Register(
+            "profile",
+            Registration(
+                session,
+                reconcile: true,
+                validateAsync: async (changes, cancellationToken) =>
+                {
+                    changes.Name.After.Value.ShouldBe("submitted");
+                    validationStarted.TrySetResult(true);
+                    await releaseValidation.Task.WaitAsync(cancellationToken);
+                    return null;
+                }
+            )
+        );
+        session.Observable.Name = "submitted";
+        var captured = session.CreateChangeSet();
+
+        var preparing = group.PrepareAsync(CancellationToken.None);
+        await validationStarted.Task;
+        session
+            .TryReconcile(
+                captured,
+                new NeutralSessionModel { Name = "submitted", Version = 2 },
+                out var reconcileError
+            )
+            .ShouldBeTrue();
+        reconcileError.ShouldBeNull();
+        releaseValidation.TrySetResult(true);
+
+        var failure = await Should.ThrowAsync<EditSessionGroupValidationException>(async () =>
+            await preparing
+        );
+
+        failure.Issues.ShouldHaveSingleItem().Message.ShouldContain("baseline changed");
+    }
+
+    [Test]
     public void EmptySectionStillRunsCapturedValidators()
     {
         var model = new NeutralSessionModel { Name = "before" };

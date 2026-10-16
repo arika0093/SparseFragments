@@ -59,6 +59,11 @@ and `docs/architecture/README.md` for the contributor-oriented
 architecture overview (current layer placement, document status, and the
 migration ledger).
 
+`SparseGeneratorConfig.EditSessionWithBaselineRevisionInterfaceMetadataName`
+optionally adds a product-owned baseline-revision interface to generated edit
+sessions. Set it when the consuming runtime defines the interface; leave it
+unset when the runtime does not provide this capability.
+
 `SparseRuntimeDialect` maps generated optional, comparer, collection, and merge
 helpers to downstream-owned runtime types. Its optional `CloneContextScopeFactory`
 names a parameterless method returning an `IDisposable` scope with a `Context`

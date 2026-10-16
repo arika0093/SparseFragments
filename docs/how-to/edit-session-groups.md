@@ -82,5 +82,6 @@ group.AcceptChanges(submission, profileHandle);
 * **Acknowledge saved sections independently**: Call `group.AcceptChanges(submission, handle)` when a specific section is persisted. Only that section's baseline advances; unpersisted sections remain dirty (`HasChanges == true`).
 * **Preserve concurrent user typing**: Edits made to a session after `group.Prepare()` remain pending after `AcceptChanges` completes.
 * **Server normalization**: Call `group.TryReconcile(submission, handle, persistedModel, out error)` to adopt server-modified properties without overwriting pending client edits.
+* **Keep baseline ownership in the group**: While a session is registered, acknowledge or reconcile it through the group. Generated sessions report direct baseline changes; custom sessions without `ISparseEditSessionWithBaselineRevision` must remain under exclusive group ownership.
 
 For deep dive into session group coordination and migration rules, see [Edit-session groups explanation](../explanation/edit-session-groups.md).

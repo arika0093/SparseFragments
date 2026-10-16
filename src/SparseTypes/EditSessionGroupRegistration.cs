@@ -16,6 +16,11 @@ public enum EditSessionGroupRemovalPolicy
 }
 
 /// <summary>Operations and readiness checks for one typed session registration.</summary>
+/// <remarks>
+/// A registered session should be acknowledged and reconciled through its
+/// <see cref="EditSessionGroup"/>. Generated sessions report baseline revisions
+/// so the group can detect direct baseline changes.
+/// </remarks>
 /// <typeparam name="TModel">The editable model type.</typeparam>
 /// <typeparam name="TChangeSet">The generated immutable change-set type.</typeparam>
 public sealed class EditSessionGroupRegistration<TModel, TChangeSet>
@@ -63,6 +68,7 @@ public sealed class EditSessionGroupRegistration<TModel, TChangeSet>
     public Func<TChangeSet, CancellationToken, Task<string?>>? ValidateAsync { get; init; }
 
     /// <summary>Reconciles an acknowledged change set with an authoritative persisted model.</summary>
+    /// <remarks>Use <see cref="EditSessionGroup.TryReconcile{TModel, TChangeSet}"/> while the session is registered.</remarks>
     public Func<TChangeSet, TModel, (bool Success, string? Error)>? TryReconcile { get; init; }
 }
 

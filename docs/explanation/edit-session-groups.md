@@ -116,7 +116,9 @@ throws, the group records the committed revision and rethrows the handler's
 exception. A rejected acknowledgement leaves the revision unchanged. Custom
 sessions need `ISparseEditSessionWithBaselineRevision` for the same guarantees.
 Without it, the group can track its own acknowledgements but cannot observe
-external baseline changes.
+external baseline changes. Route acknowledgements and reconciliations through
+the group while a custom session is registered, and treat the group as its sole
+baseline owner.
 
 ## Migration notes
 
