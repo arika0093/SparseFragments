@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using SparseTypes;
 
@@ -621,6 +622,165 @@ public sealed class TemporaryKeyReconcileRegressionTests
         var pending = session.CreateChangeSet();
         pending.Lines.GetTemporaryChange(late.TemporaryId!.Value).IsAdded.ShouldBeTrue();
         pending.Lines.GetChange(100).IsEmpty.ShouldBeTrue();
+    }
+
+    // Repeated insertion after one anchor and at the head reverses order;
+    // batched buckets must preserve that observable ordering.
+    [Test]
+    public void MultiplePostSubmitInsertionsKeepRepeatedInsertionOrder()
+    {
+        var first = Assigned(1, "first");
+        var second = Assigned(2, "second");
+        var third = Assigned(3, "third");
+        var baseline = new TempOrderHolder { Lines = [first, second, third] };
+        var session = baseline.CreateEditSession();
+        var submittedPending = Pending("submitted");
+        baseline.Lines.Add(submittedPending);
+        var submitted = session.CreateChangeSet();
+
+        first.Name = "first edited";
+        var headFirst = Pending("head first");
+        var headSecond = Pending("head second");
+        var afterFirstFirst = Pending("after first first");
+        var afterFirstSecond = Pending("after first second");
+        baseline.Lines.Clear();
+        baseline.Lines.AddRange([
+            headFirst,
+            headSecond,
+            first,
+            afterFirstFirst,
+            afterFirstSecond,
+            second,
+            third,
+            submittedPending,
+        ]);
+
+        var persisted = new TempOrderHolder
+        {
+            Lines =
+            [
+                Assigned(1, "FIRST"),
+                Assigned(2, "SECOND"),
+                Assigned(3, "THIRD"),
+                new TempOrderLine
+                {
+                    Id = 11,
+                    Name = "SUBMITTED",
+                    TemporaryId = submittedPending.TemporaryId,
+                },
+            ],
+        };
+
+        session.TryReconcile(submitted, persisted, out var error).ShouldBeTrue();
+        error.ShouldBeNull();
+        baseline
+            .Lines.Select(item => item.Name)
+            .ShouldBe([
+                "head second",
+                "head first",
+                "first edited",
+                "after first second",
+                "after first first",
+                "SECOND",
+                "THIRD",
+                "SUBMITTED",
+            ]);
+        baseline.Lines[2].Id.ShouldBe(1);
+        baseline.Lines[^1].Id.ShouldBe(11);
+    }
+
+    [Test]
+    [Arguments(1)]
+    [Arguments(10)]
+    [Arguments(100)]
+    [Arguments(1_000)]
+    [Arguments(10_000)]
+    public void BulkReconcileUsesLinearKeyMembership(int count)
+    {
+        var baseline = new TempOrderHolder
+        {
+            Lines = Enumerable
+                .Range(1, count)
+                .Select(id => new TempOrderLine { Id = id, Name = "live-" + id })
+                .ToList(),
+        };
+        var session = baseline.CreateEditSession();
+        var submittedPending = Pending("submitted");
+        baseline.Lines.Add(submittedPending);
+        var submitted = session.CreateChangeSet();
+        var persisted = new TempOrderHolder
+        {
+            Lines = Enumerable
+                .Range(1, count)
+                .Reverse()
+                .Select(id => new TempOrderLine { Id = id, Name = "server-" + id })
+                .Append(
+                    new TempOrderLine
+                    {
+                        Id = count + 1,
+                        TemporaryId = submittedPending.TemporaryId,
+                        Name = "submitted",
+                    }
+                )
+                .Concat(
+                    Enumerable
+                        .Range(1, count)
+                        .Select(index => new TempOrderLine
+                        {
+                            Id = count + index + 1,
+                            Name = "server-added-" + index,
+                        })
+                )
+                .ToList(),
+        };
+
+        var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        var stopwatch = Stopwatch.StartNew();
+        session.TryReconcile(submitted, persisted, out var error).ShouldBeTrue();
+        stopwatch.Stop();
+        var allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+
+        error.ShouldBeNull();
+        baseline.Lines.Count.ShouldBe(2 * count + 1);
+        baseline.Lines[0].Id.ShouldBe(count);
+        baseline.Lines[count - 1].Id.ShouldBe(1);
+        baseline.Lines[^1].Id.ShouldBe(count * 2 + 1);
+        Console.WriteLine(
+            $"rows={count}; elapsed={stopwatch.Elapsed.TotalMilliseconds:F2}ms; allocated={allocatedBytes} bytes"
+        );
+    }
+
+    [Test]
+    public void BulkServerDeletionCompactsLiveRows()
+    {
+        const int count = 10_000;
+        var baseline = new TempOrderHolder
+        {
+            Lines = Enumerable.Range(1, count).Select(id => Assigned(id, "live")).ToList(),
+        };
+        var session = baseline.CreateEditSession();
+        var pending = Pending("submitted");
+        baseline.Lines.Add(pending);
+        var submitted = session.CreateChangeSet();
+        var persisted = new TempOrderHolder
+        {
+            Lines =
+            [
+                new TempOrderLine
+                {
+                    Id = count + 1,
+                    Name = "persisted",
+                    TemporaryId = pending.TemporaryId,
+                },
+            ],
+        };
+
+        session.TryReconcile(submitted, persisted, out var error).ShouldBeTrue();
+
+        error.ShouldBeNull();
+        baseline.Lines.ShouldHaveSingleItem();
+        baseline.Lines[0].Id.ShouldBe(count + 1);
+        baseline.Lines[0].Name.ShouldBe("persisted");
     }
 
     // an init-only list rejects a dirty reconcile before any

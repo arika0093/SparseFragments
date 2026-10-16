@@ -155,12 +155,28 @@ internal static class SparseTemporaryKeyElementEmitter
                 + member.Collection.ElementType.Name
                 + ">();"
         );
+        SparseTemporaryKeyOrderEmitter.EmitBuildKeyLookup(
+            code,
+            "__working",
+            "__workingByKey",
+            "__workingHasNullKey",
+            "__workingNullKey",
+            elementType,
+            keyType,
+            keyProp,
+            member.Collection.KeyIsReferenceType,
+            elementRef,
+            elementNullableStruct,
+            4
+        );
         code.AppendLineAt(4, "if (__perList is not null)");
         code.AppendLineAt(4, "{");
         SparseTemporaryKeyOrderEmitter.EmitPersistedOrderFill(
             code,
             "__perList",
-            "__working",
+            "__workingByKey",
+            "__workingHasNullKey",
+            "__workingNullKey",
             "__ordered",
             "__subKeys",
             "__subTemps",
@@ -168,6 +184,7 @@ internal static class SparseTemporaryKeyElementEmitter
             keyType,
             keyProp,
             tempProp,
+            member.Collection.KeyIsReferenceType,
             elementRef,
             5
         );
@@ -195,13 +212,14 @@ internal static class SparseTemporaryKeyElementEmitter
             keyProp,
             tempProp,
             unassigned,
+            member.Collection.KeyIsReferenceType,
             elementRef,
             5
         );
         code.AppendLineAt(4, "}");
         code.AppendLineAt(
             4,
-            "if (__ordered.Count != __working.Count) { __working.Clear(); __working.AddRange(__ordered); __dirty = true; }"
+            "if (__ordered!.Count != __working!.Count) { __working.Clear(); __working.AddRange(__ordered); __dirty = true; }"
         );
         code.AppendLineAt(
             4,
@@ -283,46 +301,52 @@ internal static class SparseTemporaryKeyElementEmitter
         string optionalFragment,
         string eUse,
         bool elementRef,
-        bool elementNullableStruct
+        bool elementNullableStruct,
+        bool keyIsReferenceType,
+        string subLookup,
+        string subHasNullKey,
+        string subNullKey,
+        string perLookup,
+        string perHasNullKey,
+        string perNullKey
     )
     {
         // Submitted-missing elements are post-submit additions and stay.
         code.AppendLineAt(5, elementType + " __subFound = default" + (elementRef ? "!" : "") + ";");
         code.AppendLineAt(5, "bool __hasSub = false;");
-        code.AppendLineAt(5, "if (__subList is not null)");
-        AppendFindByKey(
+        EmitIndexedFind(
             code,
-            "__subList",
+            subLookup,
+            subHasNullKey,
+            subNullKey,
             "__subFound",
             "__hasSub",
-            elementType,
-            keyType,
-            keyProp,
             "__k",
-            elementRef,
-            elementNullableStruct,
-            5
+            keyType,
+            keyIsReferenceType
         );
-        code.AppendLineAt(5, "if (!__hasSub) continue;");
+        code.AppendLineAt(
+            5,
+            "if (!__hasSub) { __working[__write++] = __working[__i]"
+                + (elementRef ? "!" : "")
+                + "; continue; }"
+        );
         code.AppendLineAt(5, elementType + " __perFound = default" + (elementRef ? "!" : "") + ";");
         code.AppendLineAt(5, "bool __hasPer = false;");
-        code.AppendLineAt(5, "if (__perList is not null)");
-        AppendFindByKey(
+        EmitIndexedFind(
             code,
-            "__perList",
+            perLookup,
+            perHasNullKey,
+            perNullKey,
             "__perFound",
             "__hasPer",
-            elementType,
-            keyType,
-            keyProp,
             "__k",
-            elementRef,
-            elementNullableStruct,
-            5
+            keyType,
+            keyIsReferenceType
         );
         code.AppendLineAt(5, "if (!__hasPer)");
         code.AppendLineAt(5, "{");
-        code.AppendLineAt(6, "__working.RemoveAt(__i); __i--; __dirty = true; continue;");
+        code.AppendLineAt(6, "__dirty = true; continue;");
         code.AppendLineAt(5, "}");
         code.AppendLineAt(5, "var __edit = __transition?.GetChange(__k!)?.Edit;");
         code.AppendLineAt(5, "if (__edit is null || __edit.IsEmpty)");
@@ -364,87 +388,108 @@ internal static class SparseTemporaryKeyElementEmitter
         code.AppendLineAt(5, "}");
         _ = runtimeNamespace;
         _ = member;
+        _ = elementNullableStruct;
     }
 
-    private static void AppendFindByKey(
+    private static void EmitIndexedFind(
         SharedIndentedBuilder code,
-        string list,
+        string lookup,
+        string hasNullKey,
+        string nullKeyValue,
         string foundVar,
         string flagVar,
-        string elementType,
-        string keyType,
-        string keyProp,
         string keyExpr,
-        bool elementRef,
-        bool elementNullableStruct,
-        int indent
+        string keyType,
+        bool keyIsReferenceType
     )
     {
-        code.AppendLineAt(indent, "{");
-        if (elementRef)
+        var lookupResult = foundVar + "Lookup";
+        if (keyType.EndsWith("?", System.StringComparison.Ordinal))
         {
-            code.AppendLineAt(indent + 1, "foreach (var __cand in " + list + ")");
-            code.AppendLineAt(indent + 1, "{");
-            code.AppendLineAt(indent + 2, "if (__cand is null) continue;");
+            code.AppendLineAt(5, "if (!" + keyExpr + ".HasValue)");
+            code.AppendLineAt(5, "{");
             code.AppendLineAt(
-                indent + 2,
-                "if (global::System.Collections.Generic.EqualityComparer<"
-                    + keyType
-                    + ">.Default.Equals(__cand."
-                    + keyProp
-                    + ", "
+                6,
+                "if ("
+                    + hasNullKey
+                    + ") { "
+                    + foundVar
+                    + " = "
+                    + nullKeyValue
+                    + "; "
+                    + flagVar
+                    + " = true; }"
+            );
+            code.AppendLineAt(5, "}");
+            code.AppendLineAt(
+                5,
+                "else if ("
+                    + lookup
+                    + ".TryGetValue("
                     + keyExpr
+                    + ".Value, out var "
+                    + lookupResult
                     + ")) { "
                     + foundVar
-                    + " = __cand; "
+                    + " = "
+                    + lookupResult
+                    + "!; "
                     + flagVar
-                    + " = true; break; }"
+                    + " = true; }"
             );
-            code.AppendLineAt(indent + 1, "}");
         }
-        else if (elementNullableStruct)
+        else if (keyIsReferenceType)
         {
-            code.AppendLineAt(indent + 1, "foreach (var __candRaw in " + list + ")");
-            code.AppendLineAt(indent + 1, "{");
-            code.AppendLineAt(indent + 2, "if (!__candRaw.HasValue) continue;");
-            code.AppendLineAt(indent + 2, "var __cand = __candRaw.Value;");
+            code.AppendLineAt(5, "if (" + keyExpr + " is null)");
+            code.AppendLineAt(5, "{");
             code.AppendLineAt(
-                indent + 2,
-                "if (global::System.Collections.Generic.EqualityComparer<"
-                    + keyType
-                    + ">.Default.Equals(__cand."
-                    + keyProp
-                    + ", "
+                6,
+                "if ("
+                    + hasNullKey
+                    + ") { "
+                    + foundVar
+                    + " = "
+                    + nullKeyValue
+                    + "; "
+                    + flagVar
+                    + " = true; }"
+            );
+            code.AppendLineAt(5, "}");
+            code.AppendLineAt(
+                5,
+                "else if ("
+                    + lookup
+                    + ".TryGetValue("
                     + keyExpr
+                    + ", out var "
+                    + lookupResult
                     + ")) { "
                     + foundVar
-                    + " = __cand; "
+                    + " = "
+                    + lookupResult
+                    + "!; "
                     + flagVar
-                    + " = true; break; }"
+                    + " = true; }"
             );
-            code.AppendLineAt(indent + 1, "}");
         }
         else
         {
-            code.AppendLineAt(indent + 1, "foreach (var __cand in " + list + ")");
-            code.AppendLineAt(indent + 1, "{");
             code.AppendLineAt(
-                indent + 2,
-                "if (global::System.Collections.Generic.EqualityComparer<"
-                    + keyType
-                    + ">.Default.Equals(__cand."
-                    + keyProp
-                    + ", "
+                5,
+                "if ("
+                    + lookup
+                    + ".TryGetValue("
                     + keyExpr
+                    + ", out var "
+                    + lookupResult
                     + ")) { "
                     + foundVar
-                    + " = __cand; "
+                    + " = "
+                    + lookupResult
+                    + "!; "
                     + flagVar
-                    + " = true; break; }"
+                    + " = true; }"
             );
-            code.AppendLineAt(indent + 1, "}");
         }
-        code.AppendLineAt(indent, "}");
-        _ = elementType;
     }
 }

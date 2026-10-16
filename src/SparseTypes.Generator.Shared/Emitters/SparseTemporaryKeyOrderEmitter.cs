@@ -7,6 +7,112 @@ namespace SparseTypes.Generator.Shared;
 /// </remarks>
 internal static class SparseTemporaryKeyOrderEmitter
 {
+    internal static void EmitBuildKeyLookup(
+        SharedIndentedBuilder code,
+        string list,
+        string lookup,
+        string hasNullKey,
+        string nullKeyValue,
+        string elementType,
+        string keyType,
+        string keyProp,
+        bool keyIsReferenceType,
+        bool elementRef,
+        bool elementNullableStruct,
+        int indent
+    )
+    {
+        var nullableValueKey = keyType.EndsWith("?", StringComparison.Ordinal);
+        var nullableKey = nullableValueKey || keyIsReferenceType;
+        var lookupKeyType = nullableValueKey ? keyType.Substring(0, keyType.Length - 1) : keyType;
+        code.AppendLineAt(
+            indent,
+            "var "
+                + lookup
+                + " = new global::System.Collections.Generic.Dictionary<"
+                + lookupKeyType
+                + ", "
+                + elementType
+                + ">(global::System.Collections.Generic.EqualityComparer<"
+                + lookupKeyType
+                + ">.Default);"
+        );
+        if (nullableKey)
+        {
+            code.AppendLineAt(indent, "var " + hasNullKey + " = false;");
+            code.AppendLineAt(
+                indent,
+                elementType + " " + nullKeyValue + " = default" + (elementRef ? "!" : "") + ";"
+            );
+        }
+        code.AppendLineAt(indent, "if (" + list + " is not null)");
+        code.AppendLineAt(indent, "{");
+        code.AppendLineAt(indent + 1, "foreach (var __idxRaw in " + list + ")");
+        code.AppendLineAt(indent + 1, "{");
+        var candidate = "__idxRaw";
+        if (elementRef)
+        {
+            code.AppendLineAt(indent + 2, "if (__idxRaw is null) continue;");
+        }
+        else if (elementNullableStruct)
+        {
+            code.AppendLineAt(indent + 2, "if (!__idxRaw.HasValue) continue;");
+            code.AppendLineAt(indent + 2, "var __idx = __idxRaw.Value;");
+            candidate = "__idx";
+        }
+        code.AppendLineAt(indent + 2, "var __idxKey = " + candidate + "." + keyProp + ";");
+        if (nullableValueKey)
+        {
+            code.AppendLineAt(indent + 2, "if (!__idxKey.HasValue)");
+            code.AppendLineAt(indent + 2, "{");
+            code.AppendLineAt(
+                indent + 3,
+                "if (!"
+                    + hasNullKey
+                    + ") { "
+                    + hasNullKey
+                    + " = true; "
+                    + nullKeyValue
+                    + " = "
+                    + candidate
+                    + "; }"
+            );
+            code.AppendLineAt(indent + 2, "}");
+            code.AppendLineAt(
+                indent + 2,
+                "else " + lookup + ".TryAdd(__idxKey.Value, " + candidate + ");"
+            );
+        }
+        else if (keyIsReferenceType)
+        {
+            code.AppendLineAt(indent + 2, "if (__idxKey is null)");
+            code.AppendLineAt(indent + 2, "{");
+            code.AppendLineAt(
+                indent + 3,
+                "if (!"
+                    + hasNullKey
+                    + ") { "
+                    + hasNullKey
+                    + " = true; "
+                    + nullKeyValue
+                    + " = "
+                    + candidate
+                    + "; }"
+            );
+            code.AppendLineAt(indent + 2, "}");
+            code.AppendLineAt(
+                indent + 2,
+                "else " + lookup + ".TryAdd(__idxKey, " + candidate + ");"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(indent + 2, lookup + ".TryAdd(__idxKey, " + candidate + ");");
+        }
+        code.AppendLineAt(indent + 1, "}");
+        code.AppendLineAt(indent, "}");
+    }
+
     internal static void EmitCollectIdentities(
         SharedIndentedBuilder code,
         string list,
@@ -177,7 +283,9 @@ internal static class SparseTemporaryKeyOrderEmitter
     internal static void EmitPersistedOrderFill(
         SharedIndentedBuilder code,
         string perList,
-        string working,
+        string workingLookup,
+        string workingHasNullKey,
+        string workingNullKeyValue,
         string ordered,
         string subKeys,
         string subTemps,
@@ -185,6 +293,7 @@ internal static class SparseTemporaryKeyOrderEmitter
         string keyType,
         string keyProp,
         string tempProp,
+        bool keyIsReferenceType,
         bool elementRef,
         int indent
     )
@@ -214,30 +323,50 @@ internal static class SparseTemporaryKeyOrderEmitter
         code.AppendLineAt(indent + 1, "bool __isSubmittedKey = " + subKeys + ".Contains(__qk);");
         code.AppendLineAt(indent + 1, "if (__isMappedTemp || __isSubmittedKey)");
         code.AppendLineAt(indent + 1, "{");
-        code.AppendLineAt(
-            indent + 2,
-            "var __hit = -1; for (var __hi = 0; __hi < "
-                + working
-                + ".Count; __hi++) { var __hwRaw = "
-                + working
-                + "[__hi];"
-        );
-        if (elementRef)
+        if (keyType.EndsWith("?", StringComparison.Ordinal))
         {
-            code.AppendLineAt(indent + 2, "if (__hwRaw is null) continue;");
+            code.AppendLineAt(indent + 2, "if (!__qk.HasValue)");
+            code.AppendLineAt(indent + 2, "{");
+            code.AppendLineAt(
+                indent + 3,
+                "if (" + workingHasNullKey + ") " + ordered + ".Add(" + workingNullKeyValue + ");"
+            );
+            code.AppendLineAt(indent + 2, "}");
+            code.AppendLineAt(indent + 2, "else if (");
+            code.AppendLineAt(
+                indent + 3,
+                workingLookup
+                    + ".TryGetValue(__qk.Value, out var __hit)) "
+                    + ordered
+                    + ".Add(__hit!);"
+            );
         }
-        code.AppendLineAt(
-            indent + 2,
-            "var __hw = __hwRaw; if (global::System.Collections.Generic.EqualityComparer<"
-                + keyType
-                + ">.Default.Equals(__hw."
-                + keyProp
-                + ", __qk)) { __hit = __hi; break; } }"
-        );
-        code.AppendLineAt(
-            indent + 2,
-            "if (__hit >= 0) " + ordered + ".Add(" + working + "[__hit]);"
-        );
+        else if (keyIsReferenceType)
+        {
+            code.AppendLineAt(indent + 2, "if (__qk is null)");
+            code.AppendLineAt(indent + 2, "{");
+            code.AppendLineAt(
+                indent + 3,
+                "if (" + workingHasNullKey + ") " + ordered + ".Add(" + workingNullKeyValue + ");"
+            );
+            code.AppendLineAt(indent + 2, "}");
+            code.AppendLineAt(indent + 2, "else if (");
+            code.AppendLineAt(
+                indent + 3,
+                workingLookup + ".TryGetValue(__qk, out var __hit)) " + ordered + ".Add(__hit!);"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                indent + 2,
+                "if ("
+                    + workingLookup
+                    + ".TryGetValue(__qk, out var __hit)) "
+                    + ordered
+                    + ".Add(__hit!);"
+            );
+        }
         code.AppendLineAt(indent + 1, "}");
         code.AppendLineAt(indent + 1, "else");
         code.AppendLineAt(indent + 1, "{");
@@ -265,146 +394,220 @@ internal static class SparseTemporaryKeyOrderEmitter
         string keyProp,
         string tempProp,
         string unassigned,
+        bool keyIsReferenceType,
         bool elementRef,
         int indent
     )
     {
         _ = elementType;
-        // Each addition slots after its nearest surviving predecessor in live
-        // order, or at the head when it leads the collection.
-        var loopVar = "__n";
-        code.AppendLineAt(indent, "foreach (var " + loopVar + "Raw in " + liveList + ")");
+        var nullableValueKey = keyType.EndsWith("?", StringComparison.Ordinal);
+        var nullableKey = nullableValueKey || keyIsReferenceType;
+        var lookupKeyType = nullableValueKey ? keyType.Substring(0, keyType.Length - 1) : keyType;
+        code.AppendLineAt(
+            indent,
+            "var __orderedIndex = new global::System.Collections.Generic.Dictionary<"
+                + lookupKeyType
+                + ", int>(global::System.Collections.Generic.EqualityComparer<"
+                + lookupKeyType
+                + ">.Default);"
+        );
+        if (nullableKey)
+        {
+            code.AppendLineAt(indent, "var __orderedNullIndex = -1;");
+        }
+        code.AppendLineAt(indent, "for (var __oi = 0; __oi < " + ordered + ".Count; __oi++)");
         code.AppendLineAt(indent, "{");
         if (elementRef)
         {
-            code.AppendLineAt(indent + 1, "var " + loopVar + " = " + loopVar + "Raw;");
-            code.AppendLineAt(indent + 1, "if (" + loopVar + " is null) continue;");
+            code.AppendLineAt(indent + 1, "var __or = " + ordered + "[__oi];");
+            code.AppendLineAt(indent + 1, "if (__or is null) continue;");
         }
         else
         {
-            code.AppendLineAt(indent + 1, "var " + loopVar + " = " + loopVar + "Raw;");
+            code.AppendLineAt(indent + 1, "var __or = " + ordered + "[__oi];");
         }
-        code.AppendLineAt(indent + 1, "var __nk = " + loopVar + "." + keyProp + ";");
+        code.AppendLineAt(indent + 1, "var __ok = __or." + keyProp + ";");
+        if (nullableValueKey)
+        {
+            code.AppendLineAt(
+                indent + 1,
+                "if (__ok.HasValue) __orderedIndex.TryAdd(__ok.Value, __oi); else if (__orderedNullIndex < 0) __orderedNullIndex = __oi;"
+            );
+        }
+        else if (keyIsReferenceType)
+        {
+            code.AppendLineAt(
+                indent + 1,
+                "if (__ok is null) { if (__orderedNullIndex < 0) __orderedNullIndex = __oi; } else __orderedIndex.TryAdd(__ok, __oi);"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(indent + 1, "__orderedIndex.TryAdd(__ok, __oi);");
+        }
+        code.AppendLineAt(indent, "}");
+        code.AppendLineAt(
+            indent,
+            "var __after = new global::System.Collections.Generic.List<"
+                + elementType
+                + ">?["
+                + ordered
+                + ".Count];"
+        );
+        code.AppendLineAt(
+            indent,
+            "var __head = new global::System.Collections.Generic.List<" + elementType + ">();"
+        );
+        code.AppendLineAt(
+            indent,
+            "var __postAddKeys = new global::System.Collections.Generic.HashSet<"
+                + lookupKeyType
+                + ">(global::System.Collections.Generic.EqualityComparer<"
+                + lookupKeyType
+                + ">.Default);"
+        );
+        code.AppendLineAt(indent, "var __predecessor = -1;");
+        code.AppendLineAt(indent, "foreach (var __nRaw in " + liveList + ")");
+        code.AppendLineAt(indent, "{");
+        if (elementRef)
+        {
+            code.AppendLineAt(indent + 1, "var __n = __nRaw;");
+            code.AppendLineAt(indent + 1, "if (__n is null) continue;");
+        }
+        else
+        {
+            code.AppendLineAt(indent + 1, "var __n = __nRaw;");
+        }
+        code.AppendLineAt(indent + 1, "var __nk = __n." + keyProp + ";");
         code.AppendLineAt(
             indent + 1,
-            "bool __isUnassigned = global::System.Collections.Generic.EqualityComparer<"
+            "var __isUnassigned = global::System.Collections.Generic.EqualityComparer<"
                 + keyType
                 + ">.Default.Equals(__nk, "
                 + unassigned
                 + ");"
         );
-        code.AppendLineAt(indent + 1, "global::System.Guid __nt = global::System.Guid.Empty;");
-        code.AppendLineAt(
-            indent + 1,
-            "if (__isUnassigned) { var __ntOpt = "
-                + loopVar
-                + "."
-                + tempProp
-                + "; if (!__ntOpt.HasValue || __ntOpt.Value == global::System.Guid.Empty) return __Fail(\"The live model contains an unassigned element without a temporary identity.\"); __nt = __ntOpt.Value; if ("
-                + subTemps
-                + ".Contains(__nt)) continue; }"
-        );
-        code.AppendLineAt(indent + 1, "else if (" + subKeys + ".Contains(__nk)) continue;");
-        code.AppendLineAt(
-            indent + 1,
-            "else { var __dup = false; for (var __di = 0; __di < "
-                + ordered
-                + ".Count; __di++) { var __dwRaw = "
-                + ordered
-                + "[__di];"
-        );
-        if (elementRef)
-        {
-            code.AppendLineAt(indent + 1, "if (__dwRaw is null) continue;");
-        }
-        code.AppendLineAt(
-            indent + 1,
-            "if (global::System.Collections.Generic.EqualityComparer<"
-                + keyType
-                + ">.Default.Equals(__dwRaw."
-                + keyProp
-                + ", __nk)) { __dup = true; break; } } if (__dup) return __Fail(\"Reconciling produced a duplicate key.\"); }"
-        );
-        // Find the nearest surviving predecessor in live order.
-        code.AppendLineAt(indent + 1, "var __predIndex = -1;");
+        code.AppendLineAt(indent + 1, "if (__isUnassigned)");
         code.AppendLineAt(indent + 1, "{");
+        code.AppendLineAt(indent + 2, "var __nt = __n." + tempProp + ";");
         code.AppendLineAt(
             indent + 2,
-            "var __li = -1; for (var __lj = 0; __lj < "
-                + liveList
-                + ".Count; __lj++) if (object.ReferenceEquals("
-                + liveList
-                + "[__lj], "
-                + loopVar
-                + ")) { __li = __lj; break; }"
+            "if (!__nt.HasValue || __nt.Value == global::System.Guid.Empty) return __Fail(\"The live model contains an unassigned element without a temporary identity.\");"
         );
-        code.AppendLineAt(indent + 2, "for (var __lk = __li - 1; __lk >= 0; __lk--)");
+        code.AppendLineAt(indent + 2, "if (" + subTemps + ".Contains(__nt.Value))");
         code.AppendLineAt(indent + 2, "{");
-        code.AppendLineAt(indent + 3, "var __candRaw = " + liveList + "[__lk];");
-        if (elementRef)
+        if (nullableValueKey)
         {
-            code.AppendLineAt(indent + 3, "if (__candRaw is null) continue;");
+            code.AppendLineAt(
+                indent + 3,
+                "if (map.TryGetValue((__collectionScope, __nt.Value), out var __mapped) && __mapped is "
+                    + elementType
+                    + " __mappedElement) { var __mappedKey = __mappedElement."
+                    + keyProp
+                    + "; if (__mappedKey.HasValue) { if (__orderedIndex.TryGetValue(__mappedKey.Value, out var __mappedIndex)) __predecessor = __mappedIndex; } else if (__orderedNullIndex >= 0) __predecessor = __orderedNullIndex; }"
+            );
         }
-        code.AppendLineAt(indent + 3, "var __cand = __candRaw;");
-        code.AppendLineAt(indent + 3, "var __ck = __cand." + keyProp + ";");
-        code.AppendLineAt(
-            indent + 3,
-            "bool __candUn = global::System.Collections.Generic.EqualityComparer<"
-                + keyType
-                + ">.Default.Equals(__ck, "
-                + unassigned
-                + ");"
-        );
-        code.AppendLineAt(
-            indent + 3,
-            "if (__candUn) { var __copt = __cand."
-                + tempProp
-                + "; if (!__copt.HasValue) continue; if (!"
-                + subTemps
-                + ".Contains(__copt.Value)) continue; if (!map.TryGetValue((__collectionScope, __copt.Value), out var __cObj) || !(__cObj is "
-                + elementType
-                + " __ce)) continue; __ck = __ce."
-                + keyProp
-                + "; }"
-        );
-        code.AppendLineAt(indent + 3, "else if (!" + subKeys + ".Contains(__ck)) continue;");
-        code.AppendLineAt(
-            indent + 3,
-            "for (var __oj = 0; __oj < "
-                + ordered
-                + ".Count; __oj++) { var __owRaw = "
-                + ordered
-                + "[__oj];"
-        );
-        if (elementRef)
+        else if (keyIsReferenceType)
         {
-            code.AppendLineAt(indent + 3, "if (__owRaw is null) continue;");
+            code.AppendLineAt(
+                indent + 3,
+                "if (map.TryGetValue((__collectionScope, __nt.Value), out var __mapped) && __mapped is "
+                    + elementType
+                    + " __mappedElement) { var __mappedKey = __mappedElement."
+                    + keyProp
+                    + "; if (__mappedKey is null) { if (__orderedNullIndex >= 0) __predecessor = __orderedNullIndex; } else if (__orderedIndex.TryGetValue(__mappedKey, out var __mappedIndex)) __predecessor = __mappedIndex; }"
+            );
         }
-        code.AppendLineAt(
-            indent + 3,
-            "if (global::System.Collections.Generic.EqualityComparer<"
-                + keyType
-                + ">.Default.Equals(__owRaw."
-                + keyProp
-                + ", __ck)) { __predIndex = __oj; break; } }"
-        );
-        code.AppendLineAt(indent + 3, "if (__predIndex >= 0) break;");
-        code.AppendLineAt(indent + 2, "}");
+        else
+        {
+            code.AppendLineAt(
+                indent + 3,
+                "if (map.TryGetValue((__collectionScope, __nt.Value), out var __mapped) && __mapped is "
+                    + elementType
+                    + " __mappedElement && __orderedIndex.TryGetValue(__mappedElement."
+                    + keyProp
+                    + ", out var __mappedIndex)) __predecessor = __mappedIndex;"
+            );
+        }
+        code.AppendLineAt(indent + 2, "continue;");
         code.AppendLineAt(indent + 1, "}");
+        code.AppendLineAt(indent + 1, "}");
+        code.AppendLineAt(indent + 1, "else if (" + subKeys + ".Contains(__nk))");
+        code.AppendLineAt(indent + 1, "{");
+        if (nullableValueKey)
+        {
+            code.AppendLineAt(
+                indent + 2,
+                "if (__nk.HasValue) { if (__orderedIndex.TryGetValue(__nk.Value, out var __submittedIndex)) __predecessor = __submittedIndex; } else if (__orderedNullIndex >= 0) __predecessor = __orderedNullIndex;"
+            );
+        }
+        else if (keyIsReferenceType)
+        {
+            code.AppendLineAt(
+                indent + 2,
+                "if (__nk is null) { if (__orderedNullIndex >= 0) __predecessor = __orderedNullIndex; } else if (__orderedIndex.TryGetValue(__nk, out var __submittedIndex)) __predecessor = __submittedIndex;"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                indent + 2,
+                "if (__orderedIndex.TryGetValue(__nk, out var __submittedIndex)) __predecessor = __submittedIndex;"
+            );
+        }
+        code.AppendLineAt(indent + 2, "continue;");
+        code.AppendLineAt(indent + 1, "}");
+        if (nullableValueKey)
+        {
+            code.AppendLineAt(
+                indent + 1,
+                "if (!__isUnassigned && ((!__nk.HasValue && __orderedNullIndex >= 0) || (__nk.HasValue && (__orderedIndex.ContainsKey(__nk.Value) || !__postAddKeys.Add(__nk.Value))))) return __Fail(\"Reconciling produced a duplicate key.\");"
+            );
+        }
+        else if (keyIsReferenceType)
+        {
+            code.AppendLineAt(
+                indent + 1,
+                "if (!__isUnassigned && ((__nk is null && __orderedNullIndex >= 0) || (__nk is not null && (__orderedIndex.ContainsKey(__nk) || !__postAddKeys.Add(__nk))))) return __Fail(\"Reconciling produced a duplicate key.\");"
+            );
+        }
+        else
+        {
+            code.AppendLineAt(
+                indent + 1,
+                "if (!__isUnassigned && (__orderedIndex.ContainsKey(__nk) || !__postAddKeys.Add(__nk))) return __Fail(\"Reconciling produced a duplicate key.\");"
+            );
+        }
+        code.AppendLineAt(indent + 1, "if (__predecessor == -1) __head.Add(__n);");
         code.AppendLineAt(
             indent + 1,
-            "if (__predIndex < 0) "
-                + ordered
-                + ".Insert(0, "
-                + loopVar
-                + "); else "
-                + ordered
-                + ".Insert(__predIndex + 1, "
-                + loopVar
-                + ");"
+            "else { var __bucket = __after[__predecessor]; if (__bucket is null) __after[__predecessor] = __bucket = new global::System.Collections.Generic.List<"
+                + elementType
+                + ">(); __bucket.Add(__n); }"
         );
         code.AppendLineAt(indent + 1, "__dirty = true;");
         code.AppendLineAt(indent, "}");
+        code.AppendLineAt(
+            indent,
+            "var __flattened = new global::System.Collections.Generic.List<"
+                + elementType
+                + ">("
+                + ordered
+                + ".Count + __head.Count);"
+        );
+        code.AppendLineAt(
+            indent,
+            "for (var __hi = __head.Count - 1; __hi >= 0; __hi--) __flattened.Add(__head[__hi]);"
+        );
+        code.AppendLineAt(
+            indent,
+            "for (var __oi = 0; __oi < "
+                + ordered
+                + ".Count; __oi++) { __flattened.Add("
+                + ordered
+                + "[__oi]); var __bucket = __after[__oi]; if (__bucket is not null) for (var __bi = __bucket.Count - 1; __bi >= 0; __bi--) __flattened.Add(__bucket[__bi]); }"
+        );
+        code.AppendLineAt(indent, ordered + ".Clear(); " + ordered + ".AddRange(__flattened);");
     }
 
     internal static void EmitServerAddedAppend(
@@ -422,7 +625,36 @@ internal static class SparseTemporaryKeyOrderEmitter
         int indent
     )
     {
-        _ = unassigned;
+        code.AppendLineAt(
+            indent,
+            "var __existingKeys = new global::System.Collections.Generic.HashSet<"
+                + keyType
+                + ">(global::System.Collections.Generic.EqualityComparer<"
+                + keyType
+                + ">.Default);"
+        );
+        code.AppendLineAt(
+            indent,
+            "var __existingTemps = new global::System.Collections.Generic.HashSet<global::System.Guid>();"
+        );
+        code.AppendLineAt(indent, "foreach (var __knownRaw in " + working + ")");
+        code.AppendLineAt(indent, "{");
+        if (elementRef)
+        {
+            code.AppendLineAt(indent + 1, "if (__knownRaw is null) continue;");
+        }
+        code.AppendLineAt(indent + 1, "var __knownKey = __knownRaw." + keyProp + ";");
+        code.AppendLineAt(
+            indent + 1,
+            "if (global::System.Collections.Generic.EqualityComparer<"
+                + keyType
+                + ">.Default.Equals(__knownKey, "
+                + unassigned
+                + ")) { var __knownTemp = __knownRaw."
+                + tempProp
+                + "; if (__knownTemp.HasValue && __knownTemp.Value != global::System.Guid.Empty) __existingTemps.Add(__knownTemp.Value); } else __existingKeys.Add(__knownKey);"
+        );
+        code.AppendLineAt(indent, "}");
         var loopVar = "__w";
         code.AppendLineAt(indent, "foreach (var " + loopVar + "Raw in " + perList + ")");
         code.AppendLineAt(indent, "{");
@@ -445,28 +677,14 @@ internal static class SparseTemporaryKeyOrderEmitter
                 + subKeys
                 + ".Contains(__wk)) continue;"
         );
-        code.AppendLineAt(indent + 1, "var __exists = false;");
-        code.AppendLineAt(
-            indent + 1,
-            "for (var __ei = 0; __ei < "
-                + working
-                + ".Count; __ei++) { var __ewRaw = "
-                + working
-                + "[__ei];"
-        );
-        if (elementRef)
-        {
-            code.AppendLineAt(indent + 1, "if (__ewRaw is null) continue;");
-        }
         code.AppendLineAt(
             indent + 1,
             "if (global::System.Collections.Generic.EqualityComparer<"
                 + keyType
-                + ">.Default.Equals(__ewRaw."
-                + keyProp
-                + ", __wk)) { __exists = true; break; } }"
+                + ">.Default.Equals(__wk, "
+                + unassigned
+                + ")) { if (__wt.HasValue && __wt.Value != global::System.Guid.Empty && !__existingTemps.Add(__wt.Value)) return __Fail(\"Reconciling produced a duplicate key.\"); } else if (!__existingKeys.Add(__wk)) continue;"
         );
-        code.AppendLineAt(indent + 1, "if (__exists) continue;");
         code.AppendLineAt(
             indent + 1,
             working

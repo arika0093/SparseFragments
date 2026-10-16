@@ -99,7 +99,7 @@ internal static class SparseTemporaryKeyCollectEmitter
         var elementType = member.Collection.ElementType.NonNullableName;
         var keyType = member.Collection.KeyTypeName ?? "object?";
         var keyCanBeNull =
-            member.Collection.KeyTypeIsReferenceType
+            member.Collection.KeyIsReferenceType
             || keyType.EndsWith("?")
             || keyType.Contains("Nullable<");
         // Element shape drives null handling.

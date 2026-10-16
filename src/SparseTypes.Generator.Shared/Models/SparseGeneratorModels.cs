@@ -55,7 +55,7 @@ internal readonly record struct SparseCollectionInfo(
     SparseKeyKind KeyKind = default,
     string? UnassignedKeyExpression = null,
     string? TemporaryKeyPropertyName = null,
-    bool KeyTypeIsReferenceType = false
+    bool KeyIsReferenceType = false
 )
 {
     public bool Equals(SparseCollectionInfo other) =>
@@ -69,7 +69,8 @@ internal readonly record struct SparseCollectionInfo(
         && KeyTypeName == other.KeyTypeName
         && KeyKind == other.KeyKind
         && UnassignedKeyExpression == other.UnassignedKeyExpression
-        && TemporaryKeyPropertyName == other.TemporaryKeyPropertyName;
+        && TemporaryKeyPropertyName == other.TemporaryKeyPropertyName
+        && KeyIsReferenceType == other.KeyIsReferenceType;
 
     public override int GetHashCode()
     {
@@ -83,7 +84,8 @@ internal readonly record struct SparseCollectionInfo(
         hash = unchecked(hash * 31 + (KeyTypeName?.GetHashCode() ?? 0));
         hash = unchecked(hash * 31 + (int)KeyKind);
         hash = unchecked(hash * 31 + (UnassignedKeyExpression?.GetHashCode() ?? 0));
-        return unchecked(hash * 31 + (TemporaryKeyPropertyName?.GetHashCode() ?? 0));
+        hash = unchecked(hash * 31 + (TemporaryKeyPropertyName?.GetHashCode() ?? 0));
+        return unchecked(hash * 31 + (KeyIsReferenceType ? 1 : 0));
     }
 
     public static SparseCollectionInfo Unsupported { get; } =

@@ -710,7 +710,7 @@ internal static class SparseModelDiscovery
         var keyKind = SparseKeyKind.None;
         string? unassignedKeyExpression = null;
         string? temporaryKeyPropertyName = null;
-        var keyTypeIsReferenceType = false;
+        var keyIsReferenceType = false;
         if (
             semantic == SparseCollectionSemantic.KeyedSequence
             && collection.ElementType is INamedTypeSymbol namedElement
@@ -727,7 +727,7 @@ internal static class SparseModelDiscovery
             keyTypeName = discovered.KeyTypeName;
             keyKind = discovered.Kind;
             unassignedKeyExpression = discovered.UnassignedKeyExpression;
-            keyTypeIsReferenceType = discovered.KeyTypeIsReferenceType;
+            keyIsReferenceType = discovered.KeyIsReferenceType;
             // Temporary identity needs generated per-model helpers.
             if (elementType.IsFragmentModel)
             {
@@ -747,7 +747,7 @@ internal static class SparseModelDiscovery
             keyKind,
             unassignedKeyExpression,
             temporaryKeyPropertyName,
-            keyTypeIsReferenceType
+            keyIsReferenceType
         );
     }
 

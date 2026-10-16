@@ -24,7 +24,7 @@ internal sealed record SparseKeyInfo(
     string KeyTypeName,
     string? UnassignedKeyExpression = null,
     string? TemporaryKeyProperty = null,
-    bool KeyTypeIsReferenceType = false
+    bool KeyIsReferenceType = false
 );
 
 /// <summary>Discovers and validates SparseTypes key metadata on element types.</summary>

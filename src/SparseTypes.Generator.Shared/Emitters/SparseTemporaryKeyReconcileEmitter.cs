@@ -283,7 +283,40 @@ internal static class SparseTemporaryKeyReconcileEmitter
                 + ">(__liveList);"
         );
         code.AppendLineAt(3, "var __dirty = false;");
-        code.AppendLineAt(3, "for (var __i = 0; __i < __working.Count; __i++)");
+        if (keyProp is not null)
+        {
+            SparseTemporaryKeyOrderEmitter.EmitBuildKeyLookup(
+                code,
+                "__subList",
+                "__subByKey",
+                "__subHasNullKey",
+                "__subNullKey",
+                elementType,
+                keyType,
+                keyProp,
+                member.Collection.KeyIsReferenceType,
+                elementRef2,
+                elementNullableStruct2,
+                3
+            );
+            SparseTemporaryKeyOrderEmitter.EmitBuildKeyLookup(
+                code,
+                "__perList",
+                "__perByKey",
+                "__perHasNullKey",
+                "__perNullKey",
+                elementType,
+                keyType,
+                keyProp,
+                member.Collection.KeyIsReferenceType,
+                elementRef2,
+                elementNullableStruct2,
+                3
+            );
+        }
+        code.AppendLineAt(3, "var __sourceCount = __working.Count;");
+        code.AppendLineAt(3, "var __write = 0;");
+        code.AppendLineAt(3, "for (var __i = 0; __i < __sourceCount; __i++)");
         code.AppendLineAt(3, "{");
         code.AppendLineAt(4, "var __e = __working[__i];");
         // Normalized element variable: references promote, nullable structs
@@ -291,11 +324,11 @@ internal static class SparseTemporaryKeyReconcileEmitter
         var eUse = "__e";
         if (elementRef2)
         {
-            code.AppendLineAt(4, "if (__e is null) continue;");
+            code.AppendLineAt(4, "if (__e is null) { __working[__write++] = __e!; continue; }");
         }
         else if (elementNullableStruct2)
         {
-            code.AppendLineAt(4, "if (!__e.HasValue) continue;");
+            code.AppendLineAt(4, "if (!__e.HasValue) { __working[__write++] = __e; continue; }");
             code.AppendLineAt(4, "var __en = __e.Value;");
             eUse = "__en";
         }
@@ -324,7 +357,9 @@ internal static class SparseTemporaryKeyReconcileEmitter
                     );
                     code.AppendLineAt(
                         5,
-                        "if (!map.TryGetValue((__collectionScope, __t.Value), out var __persisted)) continue;"
+                        "if (!map.TryGetValue((__collectionScope, __t.Value), out var __persisted)) { __working[__write++] = __working[__i]"
+                            + (elementRef2 ? "!" : "")
+                            + "; continue; }"
                     );
                     code.AppendLineAt(
                         5,
@@ -383,7 +418,14 @@ internal static class SparseTemporaryKeyReconcileEmitter
                     optionalFragment,
                     eUse,
                     elementRef2,
-                    elementNullableStruct2
+                    elementNullableStruct2,
+                    member.Collection.KeyIsReferenceType,
+                    "__subByKey",
+                    "__subHasNullKey",
+                    "__subNullKey",
+                    "__perByKey",
+                    "__perHasNullKey",
+                    "__perNullKey"
                 );
                 code.AppendLineAt(4, "}");
             }
@@ -400,7 +442,14 @@ internal static class SparseTemporaryKeyReconcileEmitter
                     optionalFragment,
                     eUse,
                     elementRef2,
-                    elementNullableStruct2
+                    elementNullableStruct2,
+                    member.Collection.KeyIsReferenceType,
+                    "__subByKey",
+                    "__subHasNullKey",
+                    "__subNullKey",
+                    "__perByKey",
+                    "__perHasNullKey",
+                    "__perNullKey"
                 );
             }
         }
@@ -422,7 +471,15 @@ internal static class SparseTemporaryKeyReconcileEmitter
             );
             code.AppendLineAt(4, "if (__recurseError is not null) return __Fail(__recurseError);");
         }
+        code.AppendLineAt(
+            4,
+            "__working[__write++] = __working[__i]" + (elementRef2 ? "!" : "") + ";"
+        );
         code.AppendLineAt(3, "}");
+        code.AppendLineAt(
+            3,
+            "if (__write != __working.Count) __working.RemoveRange(__write, __working.Count - __write);"
+        );
         SparseTemporaryKeyElementEmitter.AppendKeyedMembershipReconcile(
             code,
             member,

@@ -52,6 +52,7 @@ public sealed class IncrementalPlumbingTests
         left.ShouldNotBe(left with { KeyKind = SparseKeyKind.None });
         left.ShouldNotBe(left with { UnassignedKeyExpression = "1" });
         left.ShouldNotBe(left with { TemporaryKeyPropertyName = "PendingId" });
+        left.ShouldNotBe(left with { KeyIsReferenceType = true });
 
         var defaultKeys = left with { KeyPropertyNames = default };
         var emptyKeys = left with { KeyPropertyNames = ImmutableArray<string>.Empty };
