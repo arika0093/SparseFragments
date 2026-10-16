@@ -18,6 +18,13 @@ public sealed class NestedScopeIdentityTests
                         {
                             Id = line.Id,
                             Qty = line.Qty,
+                            Tags = line
+                                .Tags.Select(static tag => new BinTagDto
+                                {
+                                    Id = tag.Id,
+                                    Label = tag.Label,
+                                })
+                                .ToList(),
                         })
                         .ToList(),
                 })
@@ -222,6 +229,112 @@ public sealed class NestedScopeIdentityTests
         firstTags.ShouldHaveSingleItem().TemporaryId.ShouldBe(nested);
         secondTags.ShouldHaveSingleItem().TemporaryId.ShouldBe(nested);
         firstTags[0].Id.ShouldNotBe(secondTags[0].Id);
+        counter.Commands.ShouldBe(0);
+    }
+
+    [Test]
+    public async Task ThreeLevelCorrelationKeepsTypedAncestorIdentityAfterReordering()
+    {
+        using var connection = TestDatabases.OpenMemory();
+        var counter = new QueryCounter();
+        using var context = TestDatabases.CreateKeyed(connection, counter);
+        var entity = context
+            .BinHolders.Add(
+                new BinHolderEntity
+                {
+                    Bins =
+                    [
+                        new BinEntity
+                        {
+                            Aisle = "a[0].b/x.y",
+                            Bay = 1,
+                            Lines = [new BinLineEntity { Qty = 9 }],
+                        },
+                        new BinEntity { Aisle = "日本語/x.y", Bay = 2 },
+                    ],
+                }
+            )
+            .Entity;
+        await context.SaveChangesAsync();
+        await context.Entry(entity).Collection(static holder => holder.Bins).LoadAsync();
+        foreach (var bin in entity.Bins)
+        {
+            await context.Entry(bin).Collection(static item => item.Lines).LoadAsync();
+            foreach (var line in bin.Lines)
+            {
+                await context.Entry(line).Collection(static item => item.Tags).LoadAsync();
+            }
+        }
+
+        counter.Reset();
+
+        var existingLineTemporary = Guid.NewGuid();
+        var existingTagTemporary = Guid.NewGuid();
+        var addedLineTemporary = Guid.NewGuid();
+        var addedTagTemporary = Guid.NewGuid();
+        var current = ReadBins(entity);
+        current.Bins[0].Lines[0].TemporaryId = existingLineTemporary;
+        var incoming = ReadBins(entity);
+        incoming.Bins[0].Lines[0].TemporaryId = existingLineTemporary;
+        incoming
+            .Bins[0]
+            .Lines[0]
+            .Tags.Add(
+                new BinTagDto { Label = "assigned parent", TemporaryId = existingTagTemporary }
+            );
+        incoming
+            .Bins[0]
+            .Lines.Add(
+                new BinLineDto
+                {
+                    Qty = 1,
+                    TemporaryId = addedLineTemporary,
+                    Tags = [new BinTagDto { Label = "first bin", TemporaryId = addedTagTemporary }],
+                }
+            );
+        incoming
+            .Bins[1]
+            .Lines.Add(
+                new BinLineDto
+                {
+                    Qty = 2,
+                    TemporaryId = addedLineTemporary,
+                    Tags =
+                    [
+                        new BinTagDto { Label = "second bin", TemporaryId = addedTagTemporary },
+                    ],
+                }
+            );
+        var accepted = current.CreateChangeSet(incoming);
+
+        var mapper = CreateMapper(context);
+        var result = mapper.ApplyWithResult(context, entity, accepted);
+        await context.SaveChangesAsync();
+        counter.Reset();
+
+        var authoritative = ReadBins(entity);
+        authoritative.Bins.Reverse();
+        foreach (var bin in authoritative.Bins)
+        {
+            bin.Lines.Reverse();
+        }
+
+        mapper.AssignTemporaryKeys(context, result, current, authoritative);
+
+        var firstBin = authoritative.Bins.Single(static bin => bin.Code.Bay == 1);
+        var secondBin = authoritative.Bins.Single(static bin => bin.Code.Bay == 2);
+        var existingLine = firstBin.Lines.Single(static line => line.Qty == 9);
+        existingLine.TemporaryId.ShouldBe(existingLineTemporary);
+        existingLine.Tags.Single().TemporaryId.ShouldBe(existingTagTemporary);
+
+        var firstLine = firstBin.Lines.Single(static line => line.Qty == 1);
+        var secondLine = secondBin.Lines.Single(static line => line.Qty == 2);
+        firstLine.TemporaryId.ShouldBe(addedLineTemporary);
+        secondLine.TemporaryId.ShouldBe(addedLineTemporary);
+        firstLine.Tags.Single().TemporaryId.ShouldBe(addedTagTemporary);
+        secondLine.Tags.Single().TemporaryId.ShouldBe(addedTagTemporary);
+        firstLine.Id.ShouldNotBe(secondLine.Id);
+        firstLine.Tags.Single().Id.ShouldNotBe(secondLine.Tags.Single().Id);
         counter.Commands.ShouldBe(0);
     }
 }

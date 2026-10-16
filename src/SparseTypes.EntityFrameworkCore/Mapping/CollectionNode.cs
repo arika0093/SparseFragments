@@ -60,7 +60,7 @@ internal sealed class CollectionNode<TDto, TEntity, TDtoChild, TEntityChild> : M
         SparseEntityApplyResult result,
         string path,
         TemporaryKeyAssignmentPlan assignments,
-        IReadOnlyList<CollectionScopeIdentity>? parentScopes = null
+        IReadOnlyList<CollectionScopePath>? parentScopes = null
     )
     {
         var baselineItems = baseline is null ? null : Runtime.SnapshotReader(baseline);

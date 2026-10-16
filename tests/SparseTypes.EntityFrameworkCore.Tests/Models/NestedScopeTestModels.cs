@@ -49,6 +49,27 @@ public partial class BinLineDto
 
     /// <summary>Gets or sets the quantity.</summary>
     public int Qty { get; set; }
+
+    /// <summary>Gets or sets the nested tags.</summary>
+    public List<BinTagDto> Tags { get; set; } = [];
+}
+
+/// <summary>DTO tag nested under a bin line.</summary>
+public partial class BinTagDto
+{
+    /// <summary>Gets or sets the persisted identity. Null means unassigned.</summary>
+    public int? Id { get; set; }
+
+    /// <summary>Gets the stable key.</summary>
+    [SparseKey(Unassigned = 0)]
+    public int Key => Id ?? 0;
+
+    /// <summary>Gets or sets the collection-scoped temporary identity.</summary>
+    [SparseTemporaryKey]
+    public Guid? TemporaryId { get; set; }
+
+    /// <summary>Gets or sets the label.</summary>
+    public string Label { get; set; } = string.Empty;
 }
 
 /// <summary>DTO bin keyed by a custom struct.</summary>
@@ -111,11 +132,30 @@ public sealed class BinLineEntity
     /// <summary>Gets or sets the quantity.</summary>
     public int Qty { get; set; }
 
+    /// <summary>Gets or sets the nested tags.</summary>
+    public List<BinTagEntity> Tags { get; set; } = [];
+
     /// <summary>Gets or sets the owning bin identity.</summary>
     public int BinId { get; set; }
 
     /// <summary>Gets or sets the owning bin.</summary>
     public BinEntity? Bin { get; set; }
+}
+
+/// <summary>Tag entity nested under a bin line.</summary>
+public sealed class BinTagEntity
+{
+    /// <summary>Gets or sets the identity.</summary>
+    public int Id { get; set; }
+
+    /// <summary>Gets or sets the label.</summary>
+    public string Label { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the owning line identity.</summary>
+    public int LineId { get; set; }
+
+    /// <summary>Gets or sets the owning line.</summary>
+    public BinLineEntity? Line { get; set; }
 }
 
 /// <summary>Struct-keyed holder mapping with a nested temporary-keyed collection.</summary>
@@ -137,7 +177,19 @@ public sealed partial class BinHolderMapper
                         entity => entity.Lines,
                         lines =>
                         {
-                            lines.Element(static line => { });
+                            lines.Element(line =>
+                            {
+                                line.Collection(
+                                    dto => dto.Tags,
+                                    entity => entity.Tags,
+                                    tags =>
+                                    {
+                                        tags.Key(dto => dto.Key, entity => entity.Id);
+                                        tags.Element(static tag => { });
+                                        tags.Delete();
+                                    }
+                                );
+                            });
                             lines.Delete();
                         }
                     );

@@ -108,7 +108,7 @@ internal abstract class EntityPlanBase
         SparseEntityApplyResult result,
         string path,
         TemporaryKeyAssignmentPlan assignments,
-        IReadOnlyList<CollectionScopeIdentity>? parentScopes = null
+        IReadOnlyList<CollectionScopePath>? parentScopes = null
     );
 
     /// <summary>Validates the change set, then executes the queued writes.</summary>
@@ -367,7 +367,7 @@ internal sealed class EntityPlan<TEntity, TDto> : EntityPlanBase
         SparseEntityApplyResult result,
         string path,
         TemporaryKeyAssignmentPlan assignments,
-        IReadOnlyList<CollectionScopeIdentity>? parentScopes = null
+        IReadOnlyList<CollectionScopePath>? parentScopes = null
     )
     {
         ArgumentNullException.ThrowIfNull(context);

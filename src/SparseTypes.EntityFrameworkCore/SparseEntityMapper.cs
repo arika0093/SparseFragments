@@ -183,10 +183,10 @@ public sealed class SparseEntityMapper<TEntity, TDto>
             : null;
         var appliedPaths = trackResult ? new List<SparseEntityAppliedPath>() : null;
         var collectionScopeKeys = trackResult
-            ? new Dictionary<string, Dictionary<object, string>>(StringComparer.Ordinal)
+            ? new Dictionary<object, Dictionary<object, string>>(ReferenceEqualityComparer.Instance)
             : null;
         var nestedScopes = trackResult
-            ? new Dictionary<string, NestedScopeTable>(StringComparer.Ordinal)
+            ? new Dictionary<object, NestedScopeTable>(ReferenceEqualityComparer.Instance)
             : null;
         var state = new PlanApplyState(
             context,

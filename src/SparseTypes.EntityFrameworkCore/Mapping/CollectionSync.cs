@@ -62,7 +62,9 @@ internal static class CollectionSync
                 appliedPaths: state.AppliedPaths,
                 collectionScopeKeys: state.CollectionScopeKeys,
                 nestedScopes: state.NestedScopes,
-                parentScope: CollectionScopeIdentity.Assigned(edit.Key, runtime.KeyComparer)
+                parentScope: state.ParentScope.Append(
+                    CollectionScopeIdentity.Assigned(edit.Key, runtime.KeyComparer)
+                )
             );
             runtime.ChildPlan.Prepare(sub, actions);
         }
@@ -201,7 +203,7 @@ internal static class CollectionSync
                 var (dto, entity, temporaryKey) = creations[index];
                 if (temporaryKey is not null && temporaryKey != Guid.Empty)
                 {
-                    state.RecordTemporary(path, temporaryKey.Value, entity);
+                    state.RecordTemporary(path, runtime, temporaryKey.Value, entity);
                 }
 
                 // Nested scopes qualify with the added element's identity so
@@ -226,7 +228,7 @@ internal static class CollectionSync
                 var entry = PlanApplyState.AttachSingle(state.Context, entity);
                 // The owning element's scope, not the element's own: records
                 // partition by parent scope.
-                state.RecordCollectionScope(path, entity, scopeKey, state.ParentScope);
+                state.RecordCollectionScope(path, runtime, entity, scopeKey, state.ParentScope);
                 if (state.AppliedPaths is not null)
                 {
                     state.RecordAppliedPath(
@@ -249,11 +251,13 @@ internal static class CollectionSync
                     state.AppliedPaths,
                     state.CollectionScopeKeys,
                     state.NestedScopes,
-                    CollectionScopeIdentity.ForElement(
-                        key,
-                        key is not null && !runtime.IsUnassigned(key),
-                        temporaryKey,
-                        runtime.KeyComparer
+                    state.ParentScope.Append(
+                        CollectionScopeIdentity.ForElement(
+                            key,
+                            key is not null && !runtime.IsUnassigned(key),
+                            temporaryKey,
+                            runtime.KeyComparer
+                        )
                     )
                 );
                 var subs = new List<Action>();
@@ -589,12 +593,16 @@ internal static class CollectionSync
             addition.Dto,
             path,
             new Dictionary<string, Dictionary<Guid, object>>(StringComparer.Ordinal),
-            nestedScopes: new Dictionary<string, NestedScopeTable>(StringComparer.Ordinal),
-            parentScope: CollectionScopeIdentity.ForElement(
-                probeKey,
-                probeKey is not null && !runtime.IsUnassigned(probeKey),
-                addition.TemporaryKey,
-                runtime.KeyComparer
+            nestedScopes: new Dictionary<object, NestedScopeTable>(
+                ReferenceEqualityComparer.Instance
+            ),
+            parentScope: CollectionScopePath.Empty.Append(
+                CollectionScopeIdentity.ForElement(
+                    probeKey,
+                    probeKey is not null && !runtime.IsUnassigned(probeKey),
+                    addition.TemporaryKey,
+                    runtime.KeyComparer
+                )
             )
         );
         runtime.ChildPlan.WriteAll(probe, new List<Action>());
@@ -618,12 +626,16 @@ internal static class CollectionSync
             snapshot,
             path,
             new Dictionary<string, Dictionary<Guid, object>>(StringComparer.Ordinal),
-            nestedScopes: new Dictionary<string, NestedScopeTable>(StringComparer.Ordinal),
-            parentScope: CollectionScopeIdentity.ForElement(
-                probeKey,
-                probeKey is not null && !runtime.IsUnassigned(probeKey),
-                runtime.TemporaryGetter?.Invoke(snapshot),
-                runtime.KeyComparer
+            nestedScopes: new Dictionary<object, NestedScopeTable>(
+                ReferenceEqualityComparer.Instance
+            ),
+            parentScope: CollectionScopePath.Empty.Append(
+                CollectionScopeIdentity.ForElement(
+                    probeKey,
+                    probeKey is not null && !runtime.IsUnassigned(probeKey),
+                    runtime.TemporaryGetter?.Invoke(snapshot),
+                    runtime.KeyComparer
+                )
             )
         );
         runtime.ChildPlan.WriteAll(probe, new List<Action>());

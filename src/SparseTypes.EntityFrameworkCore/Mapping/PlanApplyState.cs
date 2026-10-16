@@ -12,7 +12,7 @@ internal sealed class PlanApplyState
     private const string RootMarker = "$root";
     private readonly List<SparseEntityMappingError> _validationErrors;
     private readonly List<SparseEntityAppliedPath>? _appliedPaths;
-    private readonly Dictionary<string, Dictionary<object, string>>? _collectionScopeKeys;
+    private readonly Dictionary<object, Dictionary<object, string>>? _collectionScopeKeys;
 
     public PlanApplyState(
         DbContext context,
@@ -34,9 +34,9 @@ internal sealed class PlanApplyState
         Dictionary<string, Dictionary<Guid, object>>? sharedCorrelation,
         List<SparseEntityMappingError>? sharedValidationErrors = null,
         List<SparseEntityAppliedPath>? appliedPaths = null,
-        Dictionary<string, Dictionary<object, string>>? collectionScopeKeys = null,
-        Dictionary<string, NestedScopeTable>? nestedScopes = null,
-        CollectionScopeIdentity parentScope = default
+        Dictionary<object, Dictionary<object, string>>? collectionScopeKeys = null,
+        Dictionary<object, NestedScopeTable>? nestedScopes = null,
+        CollectionScopePath? parentScope = null
     )
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -54,7 +54,7 @@ internal sealed class PlanApplyState
         _appliedPaths = appliedPaths;
         _collectionScopeKeys = collectionScopeKeys;
         NestedScopes = nestedScopes;
-        ParentScope = parentScope;
+        ParentScope = parentScope ?? CollectionScopePath.Empty;
         Groups = Group(changes, path, isNested);
     }
 
@@ -85,14 +85,14 @@ internal sealed class PlanApplyState
     public List<SparseEntityAppliedPath>? AppliedPaths => _appliedPaths;
 
     /// <summary>Gets created-entity scope keys, when result tracking is enabled.</summary>
-    public Dictionary<string, Dictionary<object, string>>? CollectionScopeKeys =>
+    public Dictionary<object, Dictionary<object, string>>? CollectionScopeKeys =>
         _collectionScopeKeys;
 
     /// <summary>Gets nested temporary-identity records keyed by parent scope.</summary>
-    public Dictionary<string, NestedScopeTable>? NestedScopes { get; }
+    public Dictionary<object, NestedScopeTable>? NestedScopes { get; }
 
-    /// <summary>Gets the parent element scope for nested correlation records.</summary>
-    public CollectionScopeIdentity ParentScope { get; }
+    /// <summary>Gets the typed ancestor path for nested correlation records.</summary>
+    public CollectionScopePath ParentScope { get; }
 
     /// <summary>Collects a validation failure without executing queued writes.</summary>
     public bool CollectValidation(Action validate)
@@ -147,7 +147,12 @@ internal sealed class PlanApplyState
 
     /// <summary>Records a created child entity under its path-scoped temporary identity.</summary>
     /// <remarks>The legacy path-string bucket keeps its exact contents for compatible reads.</remarks>
-    public void RecordTemporary(string path, Guid temporaryKey, object entity)
+    public void RecordTemporary(
+        string path,
+        object collectionIdentity,
+        Guid temporaryKey,
+        object entity
+    )
     {
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(entity);
@@ -162,7 +167,7 @@ internal sealed class PlanApplyState
             Correlation[path] = scope;
         }
 
-        if (NestedScopes is null || ParentScope.Kind == CollectionScopeKind.Unscoped)
+        if (NestedScopes is null || ParentScope.IsEmpty)
         {
             if (
                 scope.TryGetValue(temporaryKey, out var existing)
@@ -183,10 +188,10 @@ internal sealed class PlanApplyState
         // Legacy bucket keeps its contents for compatible reads; precise
         // duplicate detection runs on the parent-scoped record below.
         scope[temporaryKey] = entity;
-        if (!NestedScopes.TryGetValue(path, out var table))
+        if (!NestedScopes.TryGetValue(collectionIdentity, out var table))
         {
-            table = new NestedScopeTable(ParentScope.KeyComparer);
-            NestedScopes.Add(path, table);
+            table = new NestedScopeTable();
+            NestedScopes.Add(collectionIdentity, table);
         }
 
         table.Record(path, ParentScope, temporaryKey, entity);

@@ -17,9 +17,9 @@ internal static class CollectionExecution
         string path,
         Dictionary<string, Dictionary<Guid, object>>? correlation,
         List<SparseEntityAppliedPath>? appliedPaths,
-        Dictionary<string, Dictionary<object, string>>? collectionScopeKeys,
-        Dictionary<string, NestedScopeTable>? nestedScopes = null,
-        CollectionScopeIdentity parentScope = default
+        Dictionary<object, Dictionary<object, string>>? collectionScopeKeys,
+        Dictionary<object, NestedScopeTable>? nestedScopes = null,
+        CollectionScopePath? parentScope = null
     )
         where TDtoChild : class
         where TEntityChild : class
@@ -35,6 +35,7 @@ internal static class CollectionExecution
             parent,
             path
         );
+        var ownerScope = parentScope ?? CollectionScopePath.Empty;
 
         foreach (var addition in plan.Added)
         {
@@ -50,7 +51,7 @@ internal static class CollectionExecution
                     correlation[path] = scope;
                 }
 
-                if (nestedScopes is null || parentScope.Kind == CollectionScopeKind.Unscoped)
+                if (nestedScopes is null || ownerScope.IsEmpty)
                 {
                     if (
                         scope.TryGetValue(addition.TemporaryKey.Value, out var existing)
@@ -70,13 +71,13 @@ internal static class CollectionExecution
                 {
                     // Legacy bucket keeps its contents for compatible reads.
                     scope[addition.TemporaryKey.Value] = addition.Entity;
-                    if (!nestedScopes.TryGetValue(path, out var table))
+                    if (!nestedScopes.TryGetValue(runtime, out var table))
                     {
-                        table = new NestedScopeTable(parentScope.KeyComparer);
-                        nestedScopes.Add(path, table);
+                        table = new NestedScopeTable();
+                        nestedScopes.Add(runtime, table);
                     }
 
-                    table.Record(path, parentScope, addition.TemporaryKey.Value, addition.Entity);
+                    table.Record(path, ownerScope, addition.TemporaryKey.Value, addition.Entity);
                 }
             }
 
@@ -86,10 +87,10 @@ internal static class CollectionExecution
             RecordCollectionScope(
                 collectionScopeKeys,
                 nestedScopes,
-                path,
+                runtime,
                 addition.Entity,
                 scopeKey,
-                parentScope
+                ownerScope
             );
             if (appliedPaths is not null)
             {
@@ -115,11 +116,13 @@ internal static class CollectionExecution
                 appliedPaths,
                 collectionScopeKeys,
                 nestedScopes,
-                CollectionScopeIdentity.ForElement(
-                    addition.AssignedKey,
-                    addition.AssignedKey is not null,
-                    addition.TemporaryKey,
-                    runtime.KeyComparer
+                ownerScope.Append(
+                    CollectionScopeIdentity.ForElement(
+                        addition.AssignedKey,
+                        addition.AssignedKey is not null,
+                        addition.TemporaryKey,
+                        runtime.KeyComparer
+                    )
                 )
             );
             var subs = new List<Action>();
@@ -256,12 +259,12 @@ internal static class CollectionExecution
     }
 
     private static void RecordCollectionScope(
-        Dictionary<string, Dictionary<object, string>>? collectionScopeKeys,
-        Dictionary<string, NestedScopeTable>? nestedScopes,
-        string path,
+        Dictionary<object, Dictionary<object, string>>? collectionScopeKeys,
+        Dictionary<object, NestedScopeTable>? nestedScopes,
+        object collectionIdentity,
         object entity,
         string scopeKey,
-        CollectionScopeIdentity scope
+        CollectionScopePath scope
     )
     {
         if (collectionScopeKeys is null)
@@ -269,23 +272,23 @@ internal static class CollectionExecution
             return;
         }
 
-        if (!collectionScopeKeys.TryGetValue(path, out var scopes))
+        if (!collectionScopeKeys.TryGetValue(collectionIdentity, out var scopes))
         {
             scopes = new Dictionary<object, string>(ReferenceEqualityComparer.Instance);
-            collectionScopeKeys.Add(path, scopes);
+            collectionScopeKeys.Add(collectionIdentity, scopes);
         }
 
         scopes[entity] = scopeKey;
 
-        if (nestedScopes is null || scope.Kind == CollectionScopeKind.Unscoped)
+        if (nestedScopes is null || scope.IsEmpty)
         {
             return;
         }
 
-        if (!nestedScopes.TryGetValue(path, out var table))
+        if (!nestedScopes.TryGetValue(collectionIdentity, out var table))
         {
-            table = new NestedScopeTable(scope.KeyComparer);
-            nestedScopes.Add(path, table);
+            table = new NestedScopeTable();
+            nestedScopes.Add(collectionIdentity, table);
         }
 
         table.RecordEntity(scope, entity);

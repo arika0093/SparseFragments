@@ -846,6 +846,15 @@ public sealed class KeyedMappingContext : DbContext
         modelBuilder.Entity<BinLineEntity>(entity =>
         {
             entity.HasKey(line => line.Id);
+            entity
+                .HasMany(line => line.Tags)
+                .WithOne(tag => tag.Line)
+                .HasForeignKey(tag => tag.LineId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<BinTagEntity>(entity =>
+        {
+            entity.HasKey(tag => tag.Id);
         });
     }
 }

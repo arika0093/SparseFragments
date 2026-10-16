@@ -49,7 +49,7 @@ internal abstract class MemberNode
         SparseEntityApplyResult result,
         string path,
         TemporaryKeyAssignmentPlan assignments,
-        IReadOnlyList<CollectionScopeIdentity>? parentScopes = null
+        IReadOnlyList<CollectionScopePath>? parentScopes = null
     ) { }
 }
 

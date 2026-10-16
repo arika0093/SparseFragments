@@ -233,7 +233,7 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         SparseEntityApplyResult result,
         string parentPath,
         TemporaryKeyAssignmentPlan assignments,
-        IReadOnlyList<CollectionScopeIdentity>? parentScopes = null
+        IReadOnlyList<CollectionScopePath>? parentScopes = null
     )
     {
         if (authoritative is null)
@@ -273,7 +273,7 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
                 result,
                 assignment.ItemPath,
                 assignments,
-                ScopesFor(assignment.Item, assignment.Temporary)
+                AppendScopes(parentScopes, ScopesFor(assignment.Item, assignment.Temporary))
             );
         }
     }
@@ -300,6 +300,35 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
             : [];
     }
 
+    private static IReadOnlyList<CollectionScopePath> AppendScopes(
+        IReadOnlyList<CollectionScopePath>? parentScopes,
+        IReadOnlyList<CollectionScopeIdentity> elementScopes
+    )
+    {
+        if (elementScopes.Count == 0)
+        {
+            return [];
+        }
+
+        if (parentScopes is null || parentScopes.Count == 0)
+        {
+            return elementScopes
+                .Select(static scope => CollectionScopePath.Empty.Append(scope))
+                .ToArray();
+        }
+
+        var nested = new List<CollectionScopePath>(parentScopes.Count * elementScopes.Count);
+        foreach (var parentScope in parentScopes)
+        {
+            foreach (var elementScope in elementScopes)
+            {
+                nested.Add(parentScope.Append(elementScope));
+            }
+        }
+
+        return nested;
+    }
+
     /// <summary>One validated temporary-key assignment plus its nested correlation.</summary>
     private sealed record StagedTemporaryAssignment
     {
@@ -324,7 +353,7 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         IEnumerable<TDtoChild> authoritative,
         SparseEntityApplyResult result,
         string collectionPath,
-        IReadOnlyList<CollectionScopeIdentity>? parentScopes
+        IReadOnlyList<CollectionScopePath>? parentScopes
     )
     {
         var baselineByKey = new Dictionary<object, TDtoChild>(KeyComparer);
@@ -349,10 +378,10 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
             }
         }
 
-        var scopeKeys = result.GetCreatedScopeKeys(collectionPath);
+        var scopeKeys = result.GetCreatedScopeKeys(this);
         // Entities known to belong to sibling scopes (via the typed records)
         // are skipped: their keys must not trigger missing-row failures here.
-        var foreign = ForeignScopeMembers(result, collectionPath, parentScopes);
+        var foreign = ForeignScopeMembers(result, parentScopes);
         var createdByKey = new Dictionary<object, (TEntityChild Entity, string ScopeKey)>(
             KeyComparer
         );
@@ -395,8 +424,7 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         // Prefer the parent-scoped records so parents whose display keys
         // collide keep independent correlations.
         var createdRecords =
-            NestedCreated(result, collectionPath, parentScopes)
-            ?? result.GetCreated(collectionPath);
+            NestedCreated(result, parentScopes) ?? result.GetCreated(collectionPath);
         var temporaryByEntity = new Dictionary<object, Guid>(ReferenceEqualityComparer.Instance);
         foreach (var temporary in createdRecords)
         {
@@ -550,10 +578,9 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
 
     /// <summary>Collects apply-recorded members known to belong to sibling scopes.</summary>
     /// <returns>The foreign member set, or null when every record stays eligible.</returns>
-    private static HashSet<object>? ForeignScopeMembers(
+    private HashSet<object>? ForeignScopeMembers(
         SparseEntityApplyResult result,
-        string collectionPath,
-        IReadOnlyList<CollectionScopeIdentity>? parentScopes
+        IReadOnlyList<CollectionScopePath>? parentScopes
     )
     {
         if (parentScopes is null || parentScopes.Count == 0)
@@ -561,33 +588,23 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
             return null;
         }
 
-        var foreign = result.ForeignMembers(collectionPath, parentScopes);
+        var foreign = result.ForeignMembers(this, parentScopes);
         return foreign.Count == 0 ? null : foreign;
     }
 
     /// <summary>Looks up created children through the parent-scope fallback chain.</summary>
     /// <returns>The scoped temporary map, or null to use the legacy path-string view.</returns>
-    private static IReadOnlyDictionary<Guid, object>? NestedCreated(
+    private IReadOnlyDictionary<Guid, object>? NestedCreated(
         SparseEntityApplyResult result,
-        string collectionPath,
-        IReadOnlyList<CollectionScopeIdentity>? parentScopes
+        IReadOnlyList<CollectionScopePath>? parentScopes
     )
     {
-        if (parentScopes is null)
+        if (parentScopes is null || parentScopes.Count == 0)
         {
             return null;
         }
 
-        foreach (var scope in parentScopes)
-        {
-            var temps = result.GetCreated(collectionPath, scope);
-            if (temps is not null)
-            {
-                return temps;
-            }
-        }
-
-        return null;
+        return result.GetCreated(this, parentScopes) ?? new Dictionary<Guid, object>();
     }
 
     /// <summary>Builds and validates the runtime for one parent collection.</summary>

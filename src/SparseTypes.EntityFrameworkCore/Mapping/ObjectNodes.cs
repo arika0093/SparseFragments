@@ -548,7 +548,7 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
         SparseEntityApplyResult result,
         string path,
         TemporaryKeyAssignmentPlan assignments,
-        IReadOnlyList<CollectionScopeIdentity>? parentScopes = null
+        IReadOnlyList<CollectionScopePath>? parentScopes = null
     )
     {
         var prior = baseline is TDto priorParent ? _dtoGetter(priorParent) : null;
@@ -768,7 +768,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
             sharedCorrelation: new Dictionary<string, Dictionary<Guid, object>>(
                 StringComparer.Ordinal
             ),
-            nestedScopes: new Dictionary<string, NestedScopeTable>(StringComparer.Ordinal),
+            nestedScopes: new Dictionary<object, NestedScopeTable>(
+                ReferenceEqualityComparer.Instance
+            ),
             parentScope: state.ParentScope
         );
         _childPlan.Prepare(probe, new List<Action>());
@@ -778,7 +780,7 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
         DbContext context,
         string displayPath,
         TDtoChild snapshot,
-        CollectionScopeIdentity parentScope
+        CollectionScopePath parentScope
     )
     {
         var prospective =
@@ -795,7 +797,9 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
             snapshot,
             displayPath,
             new Dictionary<string, Dictionary<Guid, object>>(StringComparer.Ordinal),
-            nestedScopes: new Dictionary<string, NestedScopeTable>(StringComparer.Ordinal),
+            nestedScopes: new Dictionary<object, NestedScopeTable>(
+                ReferenceEqualityComparer.Instance
+            ),
             parentScope: parentScope
         );
         _childPlan.WriteAll(probe, new List<Action>());

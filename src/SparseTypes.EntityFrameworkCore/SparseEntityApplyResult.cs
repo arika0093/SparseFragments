@@ -85,25 +85,25 @@ public sealed class SparseEntityApplyResult
 {
     private Dictionary<Guid, IReadOnlyList<object>>? _byTemporaryKey;
     private readonly IReadOnlyDictionary<string, IReadOnlyDictionary<Guid, object>> _createdByPath;
-    private readonly IReadOnlyDictionary<string, NestedScopeTable> _nestedScopes;
+    private readonly IReadOnlyDictionary<object, NestedScopeTable> _nestedScopes;
     private readonly IReadOnlyList<SparseEntityAppliedPath> _appliedPaths;
     private readonly IReadOnlyDictionary<
-        string,
+        object,
         IReadOnlyDictionary<object, string>
     > _collectionScopeKeys;
 
     internal SparseEntityApplyResult(
         Dictionary<string, Dictionary<Guid, object>> byPath,
         IEnumerable<SparseEntityAppliedPath>? appliedPaths = null,
-        Dictionary<string, Dictionary<object, string>>? collectionScopeKeys = null,
-        IReadOnlyDictionary<string, NestedScopeTable>? nestedScopes = null
+        Dictionary<object, Dictionary<object, string>>? collectionScopeKeys = null,
+        IReadOnlyDictionary<object, NestedScopeTable>? nestedScopes = null
     )
     {
         ArgumentNullException.ThrowIfNull(byPath);
         _nestedScopes =
             nestedScopes
-            ?? new ReadOnlyDictionary<string, NestedScopeTable>(
-                new Dictionary<string, NestedScopeTable>()
+            ?? new ReadOnlyDictionary<object, NestedScopeTable>(
+                new Dictionary<object, NestedScopeTable>(ReferenceEqualityComparer.Instance)
             );
         var pathViews = new Dictionary<string, IReadOnlyDictionary<Guid, object>>(
             byPath.Count,
@@ -118,9 +118,9 @@ public sealed class SparseEntityApplyResult
             pathViews
         );
         _appliedPaths = Array.AsReadOnly(appliedPaths?.ToArray() ?? []);
-        var scopeViews = new Dictionary<string, IReadOnlyDictionary<object, string>>(
+        var scopeViews = new Dictionary<object, IReadOnlyDictionary<object, string>>(
             collectionScopeKeys?.Count ?? 0,
-            StringComparer.Ordinal
+            ReferenceEqualityComparer.Instance
         );
         if (collectionScopeKeys is not null)
         {
@@ -130,7 +130,7 @@ public sealed class SparseEntityApplyResult
             }
         }
 
-        _collectionScopeKeys = new ReadOnlyDictionary<string, IReadOnlyDictionary<object, string>>(
+        _collectionScopeKeys = new ReadOnlyDictionary<object, IReadOnlyDictionary<object, string>>(
             scopeViews
         );
     }
@@ -142,21 +142,23 @@ public sealed class SparseEntityApplyResult
     /// <summary>Gets all operations recorded by this apply in execution order.</summary>
     public IReadOnlyList<SparseEntityAppliedPath> AppliedPaths => _appliedPaths;
 
-    internal IReadOnlyDictionary<object, string> GetCreatedScopeKeys(string collectionPath) =>
-        _collectionScopeKeys.TryGetValue(collectionPath, out var scopes) ? scopes : EmptyScopeKeys;
+    internal IReadOnlyDictionary<object, string> GetCreatedScopeKeys(object collectionIdentity) =>
+        _collectionScopeKeys.TryGetValue(collectionIdentity, out var scopes)
+            ? scopes
+            : EmptyScopeKeys;
 
     /// <summary>Collects recorded members known to belong to sibling scopes.</summary>
-    /// <param name="collectionPath">The dotted DTO collection path.</param>
+    /// <param name="collectionIdentity">The mapped collection runtime identity.</param>
     /// <param name="mine">The parent scopes of the current item.</param>
     /// <returns>Members recorded under other scopes; empty when unknown.</returns>
     internal HashSet<object> ForeignMembers(
-        string collectionPath,
-        IReadOnlyList<CollectionScopeIdentity> mine
+        object collectionIdentity,
+        IReadOnlyList<CollectionScopePath> mine
     )
     {
-        ArgumentNullException.ThrowIfNull(collectionPath);
+        ArgumentNullException.ThrowIfNull(collectionIdentity);
         ArgumentNullException.ThrowIfNull(mine);
-        if (!_nestedScopes.TryGetValue(collectionPath, out var table))
+        if (!_nestedScopes.TryGetValue(collectionIdentity, out var table))
         {
             return [];
         }
@@ -164,25 +166,22 @@ public sealed class SparseEntityApplyResult
         return table.ForeignMembers(mine);
     }
 
-    /// <summary>Looks up created children for one nested collection path and parent scope.</summary>
-    /// <param name="collectionPath">The dotted DTO collection path.</param>
-    /// <param name="scope">The parent element scope.</param>
+    /// <summary>Looks up created children for one mapped collection and parent scopes.</summary>
+    /// <param name="collectionIdentity">The mapped collection runtime identity.</param>
+    /// <param name="scopes">Candidate typed parent ancestries.</param>
     /// <returns>The temporary-to-entity map, or null when nothing was recorded.</returns>
     internal IReadOnlyDictionary<Guid, object>? GetCreated(
-        string collectionPath,
-        CollectionScopeIdentity scope
+        object collectionIdentity,
+        IReadOnlyList<CollectionScopePath> scopes
     )
     {
-        ArgumentNullException.ThrowIfNull(collectionPath);
-        if (
-            scope.Kind == CollectionScopeKind.Unscoped
-            || !_nestedScopes.TryGetValue(collectionPath, out var table)
-        )
+        ArgumentNullException.ThrowIfNull(collectionIdentity);
+        if (!_nestedScopes.TryGetValue(collectionIdentity, out var table))
         {
             return null;
         }
 
-        return table.TryGet(scope);
+        return table.TryGet(scopes);
     }
 
     /// <summary>Gets whether any child entity was created by this apply.</summary>

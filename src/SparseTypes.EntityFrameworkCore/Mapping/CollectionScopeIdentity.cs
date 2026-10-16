@@ -68,11 +68,11 @@ internal readonly record struct CollectionScopeIdentity(
     }
 }
 
-/// <summary>Per-collection-path nested temporary-identity records.</summary>
-/// <remarks>Temporary identities are recorded per parent scope in addition to the legacy path-string buckets.</remarks>
+/// <summary>Nested temporary-identity records for one mapped collection.</summary>
+/// <remarks>Temporary identities are recorded per typed ancestor path in addition to legacy path-string buckets.</remarks>
 internal sealed class NestedScopeTable
 {
-    /// <summary>Records of one parent scope: temperatures plus member entities.</summary>
+    /// <summary>Records of one parent scope: temporary identities plus member entities.</summary>
     /// <remarks>
     /// Members include temp-less created entities so scope-membership probes
     /// stay precise even when a row carries no temporary identity.
@@ -83,30 +83,17 @@ internal sealed class NestedScopeTable
         public readonly HashSet<object> Members = new(ReferenceEqualityComparer.Instance);
     }
 
-    private readonly Dictionary<object, ScopeSlot> _byKey;
-    private readonly Dictionary<Guid, ScopeSlot> _byTemporary = new();
-    private readonly ScopeSlot _unscoped = new();
-
-    /// <summary>Creates a table for one nested collection path.</summary>
-    /// <param name="comparer">The parent collection's key comparer.</param>
-    public NestedScopeTable(IEqualityComparer<object>? comparer)
-    {
-        KeyComparer = comparer ?? EqualityComparer<object>.Default;
-        _byKey = new Dictionary<object, ScopeSlot>(KeyComparer);
-    }
-
-    /// <summary>Gets the parent collection's key comparer.</summary>
-    public IEqualityComparer<object> KeyComparer { get; }
+    private readonly List<(CollectionScopePath Path, ScopeSlot Slot)> _scopes = [];
 
     /// <summary>Records a created child under its parent scope.</summary>
     /// <param name="path">The nested collection path, for diagnostics.</param>
-    /// <param name="scope">The parent element scope.</param>
+    /// <param name="scope">The typed parent ancestry.</param>
     /// <param name="temporaryKey">The created child's temporary identity.</param>
     /// <param name="entity">The created child entity.</param>
     /// <exception cref="SparseEntityMappingException">
     /// The same parent scope already records another entity under the identity.
     /// </exception>
-    public void Record(string path, CollectionScopeIdentity scope, Guid temporaryKey, object entity)
+    public void Record(string path, CollectionScopePath scope, Guid temporaryKey, object entity)
     {
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(entity);
@@ -130,28 +117,36 @@ internal sealed class NestedScopeTable
     }
 
     /// <summary>Records a created entity as a scope member without a temporary identity.</summary>
-    /// <param name="scope">The parent element scope.</param>
+    /// <param name="scope">The typed parent ancestry.</param>
     /// <param name="entity">The created child entity.</param>
-    public void RecordEntity(CollectionScopeIdentity scope, object entity)
+    public void RecordEntity(CollectionScopePath scope, object entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
         ResolveSlot(scope, create: true)!.Members.Add(entity);
     }
 
     /// <summary>Looks up created children for a parent scope.</summary>
-    /// <param name="scope">The parent element scope.</param>
+    /// <param name="scopes">Candidate typed parent ancestries.</param>
     /// <returns>The temporary-to-entity map, or null when nothing was recorded.</returns>
-    public IReadOnlyDictionary<Guid, object>? TryGet(CollectionScopeIdentity scope)
+    public IReadOnlyDictionary<Guid, object>? TryGet(IReadOnlyList<CollectionScopePath> scopes)
     {
-        var slot = ResolveSlot(scope, create: false);
-        return slot is null || slot.Temps.Count == 0 ? null : slot.Temps;
+        foreach (var scope in scopes)
+        {
+            var slot = ResolveSlot(scope, create: false);
+            if (slot is not null && slot.Temps.Count > 0)
+            {
+                return slot.Temps;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Collects members recorded under scopes outside the given set.</summary>
-    /// <param name="mine">The parent scopes of the current item.</param>
+    /// <param name="mine">Candidate typed ancestries of the current item.</param>
     /// <returns>Members known to belong to sibling scopes.</returns>
     /// <remarks>Members with no scoped record anywhere stay unattributed and are never reported here.</remarks>
-    public HashSet<object> ForeignMembers(IReadOnlyList<CollectionScopeIdentity> mine)
+    public HashSet<object> ForeignMembers(IReadOnlyList<CollectionScopePath> mine)
     {
         var known = new HashSet<object>(ReferenceEqualityComparer.Instance);
         foreach (var scope in mine)
@@ -164,61 +159,34 @@ internal sealed class NestedScopeTable
         }
 
         var foreign = new HashSet<object>(ReferenceEqualityComparer.Instance);
-        CollectForeign(_byKey.Values, known, foreign);
-        CollectForeign(_byTemporary.Values, known, foreign);
-        return foreign;
-
-        static void CollectForeign(
-            IEnumerable<ScopeSlot> slots,
-            HashSet<object> known,
-            HashSet<object> foreign
-        )
+        foreach (var (_, slot) in _scopes)
         {
-            foreach (
-                var member in slots
-                    .SelectMany(static slot => slot.Members)
-                    .Where(member => !known.Contains(member))
-            )
+            foreach (var member in slot.Members.Where(member => !known.Contains(member)))
             {
                 foreign.Add(member);
             }
         }
+
+        return foreign;
     }
 
-    private ScopeSlot? ResolveSlot(CollectionScopeIdentity scope, bool create)
+    private ScopeSlot? ResolveSlot(CollectionScopePath scope, bool create)
     {
-        switch (scope.Kind)
+        foreach (var (candidate, slot) in _scopes)
         {
-            case CollectionScopeKind.Assigned when scope.Key is not null:
-                if (_byKey.TryGetValue(scope.Key, out var keyed))
-                {
-                    return keyed;
-                }
-
-                if (!create)
-                {
-                    return null;
-                }
-
-                var fresh = new ScopeSlot();
-                _byKey.Add(scope.Key, fresh);
-                return fresh;
-            case CollectionScopeKind.Temporary when scope.Temp != Guid.Empty:
-                if (_byTemporary.TryGetValue(scope.Temp, out var tempScoped))
-                {
-                    return tempScoped;
-                }
-
-                if (!create)
-                {
-                    return null;
-                }
-
-                var freshTemp = new ScopeSlot();
-                _byTemporary.Add(scope.Temp, freshTemp);
-                return freshTemp;
-            default:
-                return _unscoped;
+            if (candidate.Matches(scope))
+            {
+                return slot;
+            }
         }
+
+        if (!create)
+        {
+            return null;
+        }
+
+        var fresh = new ScopeSlot();
+        _scopes.Add((scope, fresh));
+        return fresh;
     }
 }
