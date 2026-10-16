@@ -81,6 +81,9 @@ public sealed class EditSessionGroupTests
         staleError.ShouldNotBeNull();
         staleError!.ShouldContain("older baseline revision");
 
+        session.Observable.Name = "third";
+        group.Prepare().Get(handle).BaselineRevision.ShouldBe(1);
+
         var unrelatedGroup = new EditSessionGroup();
         var unrelated = unrelatedGroup.Prepare();
         group.TryReconcile(unrelated, handle, model, out var error).ShouldBeFalse();
@@ -226,23 +229,24 @@ public sealed class EditSessionGroupTests
         session.Observable.Name = "submitted";
         var submission = group.Prepare();
 
-        // Acknowledging outside the group moves the session baseline without
-        // moving group revisions.
+        // The next group operation observes the session's external baseline move.
         session.AcceptChanges();
-        var outcome = Should.Throw<InvalidOperationException>(() =>
+        var outcome = Should.Throw<EditSessionStaleSubmissionException>(() =>
             group.AcceptChanges(submission, handle)
         );
-        outcome.ShouldNotBeOfType<EditSessionStaleSubmissionException>();
+        outcome.Message.ShouldContain("older baseline revision");
 
         session.Observable.Name = "next";
         var fresh = group.Prepare();
         fresh.Get(handle).BaselineRevision.ShouldBe(1);
         group.AcceptChanges(fresh, handle);
         session.HasChanges.ShouldBeFalse();
+        session.Observable.Name = "after-next";
+        group.Prepare().Get(handle).BaselineRevision.ShouldBe(2);
     }
 
     [Test]
-    public void NotificationFailurePreservesOriginalErrorAndAdvancesRevision()
+    public void NotificationFailurePreservesOriginalErrorWithLaterSamePathEdits()
     {
         var model = new NeutralSessionModel { Name = "before" };
         var failNotifications = false;
@@ -256,6 +260,7 @@ public sealed class EditSessionGroupTests
         var handle = group.Register("profile", Registration(session));
         session.Observable.Name = "submitted";
         var submission = group.Prepare();
+        session.Observable.Name = "later";
         failNotifications = true;
 
         // The session commits the baseline before notifying.
@@ -264,12 +269,106 @@ public sealed class EditSessionGroupTests
         );
         failure.ShouldNotBeOfType<EditSessionStaleSubmissionException>();
         failure.Message.ShouldBe("Notification handler failed.");
-        session.HasChanges.ShouldBeFalse();
+        session.HasChanges.ShouldBeTrue();
+        var pending = session.CreateChangeSet();
+        pending.Name.Before.Value.ShouldBe("submitted");
+        pending.Name.After.Value.ShouldBe("later");
         failNotifications = false;
 
-        session.Observable.Name = "next";
         var fresh = group.Prepare();
         fresh.Get(handle).BaselineRevision.ShouldBe(1);
+        Should.Throw<EditSessionStaleSubmissionException>(() =>
+            group.AcceptChanges(submission, handle)
+        );
+    }
+
+    [Test]
+    public void RejectedPreconditionDoesNotAdvanceTheBaselineRevision()
+    {
+        var session = new NeutralSessionModel { Name = "before" }.CreateEditSession();
+        var rejectedChanges = new NeutralSessionModel { Name = "other" }.CreateChangeSet(
+            new NeutralSessionModel { Name = "submitted" }
+        );
+        var group = new EditSessionGroup();
+        var handle = group.Register(
+            "profile",
+            Registration(session, createChangeSet: () => rejectedChanges)
+        );
+        var submission = group.Prepare();
+
+        Should.Throw<EditSessionStaleSubmissionException>(() =>
+            group.AcceptChanges(submission, handle)
+        );
+
+        session.BaselineRevision.ShouldBe(0);
+        group.Prepare().Get(handle).BaselineRevision.ShouldBe(0);
+    }
+
+    [Test]
+    public void OtherNotificationExceptionsArePreservedAfterCommit()
+    {
+        var session = new NeutralSessionModel { Name = "before" }.CreateEditSession();
+        var failure = new ApplicationException("Observer failed.");
+        var failNotifications = false;
+        session.PropertyChanged += (_, _) =>
+        {
+            if (failNotifications)
+                throw failure;
+        };
+        var group = new EditSessionGroup();
+        var handle = group.Register("profile", Registration(session));
+        session.Observable.Name = "submitted";
+        var submission = group.Prepare();
+        failNotifications = true;
+
+        var thrown = Should.Throw<ApplicationException>(() =>
+            group.AcceptChanges(submission, handle)
+        );
+
+        thrown.ShouldBeSameAs(failure);
+        session.BaselineRevision.ShouldBe(1);
+        failNotifications = false;
+        session.Observable.Name = "next";
+        group.Prepare().Get(handle).BaselineRevision.ShouldBe(1);
+    }
+
+    [Test]
+    public void TryReconcileAfterNotificationFailureAdvancesTheSessionRevision()
+    {
+        var model = new NeutralSessionModel { Name = "before", Version = 1 };
+        var failNotifications = false;
+        var session = model.CreateEditSession();
+        session.PropertyChanged += (_, _) =>
+        {
+            if (failNotifications)
+                throw new InvalidOperationException("Notification handler failed.");
+        };
+        var group = new EditSessionGroup();
+        var handle = group.Register("profile", Registration(session, reconcile: true));
+        session.Observable.Name = "submitted";
+        var submission = group.Prepare();
+        failNotifications = true;
+
+        var failure = Should.Throw<InvalidOperationException>(() =>
+            group.AcceptChanges(submission, handle)
+        );
+        failure.Message.ShouldBe("Notification handler failed.");
+
+        failNotifications = false;
+        session.Observable.Version = 2;
+        var reconciliation = group.Prepare();
+        reconciliation.Get(handle).BaselineRevision.ShouldBe(1);
+        var persisted = new NeutralSessionModel { Name = "submitted", Version = 2 };
+
+        group.TryReconcile(reconciliation, handle, persisted, out var error).ShouldBeTrue();
+        error.ShouldBeNull();
+
+        session.Observable.Name = "after-reconcile";
+        var next = group.Prepare();
+        next.Get(handle).BaselineRevision.ShouldBe(2);
+        Should.Throw<EditSessionStaleSubmissionException>(() =>
+            group.AcceptChanges(reconciliation, handle)
+        );
     }
 
     [Test]
@@ -917,7 +1016,7 @@ public sealed class EditSessionGroupTests
     }
 
     [Test]
-    public async Task PrepareAsyncFailsWhenBaselineAdvancesWhileAwaiting()
+    public async Task PrepareAsyncFailsWhenExternalBaselineAdvancesWhileAwaiting()
     {
         var model = new NeutralSessionModel { Name = "before" };
         var session = model.CreateEditSession();
@@ -929,7 +1028,7 @@ public sealed class EditSessionGroupTests
         var releaseValidation = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously
         );
-        var handle = group.Register(
+        group.Register(
             "profile",
             Registration(
                 session,
@@ -944,12 +1043,12 @@ public sealed class EditSessionGroupTests
             )
         );
         session.Observable.Name = "first";
-        var first = await group.PrepareAsync(CancellationToken.None);
+        await group.PrepareAsync(CancellationToken.None);
 
         session.Observable.Name = "second";
         var secondPrepare = group.PrepareAsync(CancellationToken.None);
         await validationStarted.Task;
-        group.AcceptChanges(first, handle);
+        session.AcceptChanges();
         releaseValidation.TrySetResult(true);
 
         EditSessionGroupValidationException? baselineFailure = null;

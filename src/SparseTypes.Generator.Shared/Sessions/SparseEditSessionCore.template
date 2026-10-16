@@ -187,6 +187,9 @@ namespace __SESSION_NAMESPACE__
         /// <summary>A stable typed observable proxy over <see cref="Model"/>.</summary>
         public TObservable Observable => _observable;
 
+        /// <summary>The revision of the retained baseline.</summary>
+        public long BaselineRevision => _baselineRevision;
+
         /// <summary>Whether the current model differs semantically from the retained baseline.</summary>
         /// <remarks>Observable edits defer the baseline comparison until this property is read, reusing the latest observed snapshot.</remarks>
         public bool HasChanges
@@ -478,7 +481,7 @@ namespace __SESSION_NAMESPACE__
                 throw;
             }
 
-            _baseline = serverBaseline;
+            SetBaseline(serverBaseline);
             RefreshAfterModelMutation();
             return rebased;
         }
@@ -535,7 +538,7 @@ namespace __SESSION_NAMESPACE__
                 {
                     if (ReferenceEquals(submitted, _lastReconciledSubmission))
                     {
-                        _baseline = persistedBaseline;
+                        SetBaseline(persistedBaseline);
                         _lastObserved = persistedBaseline;
                         RefreshAfterModelMutation();
                         error = null;
@@ -560,7 +563,7 @@ namespace __SESSION_NAMESPACE__
                         );
                         if (_isEmpty(verifiedPending))
                         {
-                            _baseline = persistedBaseline;
+                            SetBaseline(persistedBaseline);
                             _lastObserved = persistedBaseline;
                             _lastReconciledSubmission = submitted;
                             RefreshAfterModelMutation();
@@ -705,7 +708,7 @@ namespace __SESSION_NAMESPACE__
                 return false;
             }
 
-            _baseline = persistedBaseline;
+            SetBaseline(persistedBaseline);
             // Observe post-submit edits from the persisted baseline so the
             // published transition spans exactly what remains pending.
             _lastObserved = persistedBaseline;
@@ -946,7 +949,7 @@ namespace __SESSION_NAMESPACE__
                 throw;
             }
 
-            _baseline = persistedBaseline;
+            SetBaseline(persistedBaseline);
             _lastObserved = persistedBaseline;
             _lastReconciledSubmission = submitted;
             RefreshAfterModelMutation();
@@ -968,7 +971,7 @@ namespace __SESSION_NAMESPACE__
             var candidate = __OPTIONAL_TYPE__<TFragment?>.Present(_fromModel(_model));
             // Fail-fast when the live model cannot serve as a keyed baseline.
             _between(candidate, _baseline);
-            _baseline = candidate;
+            SetBaseline(candidate);
             _lastObserved = candidate;
             InvalidateHasChangesCache();
             OnPropertyChanged(nameof(HasChanges));
@@ -1003,7 +1006,7 @@ namespace __SESSION_NAMESPACE__
                     ex
                 );
             }
-            _baseline = advanced;
+            SetBaseline(advanced);
             InvalidateHasChangesCache();
             OnPropertyChanged(nameof(HasChanges));
         }
@@ -1312,6 +1315,7 @@ namespace __SESSION_NAMESPACE__
         private bool _hasChangesSnapshotPending;
         private __OPTIONAL_TYPE__<TFragment?> _lastObserved;
         private __OPTIONAL_TYPE__<TFragment?> _baseline;
+        private long _baselineRevision;
         // Last submission returned as reconciled by TryReconcile, by reference.
         private TChangeSet? _lastReconciledSubmission;
         private __OPTIONAL_TYPE__<TFragment?> _batchStart;
@@ -1321,6 +1325,13 @@ namespace __SESSION_NAMESPACE__
         private bool _batchOnChanged;
 
         private TModel _model = null!;
+
+        private void SetBaseline(__OPTIONAL_TYPE__<TFragment?> baseline)
+        {
+            var revision = checked(_baselineRevision + 1);
+            _baseline = baseline;
+            _baselineRevision = revision;
+        }
 
         private void OnObservableChanged()
         {

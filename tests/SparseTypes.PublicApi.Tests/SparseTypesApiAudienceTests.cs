@@ -123,6 +123,7 @@ public sealed class SparseTypesApiAudienceTests
         {
             "SparseTypes.ISparseEditSessionWithChildren`2",
             "SparseTypes.ISparseEditSessionWithChangeSet`2",
+            "SparseTypes.ISparseEditSessionWithBaselineRevision",
             "SparseTypes.ISparseEditSessionWithChildStatus`2",
             "SparseTypes.SparseChildSessionStatus",
         };

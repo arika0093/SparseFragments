@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace SparseTypes;
 
 /// <summary>Coordinates typed edit sessions as independent sections of a submission.</summary>
-/// <remarks>The group owns section identity and acknowledgement revisions.</remarks>
+/// <remarks>The group tracks committed session baseline revisions, including changes made outside the group when the session exposes its revision.</remarks>
 public sealed class EditSessionGroup
 {
     private readonly object _gate = new();
@@ -210,10 +210,18 @@ public sealed class EditSessionGroup
             }
             catch (InvalidOperationException exception)
             {
-                if (section.IsTransitionAcknowledged(entry))
+                if (section.GetBaselineRevision() is long committedRevision)
                 {
-                    // A post-commit failure must not leave the group revision
-                    // stale; preserve the original exception.
+                    if (committedRevision != section.ObservedBaselineRevision)
+                    {
+                        // A post-commit failure must not leave the group revision
+                        // stale; preserve the original exception.
+                        AdvanceBaselineRevision(section);
+                        throw;
+                    }
+                }
+                else if (section.IsTransitionAcknowledged(entry))
+                {
                     AdvanceBaselineRevision(section);
                     throw;
                 }
@@ -222,6 +230,11 @@ public sealed class EditSessionGroup
                     $"The submitted transition for section '{section.SectionId}' no longer matches its session baseline.",
                     exception
                 );
+            }
+            catch
+            {
+                SynchronizeBaselineRevision(section);
+                throw;
             }
 
             AdvanceBaselineRevision(section);
@@ -257,8 +270,23 @@ public sealed class EditSessionGroup
                 )
             )
                 return false;
-            if (!section.TryReconcile(entry!, persisted, out error))
+            bool success;
+            try
+            {
+                success = section.TryReconcile(entry!, persisted, out error);
+            }
+            catch
+            {
+                SynchronizeBaselineRevision(section);
+                throw;
+            }
+
+            if (!success)
+            {
+                SynchronizeBaselineRevision(section);
                 return false;
+            }
+
             AdvanceBaselineRevision(section);
             return true;
         }
@@ -291,6 +319,8 @@ public sealed class EditSessionGroup
         IEditSessionGroupSection[] registeredSections;
         lock (_gate)
         {
+            foreach (var section in _sections.Values)
+                SynchronizeBaselineRevision(section);
             // Run capture delegates outside the lock to allow re-entrant calls.
             registeredSections = _sections
                 .Values.OrderBy(value => value.SectionId, StringComparer.Ordinal)
@@ -408,6 +438,7 @@ public sealed class EditSessionGroup
                     continue;
                 }
 
+                SynchronizeBaselineRevision(current);
                 if (current.BaselineRevision != capture.BaselineRevision)
                 {
                     issues.Add(
@@ -431,6 +462,7 @@ public sealed class EditSessionGroup
         IEditSessionGroupSection section
     )
     {
+        SynchronizeBaselineRevision(section);
         if (submission is null)
             throw new ArgumentNullException(nameof(submission));
         if (!submission.BelongsTo(this) || !submission.TryGet(section, out var entry))
@@ -484,6 +516,7 @@ public sealed class EditSessionGroup
             return false;
         }
 
+        SynchronizeBaselineRevision(section);
         if (!submission.TryGet(section, out entry))
         {
             error = $"The submission does not contain section '{section.SectionId}'.";
@@ -517,9 +550,32 @@ public sealed class EditSessionGroup
 
     private void AdvanceBaselineRevision(IEditSessionGroupSection section)
     {
+        if (SynchronizeBaselineRevision(section))
+            return;
+
         var revision = checked(section.BaselineRevision + 1);
         section.BaselineRevision = revision;
         _baselineRevisions[section.SectionId] = revision;
+    }
+
+    private bool SynchronizeBaselineRevision(IEditSessionGroupSection section)
+    {
+        if (!section.TryGetBaselineRevision(out var sessionRevision))
+            return false;
+
+        var previousSessionRevision = section.ObservedBaselineRevision;
+        section.ObservedBaselineRevision = sessionRevision;
+        if (previousSessionRevision == sessionRevision)
+            return false;
+
+        var revisionDelta =
+            previousSessionRevision is long previous && sessionRevision > previous
+                ? sessionRevision - previous
+                : 1;
+        var revision = checked(section.BaselineRevision + revisionDelta);
+        section.BaselineRevision = revision;
+        _baselineRevisions[section.SectionId] = revision;
+        return true;
     }
 
     private string FindSectionId(object session) =>
@@ -590,6 +646,8 @@ public sealed class EditSessionGroup
             SectionId = sectionId;
             BaselineRevision = baselineRevision;
             Registration = registration;
+            RevisionedSession = registration.Session as ISparseEditSessionWithBaselineRevision;
+            ObservedBaselineRevision = RevisionedSession?.BaselineRevision;
         }
 
         public string SectionId { get; }
@@ -598,7 +656,25 @@ public sealed class EditSessionGroup
 
         public EditSessionGroupRegistration<TModel, TChangeSet> Registration { get; }
 
+        public long? ObservedBaselineRevision { get; set; }
+
         public object Session => Registration.Session;
+
+        private ISparseEditSessionWithBaselineRevision? RevisionedSession { get; }
+
+        public long? GetBaselineRevision() => RevisionedSession?.BaselineRevision;
+
+        public bool TryGetBaselineRevision(out long revision)
+        {
+            if (RevisionedSession is null)
+            {
+                revision = 0;
+                return false;
+            }
+
+            revision = RevisionedSession.BaselineRevision;
+            return true;
+        }
 
         public bool HasAsyncValidation => Registration.ValidateAsync is not null;
 
@@ -765,7 +841,13 @@ internal interface IEditSessionGroupSection
 
     long BaselineRevision { get; set; }
 
+    long? ObservedBaselineRevision { get; set; }
+
     bool HasAsyncValidation { get; }
+
+    long? GetBaselineRevision();
+
+    bool TryGetBaselineRevision(out long revision);
 
     bool HasChanges();
 

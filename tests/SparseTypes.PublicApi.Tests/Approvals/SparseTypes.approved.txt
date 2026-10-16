@@ -303,6 +303,10 @@ namespace SparseTypes
     {
         TModel GetModelForFrameworkAccess();
     }
+    public interface ISparseEditSessionWithBaselineRevision
+    {
+        long BaselineRevision { get; }
+    }
     public interface ISparseEditSessionWithBatchEdit
     {
         void BatchEdit(System.Action edit);

@@ -18,7 +18,9 @@ An `EditSessionGroupRegistration<TModel, TChangeSet>` supplies the session,
 delegates to create and inspect its generated change set, and a delegate to
 enumerate paths from that change set. It can also supply readiness and
 validation callbacks and `TryReconcile` to connect the generated
-session's reconciliation operation.
+session's reconciliation operation. A custom session can implement
+`ISparseEditSessionWithBaselineRevision` so the group can observe baseline
+changes made outside the group.
 
 `Validate` is the live-session readiness hook. It takes no arguments and may
 inspect the current mutable session, UI state, or permission to submit. It
@@ -105,6 +107,16 @@ against an older revision returns a stale-submission error or throws
 replaced section handles are also invalidated, and submissions from another
 group cannot be acknowledged. Keep one outstanding submission per section
 when reconciling; independent acknowledgements may proceed for other sections.
+
+Generated sessions expose their committed baseline revision to the group.
+Direct baseline changes made through a registered generated session invalidate
+older submissions the next time the group prepares or acknowledges a section.
+When an acknowledgement commits the baseline and a notification handler then
+throws, the group records the committed revision and rethrows the handler's
+exception. A rejected acknowledgement leaves the revision unchanged. Custom
+sessions need `ISparseEditSessionWithBaselineRevision` for the same guarantees.
+Without it, the group can track its own acknowledgements but cannot observe
+external baseline changes.
 
 ## Migration notes
 

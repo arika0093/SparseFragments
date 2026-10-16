@@ -160,6 +160,14 @@ public sealed class GeneratedApiApprovalTests
                     withChangeSet,
                     $"{model.Name}.EditSession must expose {withChangeSet}."
                 );
+            session
+                .GetInterfaces()
+                .ShouldContain(typeof(SparseTypes.ISparseEditSessionWithBaselineRevision));
+            session
+                .GetProperty(
+                    nameof(SparseTypes.ISparseEditSessionWithBaselineRevision.BaselineRevision)
+                )
+                .ShouldNotBeNull();
             var withChildStatus =
                 typeof(SparseTypes.ISparseEditSessionWithChildStatus<,>).MakeGenericType(
                     model,
@@ -178,6 +186,7 @@ public sealed class GeneratedApiApprovalTests
             {
                 typeof(SparseTypes.ISparseEditSessionWithChangeSet<,>),
                 typeof(SparseTypes.ISparseEditSessionWithChildStatus<,>),
+                typeof(SparseTypes.ISparseEditSessionWithBaselineRevision),
             }
         )
             definition

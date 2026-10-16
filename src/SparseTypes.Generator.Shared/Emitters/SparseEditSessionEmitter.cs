@@ -252,6 +252,13 @@ internal static class SparseEditSessionEmitter
                 + modelType
                 + ".ChangeSet>";
         }
+        if (
+            config.EditSessionWithBaselineRevisionInterfaceMetadataName is
+            { Length: > 0 } baselineRevisionInterface
+        )
+        {
+            sessionBases += ", global::" + baselineRevisionInterface;
+        }
         sessionBases += SparseEditSessionPathsEmitter.GetPathsInterfaceBase(
             model,
             modelType,
@@ -276,6 +283,14 @@ internal static class SparseEditSessionEmitter
             2,
             "public " + modelType + "." + observable + " Observable => _session.Observable;"
         );
+        if (config.EditSessionWithBaselineRevisionInterfaceMetadataName is { Length: > 0 })
+        {
+            code.AppendLineAt(
+                2,
+                "/// <summary>Gets the revision of the retained baseline.</summary>"
+            );
+            code.AppendLineAt(2, "public long BaselineRevision => _session.BaselineRevision;");
+        }
         code.AppendLineAt(2, "/// <summary>Gets the read-only view over the live model.</summary>");
         code.AppendLineAt(
             2,

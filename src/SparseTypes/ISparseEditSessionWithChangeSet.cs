@@ -24,3 +24,12 @@ public interface ISparseEditSessionWithChangeSet<TModel, TChangeSet>
     /// <param name="changes">The change set to inspect.</param>
     IReadOnlyList<SparsePath> EnumerateChangedPaths(TChangeSet changes);
 }
+
+/// <summary>A typed edit session that reports committed baseline revisions.</summary>
+/// <remarks>The revision advances when an operation commits a new baseline, before change notifications are raised.</remarks>
+[EditorBrowsable(EditorBrowsableState.Advanced)]
+public interface ISparseEditSessionWithBaselineRevision
+{
+    /// <summary>Gets the revision of the retained baseline.</summary>
+    long BaselineRevision { get; }
+}
