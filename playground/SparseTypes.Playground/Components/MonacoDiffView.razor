@@ -215,17 +215,36 @@
             return;
         }
 
+        var originalModel = _originalModel;
+        var modifiedModel = _modifiedModel;
+
         try
         {
             if (_lastOriginal != Original)
             {
                 _lastOriginal = Original;
-                await _originalModel.SetValue(Original);
+                await originalModel.SetValue(Original);
+                if (
+                    _disposed
+                    || !ReferenceEquals(_originalModel, originalModel)
+                    || !ReferenceEquals(_modifiedModel, modifiedModel)
+                )
+                {
+                    return;
+                }
             }
             if (_lastModified != Modified)
             {
                 _lastModified = Modified;
-                await _modifiedModel.SetValue(Modified);
+                await modifiedModel.SetValue(Modified);
+                if (
+                    _disposed
+                    || !ReferenceEquals(_originalModel, originalModel)
+                    || !ReferenceEquals(_modifiedModel, modifiedModel)
+                )
+                {
+                    return;
+                }
             }
         }
         catch (Exception exception) when (_disposed && IsTeardownNoise(exception))

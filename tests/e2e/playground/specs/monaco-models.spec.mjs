@@ -11,7 +11,11 @@ const test = base.extend({
     page.on("pageerror", error => pageErrors.push(error.message));
     page.on("console", message => {
       const location = message.location().url;
-      if (message.type() === "error" && location.startsWith(localOrigin)) {
+      if (
+        message.type() === "error"
+        && location.startsWith(localOrigin)
+        && consoleErrors.length < 3
+      ) {
         consoleErrors.push(message.text());
       }
     });
@@ -30,68 +34,134 @@ const test = base.extend({
   },
 });
 
-async function modelCount(page) {
-  return page.evaluate(() => window.monaco?.editor.getModels().length ?? -1);
+async function diffModelUris(page) {
+  return page.evaluate(() => {
+    const editorHolders = window.blazorMonaco?.editors ?? [];
+    return [
+      ...new Set(
+        editorHolders
+          .filter(
+            ({ id }) =>
+              id.startsWith("monaco-diff-")
+              && !id.endsWith("_original")
+              && !id.endsWith("_modified"),
+          )
+          .flatMap(({ editor }) => {
+            const model = editor?.getModel();
+            return [model?.original?.uri?.toString(), model?.modified?.uri?.toString()];
+          })
+          .filter(uri => uri !== undefined),
+      ),
+    ].sort();
+  });
 }
 
-// Monaco editors and their models initialize asynchronously after each
-// navigation, so wait until the count stops changing before recording it.
-async function settledModelCount(page) {
+async function liveDiffModelCount(page, modelUris) {
+  return page.evaluate(
+    uris =>
+      window.monaco
+        ?.editor.getModels()
+        .filter(model => uris.includes(model.uri.toString())).length ?? -1,
+    modelUris,
+  );
+}
+
+// Diff editors initialize asynchronously after each route change.
+async function settledDiffModelUris(page) {
   const deadline = Date.now() + 30_000;
   let last = null;
   let stableSince = 0;
-  let current = -1;
+  let current = [];
   while (Date.now() < deadline) {
-    current = await modelCount(page);
-    if (current >= 0 && current === last && Date.now() - stableSince > 1000) {
+    current = await diffModelUris(page);
+    if (
+      current.length > 0
+      && JSON.stringify(current) === JSON.stringify(last)
+      && Date.now() - stableSince > 1000
+    ) {
       return current;
     }
-    if (current !== last) {
+    if (JSON.stringify(current) !== JSON.stringify(last)) {
       last = current;
       stableSince = Date.now();
     }
     await page.waitForTimeout(200);
   }
-  throw new Error(`monaco models never settled, last count=${current}`);
+  throw new Error(`diff editor models never settled, last models=${current.length}`);
 }
 
 async function openCase(page, route, heading) {
-  await page.goto(route);
+  if (route === "") {
+    await page.locator(".pg-home-link").click();
+  } else {
+    await page.locator(`fluent-anchor-button[href="${route}"]`).click();
+  }
   await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+  const expectedPath = route ? `/SparseTypes/${route}` : "/SparseTypes/";
+  await expect(page).toHaveURL(new URL(expectedPath, localOrigin).toString());
+  expect(
+    await page.evaluate(() => document === window.__initialDocument),
+    "Route navigation must preserve the initial document",
+  ).toBe(true);
 }
 
-// Each mounted MonacoDiffView owns exactly its two models (covered precisely
-// by the headless disposal tests); here the browser proves the page-level
-// consequence: leaving a case returns the registry to its baseline.
+async function navigateInApp(page, route, heading) {
+  await page.evaluate(route => window.Blazor.navigateTo(`/SparseTypes/${route}`), route);
+  await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+  await expect(page).toHaveURL(new URL(`/SparseTypes/${route}`, localOrigin).toString());
+  expect(
+    await page.evaluate(() => document === window.__initialDocument),
+    "Route navigation must preserve the initial document",
+  ).toBe(true);
+}
+
+async function loadHome(page) {
+  await page.goto("");
+  await expect(page.getByRole("heading", { name: "SparseTypes" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Samples" })).toBeVisible();
+  await page.evaluate(() => {
+    window.__initialDocument = document;
+  });
+}
+
+// Capture models attached to diff editors so unrelated code-editor models
+// cannot affect the disposal assertion.
 test("diff models return to baseline after leaving a case", async ({ page }) => {
   test.setTimeout(240_000);
-  await openCase(page, "", "SparseTypes");
-  const homeBaseline = await settledModelCount(page);
+  await loadHome(page);
 
   await openCase(page, "case-2", "Typed patch applied to the merged fragment");
-  const caseCount = await settledModelCount(page);
-  expect(caseCount).toBeGreaterThan(homeBaseline);
+  const ownedModelUris = await settledDiffModelUris(page);
+  const caseCount = await liveDiffModelCount(page, ownedModelUris);
+  expect(caseCount).toBe(ownedModelUris.length);
+  expect(caseCount).toBeGreaterThan(0);
 
-  await openCase(page, "", "SparseTypes");
-  expect(await settledModelCount(page)).toBe(homeBaseline);
+  await openCase(page, "", "Samples");
+  expect(await liveDiffModelCount(page, ownedModelUris)).toBe(0);
 });
 
-test("repeated case visits keep the model count stable", async ({ page }) => {
+test("repeated in-app route cycles release diff-owned models", async ({ page }) => {
   test.setTimeout(300_000);
-  const routes = [
-    ["case-2", "Typed patch applied to the merged fragment"],
-    ["case-3", "Keyed list: List<Quest>"],
-    ["case-4", "EditSession with Undo/Redo"],
-  ];
+  await loadHome(page);
+  const baselineUris = await diffModelUris(page);
+  const baseline = await liveDiffModelCount(page, baselineUris);
+  expect(baseline).toBe(0);
 
-  await openCase(page, "", "SparseTypes");
-  const baseline = await settledModelCount(page);
+  await openCase(page, "case-2", "Typed patch applied to the merged fragment");
+  let currentModelUris = await settledDiffModelUris(page);
+  expect(await liveDiffModelCount(page, currentModelUris)).toBe(currentModelUris.length);
 
   for (let cycle = 0; cycle < 20; cycle++) {
-    const [route, heading] = routes[cycle % routes.length];
-    await openCase(page, route, heading);
-    await settledModelCount(page);
-    await openCase(page, "", "SparseTypes");
-    expect(await settledModelCount(page)).toBe(baseline);
+    await navigateInApp(page, "not-found", "Not Found");
+    expect(await liveDiffModelCount(page, currentModelUris)).toBe(baseline);
+
+    await navigateInApp(page, "case-2", "Typed patch applied to the merged fragment");
+    currentModelUris = await settledDiffModelUris(page);
+    expect(await liveDiffModelCount(page, currentModelUris)).toBe(currentModelUris.length);
   }
+
+  expect(
+    await page.evaluate(() => document === window.__initialDocument),
+    "All route cycles must remain in the initial document",
+  ).toBe(true);
 });

@@ -20,10 +20,39 @@ namespace SparseTypes.Tests.Components;
 // including navigation-during-init races and creation failures.
 public sealed class MonacoDiffViewDisposalTests
 {
+    private sealed class JsCallGate : IDisposable
+    {
+        private readonly TaskCompletionSource<bool> _entered = new(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        private readonly TaskCompletionSource<bool> _release = new(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        private readonly TaskCompletionSource<bool> _exited = new(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+
+        public Task Entered => _entered.Task;
+
+        public Task Exited => _exited.Task;
+
+        public void Release() => _release.TrySetResult(true);
+
+        public void Dispose() => Release();
+
+        public async Task WaitAsync()
+        {
+            _entered.TrySetResult(true);
+            await _release.Task;
+            _exited.TrySetResult(true);
+        }
+    }
+
     private sealed class FakeJsRuntime : IJSRuntime
     {
         private readonly object _gate = new();
         private int _models;
+        private readonly Dictionary<(string Identifier, int CallIndex), JsCallGate> _callGates = [];
 
         public Func<int, Task<TextModel>>? CreateModelAsync { get; set; }
         public int FailCreateModelAt { get; set; } = -1;
@@ -84,6 +113,17 @@ public sealed class MonacoDiffViewDisposalTests
             }
         }
 
+        public JsCallGate HoldCall(string identifier, int callIndex)
+        {
+            var callGate = new JsCallGate();
+            lock (_gate)
+            {
+                _callGates.Add((identifier, callIndex), callGate);
+            }
+
+            return callGate;
+        }
+
         public TextModel CreateTrackedModel()
         {
             var number = Interlocked.Increment(ref _models);
@@ -112,9 +152,17 @@ public sealed class MonacoDiffViewDisposalTests
 
         private async ValueTask<TValue> InvokeCoreAsync<TValue>(string identifier, object?[]? args)
         {
+            JsCallGate? callGate;
             lock (_gate)
             {
                 _identifiers.Add(identifier);
+                var callIndex = _identifiers.Count(call => call == identifier) - 1;
+                _callGates.TryGetValue((identifier, callIndex), out callGate);
+            }
+
+            if (callGate is not null)
+            {
+                await callGate.WaitAsync();
             }
 
             if (identifier == "blazorMonaco.editor.createModel")
@@ -236,6 +284,8 @@ public sealed class MonacoDiffViewDisposalTests
 
     private sealed class Host : ComponentBase
     {
+        public MonacoDiffView? DiffView { get; private set; }
+
         [Parameter]
         public bool Show { get; set; }
 
@@ -252,18 +302,26 @@ public sealed class MonacoDiffViewDisposalTests
                 builder.OpenComponent<MonacoDiffView>(0);
                 builder.AddAttribute(1, nameof(MonacoDiffView.Original), Original);
                 builder.AddAttribute(2, nameof(MonacoDiffView.Modified), Modified);
+                builder.AddComponentReferenceCapture(
+                    3,
+                    instance => DiffView = (MonacoDiffView)instance
+                );
                 builder.CloseComponent();
             }
         }
     }
 
-    private static ParameterView HostParameters(bool show, string? original = null) =>
+    private static ParameterView HostParameters(
+        bool show,
+        string? original = null,
+        string? modified = null
+    ) =>
         ParameterView.FromDictionary(
             new Dictionary<string, object?>
             {
                 [nameof(Host.Show)] = show,
                 [nameof(Host.Original)] = original ?? "original",
-                [nameof(Host.Modified)] = "modified",
+                [nameof(Host.Modified)] = modified ?? "modified",
             }
         );
 
@@ -279,6 +337,14 @@ public sealed class MonacoDiffViewDisposalTests
 
             await Task.Delay(15);
         }
+    }
+
+    private static void AssertBothModelsDisposedExactlyOnce(FakeJsRuntime js)
+    {
+        js.DisposeCount.ShouldBe(2);
+        js.DisposedUris.Count.ShouldBe(2);
+        js.DisposedUris.Distinct().Count().ShouldBe(2);
+        js.LiveCount.ShouldBe(0);
     }
 
     [Test]
@@ -405,6 +471,123 @@ public sealed class MonacoDiffViewDisposalTests
 
         js.SawSetModel.ShouldBeFalse();
         js.LiveCount.ShouldBe(0);
+        renderer.TakeFailures().ShouldBeEmpty();
+    }
+
+    [Test]
+    public async Task UnmountDuringOriginalSetValueDoesNotUpdateModifiedModel()
+    {
+        var js = new FakeJsRuntime();
+        var services = new TestServices(js);
+        using var loggers = LoggerFactory.Create(static builder => { });
+        var renderer = new TestRenderer(services, loggers);
+        var host = new Host();
+        var rootId = await renderer.RenderRootAsync(host);
+        using var setValueGate = js.HoldCall("blazorMonaco.editor.model.setValue", 0);
+
+        await renderer.ShowAsync(rootId, HostParameters(true));
+        await PollAsync(() => js.SawSetModel);
+        var updateTask = renderer.ShowAsync(
+            rootId,
+            HostParameters(true, "original v2", "modified v2")
+        );
+        await setValueGate.Entered.WaitAsync(TimeSpan.FromSeconds(10));
+        js.SetValueCount.ShouldBe(1);
+
+        await host.DiffView!.DisposeAsync();
+        await PollAsync(() => js.DisposeCount == 2);
+        setValueGate.Release();
+        await setValueGate.Exited.WaitAsync(TimeSpan.FromSeconds(10));
+        await updateTask;
+        await renderer.ShowAsync(rootId, HostParameters(false));
+        await renderer.FlushAsync();
+
+        js.SetValueCount.ShouldBe(1);
+        AssertBothModelsDisposedExactlyOnce(js);
+        renderer.TakeFailures().ShouldBeEmpty();
+    }
+
+    [Test]
+    public async Task UnmountDuringModifiedSetValueDoesNotRepeatUpdates()
+    {
+        var js = new FakeJsRuntime();
+        var services = new TestServices(js);
+        using var loggers = LoggerFactory.Create(static builder => { });
+        var renderer = new TestRenderer(services, loggers);
+        var host = new Host();
+        var rootId = await renderer.RenderRootAsync(host);
+        using var setValueGate = js.HoldCall("blazorMonaco.editor.model.setValue", 1);
+
+        await renderer.ShowAsync(rootId, HostParameters(true));
+        await PollAsync(() => js.SawSetModel);
+        var updateTask = renderer.ShowAsync(
+            rootId,
+            HostParameters(true, "original v2", "modified v2")
+        );
+        await setValueGate.Entered.WaitAsync(TimeSpan.FromSeconds(10));
+        js.SetValueCount.ShouldBe(2);
+
+        await host.DiffView!.DisposeAsync();
+        await PollAsync(() => js.DisposeCount == 2);
+        setValueGate.Release();
+        await setValueGate.Exited.WaitAsync(TimeSpan.FromSeconds(10));
+        await updateTask;
+        await renderer.ShowAsync(rootId, HostParameters(false));
+        await renderer.FlushAsync();
+
+        js.SetValueCount.ShouldBe(2);
+        AssertBothModelsDisposedExactlyOnce(js);
+        renderer.TakeFailures().ShouldBeEmpty();
+    }
+
+    [Test]
+    public async Task UnmountDuringSecondModelCreationDisposesBothModelsOnce()
+    {
+        var js = new FakeJsRuntime();
+        using var secondCreateGate = js.HoldCall("blazorMonaco.editor.createModel", 1);
+        var services = new TestServices(js);
+        using var loggers = LoggerFactory.Create(static builder => { });
+        var renderer = new TestRenderer(services, loggers);
+        var rootId = await renderer.RenderRootAsync(new Host());
+
+        await renderer.ShowAsync(rootId, HostParameters(true));
+        await secondCreateGate.Entered.WaitAsync(TimeSpan.FromSeconds(10));
+        js.CreateCount.ShouldBe(2);
+
+        await renderer.ShowAsync(rootId, HostParameters(false));
+        await PollAsync(() => js.DisposeCount == 1);
+        secondCreateGate.Release();
+        await secondCreateGate.Exited.WaitAsync(TimeSpan.FromSeconds(10));
+        await PollAsync(() => js.DisposeCount == 2);
+        await renderer.FlushAsync();
+
+        js.SawSetModel.ShouldBeFalse();
+        AssertBothModelsDisposedExactlyOnce(js);
+        renderer.TakeFailures().ShouldBeEmpty();
+    }
+
+    [Test]
+    public async Task UnmountDuringSetModelWaitDisposesOwnedModelsOnce()
+    {
+        var js = new FakeJsRuntime();
+        using var setModelGate = js.HoldCall("blazorMonaco.editor.setInstanceDiffModel", 0);
+        var services = new TestServices(js);
+        using var loggers = LoggerFactory.Create(static builder => { });
+        var renderer = new TestRenderer(services, loggers);
+        var rootId = await renderer.RenderRootAsync(new Host());
+
+        await renderer.ShowAsync(rootId, HostParameters(true));
+        await setModelGate.Entered.WaitAsync(TimeSpan.FromSeconds(10));
+        js.CreateCount.ShouldBe(2);
+
+        await renderer.ShowAsync(rootId, HostParameters(false));
+        await PollAsync(() => js.DisposeCount == 2);
+        setModelGate.Release();
+        await setModelGate.Exited.WaitAsync(TimeSpan.FromSeconds(10));
+        await renderer.FlushAsync();
+
+        js.SetValueCount.ShouldBe(0);
+        AssertBothModelsDisposedExactlyOnce(js);
         renderer.TakeFailures().ShouldBeEmpty();
     }
 
