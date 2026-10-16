@@ -136,6 +136,15 @@ public sealed class StjOptionalGenerationTests
             "        public static void Serialize(Utf8JsonWriter writer, object? value, Serialization.Metadata.JsonTypeInfo typeInfo) => throw new System.NotImplementedException();"
         );
         stub.AppendLine("    }");
+        stub.AppendLine("    public sealed class JsonNamingPolicy");
+        stub.AppendLine("    {");
+        stub.AppendLine(
+            "        public static JsonNamingPolicy CamelCase { get; } = new JsonNamingPolicy();"
+        );
+        stub.AppendLine(
+            "        public string ConvertName(string name) => throw new System.NotImplementedException();"
+        );
+        stub.AppendLine("    }");
         stub.AppendLine("    public struct Utf8JsonReader");
         stub.AppendLine("    {");
         stub.AppendLine(
@@ -188,9 +197,7 @@ public sealed class StjOptionalGenerationTests
         stub.AppendLine("    }");
         stub.AppendLine("    public sealed class JsonSerializerOptions");
         stub.AppendLine("    {");
-        stub.AppendLine(
-            "        public Serialization.JsonNamingPolicy? PropertyNamingPolicy { get; set; }"
-        );
+        stub.AppendLine("        public JsonNamingPolicy? PropertyNamingPolicy { get; set; }");
         stub.AppendLine("        public bool PropertyNameCaseInsensitive { get; set; }");
         stub.AppendLine(
             "        public Serialization.JsonUnmappedMemberHandling UnmappedMemberHandling { get; set; }"
@@ -275,15 +282,6 @@ public sealed class StjOptionalGenerationTests
         stub.AppendLine("    {");
         stub.AppendLine("        public JsonConverterAttribute(System.Type converterType) { }");
         stub.AppendLine("    }");
-        stub.AppendLine("    public sealed class JsonNamingPolicy");
-        stub.AppendLine("    {");
-        stub.AppendLine(
-            "        public static JsonNamingPolicy CamelCase { get; } = new JsonNamingPolicy();"
-        );
-        stub.AppendLine(
-            "        public string ConvertName(string name) => throw new System.NotImplementedException();"
-        );
-        stub.AppendLine("    }");
         stub.AppendLine("}");
         stub.AppendLine("namespace System.Text.Json.Serialization.Metadata");
         stub.AppendLine("{");
@@ -304,6 +302,31 @@ public sealed class StjOptionalGenerationTests
                 continue;
             otherRun[pair.Key].ShouldBe(pair.Value);
         }
+    }
+
+    private static void UnsupportedJsonSurfaceOmitsJsonAndReportsSpf028(
+        CSharpCompilation compilation,
+        string missingCapability
+    )
+    {
+        var capabilities = SparseStjCapabilityDetector.Probe(compilation);
+        capabilities.SupportsV1Wire.ShouldBeFalse();
+        capabilities.DescribeMissing().ShouldContain(missingCapability);
+
+        var (sources, diagnostics) = RunWithDiagnostics(compilation);
+        diagnostics
+            .Where(static diagnostic => diagnostic.Id == "SPF028")
+            .ShouldHaveSingleItem()
+            .GetMessage()
+            .ShouldContain(missingCapability);
+        sources.Keys.ShouldContain(static hint => hint.Contains("StjProbeModel"));
+        var generated = string.Concat(sources.Values);
+        generated.ShouldContain("Fragment");
+        generated.ShouldContain("ChangePayload");
+        foreach (var source in sources.Values)
+            source.ShouldNotContain("System.Text.Json");
+
+        CombinedCompilationHasNoErrors(compilation, sources);
     }
 
     [Test]
@@ -396,7 +419,7 @@ public sealed class StjOptionalGenerationTests
         capabilities.SupportsV1Wire.ShouldBeFalse();
         capabilities
             .DescribeMissing()
-            .ShouldBe("JsonPropertyOrderAttribute, JsonTypeInfo/GetTypeInfo");
+            .ShouldBe("JsonPropertyOrderAttribute, JsonTypeInfo/GetTypeInfo/serializer overloads");
 
         var (sources, diagnostics) = RunWithDiagnostics(compilation);
         var spf028 = diagnostics.Where(static diagnostic => diagnostic.Id == "SPF028").ToList();
@@ -434,6 +457,106 @@ public sealed class StjOptionalGenerationTests
             pair.Value.ShouldNotContain("System.Text.Json");
 
         CombinedCompilationHasNoErrors(compilation, sources);
+    }
+
+    [Test]
+    public void WrongSerializerReturnType_OmitsJsonAndReportsSpf028()
+    {
+        var stub = StjStubSource(
+                includePropertyOrder: true,
+                includeUnmappedHandling: true,
+                includeTypeInfoLookup: true
+            )
+            .Replace(
+                "public static T? Deserialize<T>(ref Utf8JsonReader reader, Serialization.Metadata.JsonTypeInfo<T> typeInfo) => throw new System.NotImplementedException();",
+                "public static string? Deserialize<T>(ref Utf8JsonReader reader, Serialization.Metadata.JsonTypeInfo<T> typeInfo) => throw new System.NotImplementedException();",
+                StringComparison.Ordinal
+            );
+
+        UnsupportedJsonSurfaceOmitsJsonAndReportsSpf028(
+            CreateStubCompilation(stub),
+            "serializer overloads"
+        );
+    }
+
+    [Test]
+    public void SerializerArgumentMismatch_OmitsJsonAndReportsSpf028()
+    {
+        var stub = StjStubSource(
+                includePropertyOrder: true,
+                includeUnmappedHandling: true,
+                includeTypeInfoLookup: true
+            )
+            .Replace(
+                "public static T? Deserialize<T>(ref Utf8JsonReader reader, Serialization.Metadata.JsonTypeInfo<T> typeInfo)",
+                "public static T? Deserialize<T>(ref Utf8JsonReader reader, object typeInfo)",
+                StringComparison.Ordinal
+            );
+
+        UnsupportedJsonSurfaceOmitsJsonAndReportsSpf028(
+            CreateStubCompilation(stub),
+            "serializer overloads"
+        );
+    }
+
+    [Test]
+    public void MissingReaderMethod_OmitsJsonAndReportsSpf028()
+    {
+        var stub = StjStubSource(
+                includePropertyOrder: true,
+                includeUnmappedHandling: true,
+                includeTypeInfoLookup: true
+            )
+            .Replace(
+                "        public void Skip() => throw new System.NotImplementedException();\n",
+                string.Empty,
+                StringComparison.Ordinal
+            );
+
+        UnsupportedJsonSurfaceOmitsJsonAndReportsSpf028(
+            CreateStubCompilation(stub),
+            "Utf8JsonReader/Writer"
+        );
+    }
+
+    [Test]
+    public void ConverterRefKindMismatch_OmitsJsonAndReportsSpf028()
+    {
+        var stub = StjStubSource(
+                includePropertyOrder: true,
+                includeUnmappedHandling: true,
+                includeTypeInfoLookup: true
+            )
+            .Replace(
+                "public abstract T? Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options);",
+                "public abstract T? Read(System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options);",
+                StringComparison.Ordinal
+            );
+
+        UnsupportedJsonSurfaceOmitsJsonAndReportsSpf028(
+            CreateStubCompilation(stub),
+            "JsonConverter<T>"
+        );
+    }
+
+    [Test]
+    public void UnusableAttributeSetter_OmitsJsonAndReportsSpf028()
+    {
+        var stub = StjStubSource(
+                includePropertyOrder: true,
+                includeUnmappedHandling: true,
+                includeTypeInfoLookup: true
+            )
+            .Replace(
+                "public JsonIgnoreCondition Condition { get; set; }",
+                "public JsonIgnoreCondition Condition { get; private set; }",
+                StringComparison.Ordinal
+            );
+
+        UnsupportedJsonSurfaceOmitsJsonAndReportsSpf028(
+            CreateStubCompilation(stub),
+            "JsonIgnoreAttribute/Condition"
+        );
     }
 
     [Test]

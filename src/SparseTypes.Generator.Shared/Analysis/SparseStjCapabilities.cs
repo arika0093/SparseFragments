@@ -74,7 +74,7 @@ internal readonly record struct SparseStjCapabilities(
         if (!HasUtf8JsonReaderWriter)
             missing.Add("Utf8JsonReader/Writer");
         if (!HasJsonTypeInfo)
-            missing.Add("JsonTypeInfo/GetTypeInfo");
+            missing.Add("JsonTypeInfo/GetTypeInfo/serializer overloads");
         return string.Join(", ", missing);
     }
 }
