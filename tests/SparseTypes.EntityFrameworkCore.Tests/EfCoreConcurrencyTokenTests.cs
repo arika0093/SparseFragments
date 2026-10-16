@@ -19,6 +19,11 @@ public sealed class EfCoreConcurrencyTokenTests
                 {
                     CustomerName = "Ann",
                     Notes = "keep",
+                    Address = new VersionedOrderAddressEntity
+                    {
+                        Street = "Old Street",
+                        City = "Osaka",
+                    },
                     Lines =
                     [
                         new VersionedOrderLineEntity
@@ -145,6 +150,127 @@ public sealed class EfCoreConcurrencyTokenTests
 
         secondOrder.Lines.Single(line => line.Quantity == 2).Quantity = 20;
         await Should.ThrowAsync<DbUpdateConcurrencyException>(second.SaveChangesAsync());
+    }
+
+    [Test]
+    public async Task OwnedAddressOnlyWritesAdvanceTokenAcrossSyncAndAsyncSaves()
+    {
+        using SqliteConnection connection = TestDatabases.OpenMemory();
+        int orderId;
+        using (var seed = TestDatabases.CreateVersioned(connection, new QueryCounter()))
+        {
+            var entity = seed
+                .Orders.Add(new VersionedOrderEntity { CustomerName = "Ann", Address = null })
+                .Entity;
+            seed.SaveChanges();
+            orderId = entity.Id;
+        }
+
+        Guid version;
+        using (var add = TestDatabases.CreateVersioned(connection, new QueryCounter()))
+        {
+            var order = await add.Orders.SingleAsync(order => order.Id == orderId);
+            version = order.Version;
+            order.Address = new VersionedOrderAddressEntity
+            {
+                Street = "First Street",
+                City = "Osaka",
+            };
+
+            add.SaveChanges();
+            order.Version.ShouldNotBe(version);
+            version = order.Version;
+        }
+
+        using (var replace = TestDatabases.CreateVersioned(connection, new QueryCounter()))
+        {
+            var order = await replace
+                .Orders.Include(static order => order.Address)
+                .SingleAsync(order => order.Id == orderId);
+            order.Address!.City.ShouldBe("Osaka");
+            order.Address = new VersionedOrderAddressEntity
+            {
+                Street = "Second Street",
+                City = "Kyoto",
+            };
+
+            await replace.SaveChangesAsync();
+            order.Version.ShouldNotBe(version);
+            version = order.Version;
+        }
+
+        using (var modify = TestDatabases.CreateVersioned(connection, new QueryCounter()))
+        {
+            var order = await modify
+                .Orders.Include(static order => order.Address)
+                .SingleAsync(order => order.Id == orderId);
+            order.Address!.City.ShouldBe("Kyoto");
+            order.Address!.City = "Nara";
+
+            modify.SaveChanges();
+            order.Version.ShouldNotBe(version);
+            version = order.Version;
+        }
+
+        using (var delete = TestDatabases.CreateVersioned(connection, new QueryCounter()))
+        {
+            var order = await delete
+                .Orders.Include(static order => order.Address)
+                .SingleAsync(order => order.Id == orderId);
+            order.Address!.City.ShouldBe("Nara");
+            order.Address = null;
+
+            await delete.SaveChangesAsync();
+            order.Version.ShouldNotBe(version);
+            order.Address.ShouldBeNull();
+        }
+
+        using var fresh = TestDatabases.CreateVersioned(connection, new QueryCounter());
+        var persisted = await fresh
+            .Orders.Include(static order => order.Address)
+            .SingleAsync(order => order.Id == orderId);
+        persisted.Address.ShouldBeNull();
+    }
+
+    [Test]
+    public async Task StaleAddressOnlyWriteFailsWithoutOverwritingTheWinner()
+    {
+        using SqliteConnection connection = TestDatabases.OpenMemory();
+        int orderId;
+        Guid originalVersion;
+        using (var seed = TestDatabases.CreateVersioned(connection, new QueryCounter()))
+        {
+            var seeded = SeedOrder(seed);
+            orderId = seeded.Id;
+            originalVersion = seeded.Version;
+        }
+
+        using var first = TestDatabases.CreateVersioned(connection, new QueryCounter());
+        using var second = TestDatabases.CreateVersioned(connection, new QueryCounter());
+        var firstOrder = await first
+            .Orders.Include(static order => order.Address)
+            .SingleAsync(order => order.Id == orderId);
+        var secondOrder = await second
+            .Orders.Include(static order => order.Address)
+            .SingleAsync(order => order.Id == orderId);
+
+        firstOrder.Address!.City = "First writer";
+        await first.SaveChangesAsync();
+
+        using (var check = TestDatabases.CreateVersioned(connection, new QueryCounter()))
+        {
+            var persisted = await check.Orders.SingleAsync(order => order.Id == orderId);
+            persisted.Version.ShouldNotBe(originalVersion);
+        }
+
+        secondOrder.Address!.City = "Stale writer";
+        await Should.ThrowAsync<DbUpdateConcurrencyException>(second.SaveChangesAsync());
+
+        using var fresh = TestDatabases.CreateVersioned(connection, new QueryCounter());
+        var winner = await fresh
+            .Orders.Include(static order => order.Address)
+            .SingleAsync(order => order.Id == orderId);
+        winner.Address!.City.ShouldBe("First writer");
     }
 
     [Test]

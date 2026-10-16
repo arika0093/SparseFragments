@@ -163,14 +163,17 @@ if (outcome.Error is OperationCanceledException)
 
 SQLite cannot store-generate a SQL Server style rowversion, so declare an
 application-managed token (for example a `Guid`) and advance it on every
-write that belongs to the aggregate, including child-only line changes:
+write that belongs to the aggregate, including owned-navigation and
+child-only line changes:
 
 1. Mark the token with `IsConcurrencyToken()` and keep it read-only for
    the mapper: `Map.Ignore` for writes, `Map.Read` for the projection.
 2. Assign a new value in `SaveChanges`/`SaveChangesAsync` for every added
-   or modified aggregate root, and for the parent of every added, modified,
-   or deleted child. A child-only write leaves the parent row untouched by
-   change tracking, so bump the parent explicitly.
+   or modified aggregate root, and for the parent of every changed owned
+   navigation or added, modified, or deleted child. EF can leave the parent
+   unchanged when only an owned value or child changes, so bump the parent
+   explicitly. This also covers adding, replacing, or deleting an owned
+   reference.
 3. Carry the token outside the change set: return it on reads, accept it
    as `If-Match` on writes, and set it as the entry's `OriginalValue`
    before saving.

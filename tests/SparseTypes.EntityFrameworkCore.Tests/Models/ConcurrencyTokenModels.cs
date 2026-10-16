@@ -44,7 +44,17 @@ public sealed class VersionedOrderEntity
 
     public Guid Version { get; set; }
 
+    public VersionedOrderAddressEntity? Address { get; set; }
+
     public List<VersionedOrderLineEntity> Lines { get; set; } = [];
+}
+
+/// <summary>Owned address belonging to one versioned order aggregate.</summary>
+public sealed class VersionedOrderAddressEntity
+{
+    public string Street { get; set; } = string.Empty;
+
+    public string City { get; set; } = string.Empty;
 }
 
 /// <summary>Order line entity belonging to one versioned aggregate.</summary>
@@ -66,7 +76,7 @@ public sealed class VersionedOrderLineEntity
 /// <summary>
 /// SQLite context mirroring the EfCoreSample strategy: SQLite cannot
 /// store-generate a rowversion, so the context assigns a new token on every
-/// order or order-line write, including child-only mutations.
+/// order, owned-address, or order-line write, including child-only mutations.
 /// </summary>
 public sealed class VersionedOrdersContext(DbContextOptions<VersionedOrdersContext> options)
     : DbContext(options)
@@ -74,21 +84,26 @@ public sealed class VersionedOrdersContext(DbContextOptions<VersionedOrdersConte
     public DbSet<VersionedOrderEntity> Orders => Set<VersionedOrderEntity>();
 
     /// <inheritdoc />
-    public override int SaveChanges()
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         AdvanceConcurrencyTokens();
-        return base.SaveChanges();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
     /// <inheritdoc />
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    public override Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default
+    )
     {
         AdvanceConcurrencyTokens();
-        return base.SaveChangesAsync(cancellationToken);
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
     private void AdvanceConcurrencyTokens()
     {
+        ChangeTracker.DetectChanges();
+
         var parents = new HashSet<int>();
         foreach (var line in ChangeTracker.Entries<VersionedOrderLineEntity>().ToList())
         {
@@ -114,7 +129,51 @@ public sealed class VersionedOrdersContext(DbContextOptions<VersionedOrdersConte
             }
         }
 
-        foreach (var entry in ChangeTracker.Entries<VersionedOrderEntity>().ToList())
+        var orders = ChangeTracker.Entries<VersionedOrderEntity>().ToList();
+        foreach (var address in ChangeTracker.Entries<VersionedOrderAddressEntity>().ToList())
+        {
+            if (
+                address.State
+                is not EntityState.Added
+                    and not EntityState.Modified
+                    and not EntityState.Deleted
+            )
+            {
+                continue;
+            }
+
+            var ownership = address.Metadata.FindOwnership();
+            if (ownership is null)
+            {
+                continue;
+            }
+
+            foreach (var order in orders)
+            {
+                var belongsToOrder = true;
+                for (var index = 0; index < ownership.Properties.Count; index++)
+                {
+                    var foreignKey = address
+                        .Property(ownership.Properties[index].Name)
+                        .CurrentValue;
+                    var principalKey = order
+                        .Property(ownership.PrincipalKey.Properties[index].Name)
+                        .CurrentValue;
+                    if (!Equals(foreignKey, principalKey))
+                    {
+                        belongsToOrder = false;
+                        break;
+                    }
+                }
+
+                if (belongsToOrder)
+                {
+                    parents.Add(order.Entity.Id);
+                }
+            }
+        }
+
+        foreach (var entry in orders)
         {
             if (
                 entry.State is EntityState.Added or EntityState.Modified
@@ -133,6 +192,7 @@ public sealed class VersionedOrdersContext(DbContextOptions<VersionedOrdersConte
         {
             entity.HasKey(order => order.Id);
             entity.Property(order => order.Version).IsConcurrencyToken();
+            entity.OwnsOne(order => order.Address);
             entity
                 .HasMany(order => order.Lines)
                 .WithOne(line => line.Order)

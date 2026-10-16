@@ -63,11 +63,10 @@ The authoritative response carries the new version. Use it as the next
 SQLite cannot store-generate a SQL Server style rowversion, so the token
 is application-managed: `OrderEntity.Version` is a `Guid` marked with
 `IsConcurrencyToken`, and `SampleDbContext` assigns a new value on every
-save that adds or modifies an order or that adds, modifies, or deletes an
-order line. A child-only write leaves the parent row untouched by change
-tracking, so the override bumps the parent explicitly; without that step
-two writers could share one token and the second update would silently
-overwrite the first. The mapper keeps the token read-only
+save that changes the order, its owned address, or its lines. EF can leave
+the order unchanged when only an address or line changes, so the override
+bumps the owning order explicitly. This makes the order row's concurrency
+predicate cover those writes as well. The mapper keeps the token read-only
 (`Map.Ignore` for writes, `Map.Read` for the projection) because only the
 context advances it. Request cancellation propagates to the host instead
 of mapping to 409 or 412.

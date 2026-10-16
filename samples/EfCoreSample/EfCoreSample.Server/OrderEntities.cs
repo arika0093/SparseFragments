@@ -34,7 +34,7 @@ public sealed class OrderEntity
     /// <summary>
     /// Gets or sets the application-managed concurrency token. SQLite cannot
     /// store-generate a rowversion, so the context assigns a new value on
-    /// every order or order-line write (see <see cref="SampleDbContext"/>).
+    /// every order, owned-address, or order-line write (see <see cref="SampleDbContext"/>).
     /// </summary>
     public Guid Version { get; set; }
 
@@ -83,31 +83,41 @@ public sealed class SampleDbContext : DbContext
     public DbSet<OrderEntity> Orders => Set<OrderEntity>();
 
     /// <summary>Saves changes after advancing aggregate concurrency tokens.</summary>
+    /// <param name="acceptAllChangesOnSuccess">
+    /// Whether EF accepts tracked changes after a successful save.
+    /// </param>
     /// <returns>The number of state entries written to the database.</returns>
-    public override int SaveChanges()
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         AdvanceConcurrencyTokens();
-        return base.SaveChanges();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
     /// <summary>Saves changes after advancing aggregate concurrency tokens.</summary>
+    /// <param name="acceptAllChangesOnSuccess">
+    /// Whether EF accepts tracked changes after a successful save.
+    /// </param>
     /// <param name="cancellationToken">Cancels the save.</param>
     /// <returns>The number of state entries written to the database.</returns>
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    public override Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default
+    )
     {
         AdvanceConcurrencyTokens();
-        return base.SaveChangesAsync(cancellationToken);
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
     /// <summary>
     /// Assigns a new <see cref="OrderEntity.Version"/> to every added or modified
-    /// order, and to the parent order of every added, modified, or deleted line.
-    /// A child-only write leaves the parent row untouched by EF change tracking,
-    /// so without this step two writers could pass the same token and the second
-    /// update would silently overwrite the first.
+    /// order, and to the parent of every changed line or owned address. Child-only
+    /// writes can leave the parent unchanged in EF change tracking, so the parent
+    /// must be marked for update to guard the whole aggregate.
     /// </summary>
     private void AdvanceConcurrencyTokens()
     {
+        ChangeTracker.DetectChanges();
+
         var parents = new HashSet<int>();
         foreach (var line in ChangeTracker.Entries<OrderLineEntity>().ToList())
         {
@@ -133,7 +143,51 @@ public sealed class SampleDbContext : DbContext
             }
         }
 
-        foreach (var entry in ChangeTracker.Entries<OrderEntity>().ToList())
+        var orders = ChangeTracker.Entries<OrderEntity>().ToList();
+        foreach (var address in ChangeTracker.Entries<AddressEntity>().ToList())
+        {
+            if (
+                address.State
+                is not EntityState.Added
+                    and not EntityState.Modified
+                    and not EntityState.Deleted
+            )
+            {
+                continue;
+            }
+
+            var ownership = address.Metadata.FindOwnership();
+            if (ownership is null)
+            {
+                continue;
+            }
+
+            foreach (var order in orders)
+            {
+                var belongsToOrder = true;
+                for (var index = 0; index < ownership.Properties.Count; index++)
+                {
+                    var foreignKey = address
+                        .Property(ownership.Properties[index].Name)
+                        .CurrentValue;
+                    var principalKey = order
+                        .Property(ownership.PrincipalKey.Properties[index].Name)
+                        .CurrentValue;
+                    if (!Equals(foreignKey, principalKey))
+                    {
+                        belongsToOrder = false;
+                        break;
+                    }
+                }
+
+                if (belongsToOrder)
+                {
+                    parents.Add(order.Entity.Id);
+                }
+            }
+        }
+
+        foreach (var entry in orders)
         {
             if (
                 entry.State is EntityState.Added or EntityState.Modified
