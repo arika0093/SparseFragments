@@ -114,6 +114,8 @@ public sealed class TemporaryKeyStagingTests
         // Simulate data loss: the archived created row never reaches the
         // authoritative DTO while the earlier Actives scope would reconcile.
         var authoritative = ReadDuo(entity);
+        var earlierSetterCalls = 0;
+        authoritative.Actives.Single().TemporaryIdSetter = () => earlierSetterCalls++;
         authoritative.Archived.Clear();
 
         var error = Should.Throw<SparseEntityMappingException>(() =>
@@ -122,6 +124,7 @@ public sealed class TemporaryKeyStagingTests
         error.Failure.ShouldBe(SparseEntityMappingFailure.CollectionKeyNotFound);
         (error.DtoPath ?? string.Empty).ShouldContain("Archived");
         authoritative.Actives.Single().TemporaryId.ShouldBeNull();
+        earlierSetterCalls.ShouldBe(0);
         counter.Commands.ShouldBe(0);
     }
 

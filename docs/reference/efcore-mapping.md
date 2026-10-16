@@ -89,7 +89,7 @@ public sealed partial class OrderMapper
 2. **Navigation loading**: `query.IncludeFor(mapper, changes)` inspects the accepted `ChangeSet` and includes only navigations required by changed paths.
 3. **Preflight validation**: `Apply` or `ApplyWithResult` validates all operations before modifying any entity state. A failure leaves `ChangeTracker` untouched.
 4. **Direct mutation**: Only modified properties execute setters. Unchanged EF properties remain untouched.
-5. **Temporary key correlation**: `ApplyWithResult` correlates client-generated `[SparseTemporaryKey]` values to new entities. Call `mapper.AssignTemporaryKeys(db, result, baseline, authoritative)` after `SaveChangesAsync()`.
+5. **Temporary key correlation**: `ApplyWithResult` correlates client-generated `[SparseTemporaryKey]` values to new entities. Call `mapper.AssignTemporaryKeys(db, result, baseline, authoritative)` after `SaveChangesAsync()`. The mapper validates correlation across the complete DTO tree before invoking temporary-key setters. A deterministic mapping failure leaves all DTO keys unchanged. If a setter throws during the final write, earlier setter effects may remain; setter execution is not transactional.
 
 ## Missing versus null semantics
 

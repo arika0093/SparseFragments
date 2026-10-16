@@ -547,6 +547,7 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
         object authoritative,
         SparseEntityApplyResult result,
         string path,
+        TemporaryKeyAssignmentPlan assignments,
         IReadOnlyList<CollectionScopeIdentity>? parentScopes = null
     )
     {
@@ -558,7 +559,15 @@ internal sealed class ObjectNode<TDto, TEntity, TDtoChild, TEntityChild> : Membe
         }
 
         var childPath = string.IsNullOrEmpty(path) ? DtoName : $"{path}.{DtoName}";
-        _childPlan.AssignTemporaryKeys(context, prior, current, result, childPath, parentScopes);
+        _childPlan.AssignTemporaryKeys(
+            context,
+            prior,
+            current,
+            result,
+            childPath,
+            assignments,
+            parentScopes
+        );
     }
 
     private void WriteAdded(

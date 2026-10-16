@@ -128,6 +128,8 @@ await db.SaveChangesAsync();
 mapper.AssignTemporaryKeys(db, result, current, authoritative);
 ```
 
+`AssignTemporaryKeys` checks all parent, child, and sibling collection scopes before it invokes any temporary-key setter. A deterministic mapping failure, such as a created row missing from the authoritative DTO, leaves every DTO key unchanged. If a setter throws after validation, setters that already ran may have changed the DTO; the mapper cannot roll back arbitrary setter effects.
+
 ## Coordinate an optional save pipeline
 
 `SparseEntitySavePipeline.ExecuteAsync` is an optional orchestration helper for consumers that want the same explicit phase ordering outside the playground. The consumer supplies preparation (including its revision check, read, rebase, and mapper application), the single persistence attempt, the authoritative readback (including temporary-key assignment), and client synchronization (including `TryReconcileAndApply`). The helper performs no query, persistence, transaction, rollback, or retry on its own, and it never repeats a custom callback.

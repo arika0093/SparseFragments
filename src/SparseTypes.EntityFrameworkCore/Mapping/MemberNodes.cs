@@ -48,6 +48,7 @@ internal abstract class MemberNode
         object authoritative,
         SparseEntityApplyResult result,
         string path,
+        TemporaryKeyAssignmentPlan assignments,
         IReadOnlyList<CollectionScopeIdentity>? parentScopes = null
     ) { }
 }

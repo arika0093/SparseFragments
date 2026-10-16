@@ -107,6 +107,7 @@ internal abstract class EntityPlanBase
         object authoritative,
         SparseEntityApplyResult result,
         string path,
+        TemporaryKeyAssignmentPlan assignments,
         IReadOnlyList<CollectionScopeIdentity>? parentScopes = null
     );
 
@@ -365,6 +366,7 @@ internal sealed class EntityPlan<TEntity, TDto> : EntityPlanBase
         object authoritative,
         SparseEntityApplyResult result,
         string path,
+        TemporaryKeyAssignmentPlan assignments,
         IReadOnlyList<CollectionScopeIdentity>? parentScopes = null
     )
     {
@@ -372,9 +374,18 @@ internal sealed class EntityPlan<TEntity, TDto> : EntityPlanBase
         ArgumentNullException.ThrowIfNull(authoritative);
         ArgumentNullException.ThrowIfNull(result);
         ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(assignments);
         foreach (var step in Steps)
         {
-            step.AssignTemporaryKeys(context, baseline, authoritative, result, path, parentScopes);
+            step.AssignTemporaryKeys(
+                context,
+                baseline,
+                authoritative,
+                result,
+                path,
+                assignments,
+                parentScopes
+            );
         }
     }
 

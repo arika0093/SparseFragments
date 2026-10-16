@@ -59,6 +59,7 @@ internal sealed class CollectionNode<TDto, TEntity, TDtoChild, TEntityChild> : M
         object authoritative,
         SparseEntityApplyResult result,
         string path,
+        TemporaryKeyAssignmentPlan assignments,
         IReadOnlyList<CollectionScopeIdentity>? parentScopes = null
     )
     {
@@ -70,6 +71,7 @@ internal sealed class CollectionNode<TDto, TEntity, TDtoChild, TEntityChild> : M
             authoritativeItems,
             result,
             path,
+            assignments,
             parentScopes
         );
     }

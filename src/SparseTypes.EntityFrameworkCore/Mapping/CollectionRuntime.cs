@@ -232,6 +232,7 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         IEnumerable<TDtoChild>? authoritative,
         SparseEntityApplyResult result,
         string parentPath,
+        TemporaryKeyAssignmentPlan assignments,
         IReadOnlyList<CollectionScopeIdentity>? parentScopes = null
     )
     {
@@ -241,8 +242,8 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         }
 
         var collectionPath = string.IsNullOrEmpty(parentPath) ? DtoName : $"{parentPath}.{DtoName}";
-        // Validate everything and stage assignments without mutation, so
-        // deterministic mapping failures surface before earlier items change.
+        // Plan writes without mutation so validation covers every nested and
+        // sibling collection before any temporary-key setter runs.
         var staged = StageTemporaryAssignments(
             context,
             baseline,
@@ -251,8 +252,7 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
             collectionPath,
             parentScopes
         );
-        // Second pass: apply staged values, then recurse into nested scopes.
-        var journal = TemporaryKeyStagingScope.Current;
+        // Child scopes use planned identities because setters have not run yet.
         foreach (var assignment in staged)
         {
             if (assignment.Temporary.HasValue)
@@ -260,10 +260,9 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
                 var current = TemporaryGetter?.Invoke(assignment.Item);
                 if (current != assignment.Temporary)
                 {
-                    var original = current;
                     var target = assignment.Item;
-                    journal?.Record(() => RestoreTemporaryKey(target, original));
-                    SetTemporaryKey(target, assignment.Temporary.Value, collectionPath);
+                    var temporary = assignment.Temporary.Value;
+                    assignments.Add(() => SetTemporaryKey(target, temporary, collectionPath));
                 }
             }
 
@@ -273,17 +272,18 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
                 assignment.Item,
                 result,
                 assignment.ItemPath,
-                ScopesFor(assignment.Item)
+                assignments,
+                ScopesFor(assignment.Item, assignment.Temporary)
             );
         }
     }
 
     /// <summary>Derives the nested lookup scopes for one authoritative item.</summary>
-    /// <remarks>Runs after the item's temporary identity was assigned above.</remarks>
-    private IReadOnlyList<CollectionScopeIdentity> ScopesFor(TDtoChild item)
+    /// <remarks>Uses a planned identity before its setter has run.</remarks>
+    private IReadOnlyList<CollectionScopeIdentity> ScopesFor(TDtoChild item, Guid? plannedTemporary)
     {
         var key = DtoKey(item);
-        var temporary = TemporaryGetter?.Invoke(item);
+        var temporary = plannedTemporary ?? TemporaryGetter?.Invoke(item);
         if (key is not null && !IsUnassigned(key))
         {
             return temporary is not null && temporary != Guid.Empty
@@ -588,17 +588,6 @@ internal sealed class CollectionRuntime<TDtoChild, TEntityChild>
         }
 
         return null;
-    }
-
-    private void RestoreTemporaryKey(TDtoChild dto, Guid? original)
-    {
-        // Best effort rollback: without a setter there is nothing to restore.
-        if (TemporarySetter is null)
-        {
-            return;
-        }
-
-        TemporarySetter(dto, original);
     }
 
     /// <summary>Builds and validates the runtime for one parent collection.</summary>

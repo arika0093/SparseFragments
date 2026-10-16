@@ -84,20 +84,16 @@ public sealed class SparseEntityMapper<TEntity, TDto>
             );
         }
 
-        var staging = TemporaryKeyStagingScope.Begin();
-        try
-        {
-            Plan.AssignTemporaryKeys(context, baseline, authoritative, result, string.Empty);
-        }
-        catch
-        {
-            staging.Rollback();
-            throw;
-        }
-        finally
-        {
-            staging.Close();
-        }
+        var assignments = new TemporaryKeyAssignmentPlan();
+        Plan.AssignTemporaryKeys(
+            context,
+            baseline,
+            authoritative,
+            result,
+            string.Empty,
+            assignments
+        );
+        assignments.Apply();
     }
 
     /// <summary>

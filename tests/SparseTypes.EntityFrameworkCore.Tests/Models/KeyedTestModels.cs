@@ -308,6 +308,8 @@ public sealed partial class SkuOrderMapper
 /// <summary>DTO line shared by two parent collections.</summary>
 public partial class DuoLineDto
 {
+    private Guid? _temporaryId;
+
     /// <summary>Gets or sets the persisted identity.</summary>
     public int Id { get; set; }
 
@@ -317,7 +319,17 @@ public partial class DuoLineDto
 
     /// <summary>Gets or sets the collection-scoped temporary identity.</summary>
     [SparseTemporaryKey]
-    public Guid? TemporaryId { get; set; }
+    public Guid? TemporaryId
+    {
+        get => _temporaryId;
+        set
+        {
+            TemporaryIdSetter?.Invoke();
+            _temporaryId = value;
+        }
+    }
+
+    internal Action? TemporaryIdSetter { get; set; }
 
     /// <summary>Gets or sets the quantity.</summary>
     public int Qty { get; set; }
