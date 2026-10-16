@@ -85,3 +85,32 @@ Not every operation accepts cyclic object graphs:
 * Granular keyed-collection edits allocate a new container but still share element references; clone elements (or the whole graph via `DeepClone`) when the result must be independent.
 
 Keep graphs acyclic at the `From`/`Diff` boundary. Use `DeepClone` when the result must not share mutable references with its source.
+
+## Child-session fork cost
+
+Opening a child session forks its parent session. The fork snapshots the current model as a baseline fragment and separately clones the live model; the child session also clones its own baseline. This keeps child edits isolated until acceptance and lets acceptance rebase them onto the parent's current model. The snapshot therefore covers the full root, including members outside the selected child path.
+
+The root snapshot preserves the fork's independent ownership and rebase semantics. A child-only clone would need another way to isolate the fork's root state and apply the child's rebased changes to the parent's latest state. The measurements below show the cost of the current approach, including for a small child in a large root. They do not compare an alternative snapshot design.
+
+The `EditSessionChildCloneBenchmarks` benchmark creates a fresh root edit session for each invocation. Its root has a `Target` group containing four servers and a keyed `Siblings` list of 0, 1,024, or 8,192 servers. `OpenSmallChildSession` opens `Target`; `OpenNestedChildSession` opens `Target` and then `Servers["target-1"]`. `OpenManyChildSessions` opens and disposes one or eight child sessions sequentially, using keyed siblings when present and `Target` when the list is empty. Each sibling server has an ID, name, and count.
+
+The run used BenchmarkDotNet 0.15.8 with `ShortRun` (three measured iterations, three warmups, one launch), the .NET 10.0.401 SDK, and .NET 10.0.12 runtime. The host was Ubuntu 24.04.5 in a container on an Intel Core Ultra 9 285K at 4.60 GHz; BenchmarkDotNet reported 24 logical cores and one physical core. The benchmark ran on commit `fdcc0b2e9daa56a6681cea35848e21628a77f492` with RyuJIT x86-64-v3 and concurrent workstation GC.
+
+Run the same benchmark type and selector from the repository root with:
+
+```sh
+dotnet run -c Release --project benchmarks/SparseTypes.Benchmarks/SparseTypes.Benchmarks.csproj -- --filter '*EditSessionChildCloneBenchmarks*' --job short
+```
+
+| Benchmark | Sibling count | Child sessions | Mean | Allocated per operation |
+| --- | ---: | ---: | ---: | ---: |
+| `OpenSmallChildSession` | 0 | 1 | 4.095 μs | 11.53 KB |
+| `OpenSmallChildSession` | 8,192 | 1 | 3,443.013 μs | 4,136.01 KB |
+| `OpenSiblingChildSessionAndDiscard` | 8,192 | 1 | 6,033.500 μs | 6,818.65 KB |
+| `OpenNestedChildSession` | 0 | 1 | 10.348 μs | 30.53 KB |
+| `OpenNestedChildSession` | 8,192 | 1 | 3,264.091 μs | 4,155.02 KB |
+| `OpenManyChildSessions` | 0 | 8 | 22.586 μs | 66.44 KB |
+| `OpenManyChildSessions` | 8,192 | 1 | 2,782.264 μs | 4,145.28 KB |
+| `OpenManyChildSessions` | 8,192 | 8 | 17,698.752 μs | 23,081.68 KB |
+
+The short run is directional: it used one process launch and three measured iterations, and the reported timing intervals were wide for the large-root cases. The allocation results still show the root-size and repeated-open costs. An invocation that creates a root session and opens the four-server target with 8,192 siblings allocated 4,136.01 KB; the eight-child invocation allocated 23,081.68 KB. The current root fork remains in place to preserve isolation and rebasing behavior. Reducing this cost requires a snapshot strategy that preserves those semantics.
