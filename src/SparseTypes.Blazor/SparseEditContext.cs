@@ -217,6 +217,96 @@ public sealed class SparseEditContext<TModel, TPaths>
         Interlocked.Increment(ref _sessionVersion);
     }
 
+    internal void RefreshStateSnapshotForParameterUpdate()
+    {
+        lock (_sync)
+        {
+            var version = Interlocked.Read(ref _sessionVersion);
+            if (_disposed || _snapshot is null || _snapshotVersion != version)
+            {
+                return;
+            }
+
+            object? model;
+            try
+            {
+                model = Session is ISparseEditSessionModelAccessor<TModel> accessor
+                    ? accessor.GetModelForFrameworkAccess()
+                    : Session.Model;
+            }
+            catch (Exception exception)
+                when (exception is InvalidOperationException or ObjectDisposedException)
+            {
+                InvalidateStateSnapshot();
+                return;
+            }
+
+            if (
+                !SparseSessionInterop.TryCaptureStateSnapshot(Session, out var captured, out _)
+                || captured is null
+            )
+            {
+                InvalidateStateSnapshot();
+                return;
+            }
+
+            if (version != Interlocked.Read(ref _sessionVersion))
+            {
+                return;
+            }
+
+            if (
+                ReferenceEquals(_snapshotModel, model)
+                && HaveSameChanges(_snapshot.Changes, captured.Changes)
+            )
+            {
+                return;
+            }
+
+            var nextVersion = version + 1;
+            if (Interlocked.CompareExchange(ref _sessionVersion, nextVersion, version) != version)
+            {
+                return;
+            }
+
+            _snapshot = captured;
+            _snapshotModel = model;
+            _snapshotVersion = nextVersion;
+        }
+    }
+
+    private static bool HaveSameChanges(ISparseChangeSet left, ISparseChangeSet right)
+    {
+        if (left.IsEmpty != right.IsEmpty)
+        {
+            return false;
+        }
+
+        var leftRecords = left.EnumerateChangeRecords();
+        var rightRecords = right.EnumerateChangeRecords();
+        if (leftRecords.Count != rightRecords.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < leftRecords.Count; index++)
+        {
+            var leftRecord = leftRecords[index];
+            var rightRecord = rightRecords[index];
+            if (
+                !leftRecord.Path.Equals(rightRecord.Path)
+                || leftRecord.Kind != rightRecord.Kind
+                || !leftRecord.Before.Equals(rightRecord.Before)
+                || !leftRecord.After.Equals(rightRecord.After)
+            )
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {

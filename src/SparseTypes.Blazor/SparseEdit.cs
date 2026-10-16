@@ -54,6 +54,10 @@ public sealed class SparseEdit<TModel, TPaths> : ComponentBase, IDisposable
                 _context = null;
             }
         }
+        else
+        {
+            _context?.RefreshStateSnapshotForParameterUpdate();
+        }
     }
 
     /// <inheritdoc />
