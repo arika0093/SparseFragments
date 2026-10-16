@@ -13,21 +13,12 @@ internal static class SparseObservableDescriptorEmitter
         string modelType,
         ImmutableArray<SparseMemberModel> members,
         string runtimeNamespace,
-        SparseDescriptorDialect dialect
+        SparseDescriptorDialect dialect,
+        SparseDescriptorEmissionContext context
     )
     {
-        var accessorName = AccessorName(modelType);
         var pathType = dialect.EffectivePathType(runtimeNamespace);
-        code.AppendLineAt(
-            2,
-            "internal "
-                + dialect.DescriptorSetInterface
-                + " "
-                + accessorName
-                + "("
-                + pathType
-                + " pathPrefix)"
-        );
+        code.AppendLineAt(2, context.MethodDeclaration(modelType, dialect, pathType));
         code.AppendLineAt(2, "{");
         code.AppendLineAt(
             3,
@@ -36,7 +27,7 @@ internal static class SparseObservableDescriptorEmitter
         code.AppendLineAt(3, "{");
         foreach (var member in members)
         {
-            AppendMember(code, member, members, runtimeNamespace, dialect);
+            AppendMember(code, member, members, runtimeNamespace, dialect, context);
         }
 
         code.AppendLineAt(3, "});");
@@ -48,7 +39,8 @@ internal static class SparseObservableDescriptorEmitter
         SparseMemberModel member,
         ImmutableArray<SparseMemberModel> members,
         string runtimeNamespace,
-        SparseDescriptorDialect dialect
+        SparseDescriptorDialect dialect,
+        SparseDescriptorEmissionContext context
     )
     {
         var name = SymbolDisplay.FormatLiteral(member.Property.Name, true);
@@ -61,11 +53,17 @@ internal static class SparseObservableDescriptorEmitter
         // The INotifyPropertyChanged event occupies the PropertyChanged name.
         var eventCollision = member.Property.Name == "PropertyChanged";
         // Raw mutable values escape without a notifying view.
-        var receiver = eventCollision ? "__model." + property : "this." + property;
+        var receiver = eventCollision
+            ? context.Member("__model") + "." + property
+            : context.Member(property);
         var getValue = SparseObservableEmitter.ExposesRawMutableReference(member)
-            ? "() => { __onRawModelAccess?.Invoke(); return " + receiver + "; }"
+            ? "() => { "
+                + context.Member("__onRawModelAccess")
+                + "?.Invoke(); return "
+                + receiver
+                + "; }"
             : "() => " + receiver;
-        var getModelValue = "() => (object?)__model." + property;
+        var getModelValue = "() => (object?)" + context.Member("__model") + "." + property;
         code.AppendLineAt(
             4,
             "new "
@@ -81,25 +79,31 @@ internal static class SparseObservableDescriptorEmitter
                 + ", "
                 + (canWrite ? "true" : "false")
                 + ", "
-                + Attributes(member)
+                + context.Attributes(member)
                 + ", "
                 + getValue
                 + ", "
-                + Setter(member, members, runtimeNamespace, dialect, eventCollision)
+                + Setter(member, members, runtimeNamespace, dialect, eventCollision, context)
                 + ", "
-                + ChildAccessor(member, path, dialect)
+                + ChildAccessor(member, path, dialect, context)
                 + ", "
-                + SparseObservableSequenceDescriptorEmitter.ArrayAccessor(member, path, dialect)
+                + SparseObservableSequenceDescriptorEmitter.ArrayAccessor(
+                    member,
+                    path,
+                    dialect,
+                    context
+                )
                 + ", "
                 + SparseObservableDictionaryDescriptorEmitter.DictionaryAccessor(
                     member,
                     path,
-                    dialect
+                    dialect,
+                    context
                 )
                 + ", typeof("
                 + viewType
                 + "), "
-                + SparseObservableSetDescriptorEmitter.SetAccessor(member, dialect)
+                + SparseObservableSetDescriptorEmitter.SetAccessor(member, dialect, context)
                 + ", "
                 + ShapeExpression(member, dialect)
                 + ", "
@@ -202,17 +206,13 @@ internal static class SparseObservableDescriptorEmitter
         return member.Property.Type.NonNullableName;
     }
 
-    private static string Attributes(SparseMemberModel member) =>
-        string.IsNullOrEmpty(member.Property.AttributeExpressions)
-            ? "global::System.Array.Empty<global::System.Attribute>()"
-            : "new global::System.Attribute[] { " + member.Property.AttributeExpressions + " }";
-
     private static string Setter(
         SparseMemberModel member,
         ImmutableArray<SparseMemberModel> members,
         string runtimeNamespace,
         SparseDescriptorDialect dialect,
-        bool eventCollision
+        bool eventCollision,
+        SparseDescriptorEmissionContext context
     )
     {
         var property = SparseNaming.EscapeIdentifier(member.Property.Name);
@@ -242,13 +242,23 @@ internal static class SparseObservableDescriptorEmitter
                 + propertyType
                 + ">(value, out var typed)) return false; if (global::System.Collections.Generic.EqualityComparer<"
                 + propertyType
-                + ">.Default.Equals(__model."
+                + ">.Default.Equals("
+                + context.Member("__model")
+                + "."
                 + property
-                + ", typed)) return true; __model."
+                + ", typed)) return true; "
+                + context.Member("__model")
+                + "."
                 + property
-                + " = typed; __Raise("
+                + " = typed; "
+                + context.Member("__Raise")
+                + "("
                 + literal
-                + "); if (__onChanged is not null) __onChanged(); return true; }";
+                + "); if ("
+                + context.Member("__onChanged")
+                + " is not null) "
+                + context.Member("__onChanged")
+                + "(); return true; }";
         }
 
         if (member.ChildModel is not null && member.ChildIsReferenceType)
@@ -257,22 +267,23 @@ internal static class SparseObservableDescriptorEmitter
             var childModelType = member.ChildModel.Value.NonNullableName;
             var nullHandling =
                 member.Property.IsNullable || member.Property.IsNullableOblivious
-                    ? "if (value is null) { this." + property + " = null; return true; } "
+                    ? "if (value is null) { "
+                        + context.Member(property)
+                        + " = null; return true; } "
                     : "if (value is null) return false; ";
             return "value => { "
                 + nullHandling
                 + "if (value is "
                 + childObservable
-                + " proxy) { this."
-                + property
+                + " proxy) { "
+                + context.Member(property)
                 + " = proxy; return true; } "
                 + "if (!"
                 + dialect.DescriptorValueType
                 + ".TryGet<"
                 + childModelType
                 + ">(value, out var model)) return false; "
-                + "this."
-                + property
+                + context.Member(property)
                 + " = new "
                 + childObservable
                 + "(model); return true; }";
@@ -299,24 +310,24 @@ internal static class SparseObservableDescriptorEmitter
             // incoming view must not invalidate the session cache as a side
             return "value => { if (value is "
                 + viewType
-                + " view) { this."
-                + replace
+                + " view) { "
+                + context.Member(replace)
                 + "(("
                 + propertyType
                 + ")view.UnsafeModel); return true; } "
                 + converted
-                + "this."
-                + replace
+                + context.Member(replace)
                 + "(typed); return true; }";
         }
 
-        return "value => { " + converted + "this." + property + " = typed; return true; }";
+        return "value => { " + converted + context.Member(property) + " = typed; return true; }";
     }
 
     private static string ChildAccessor(
         SparseMemberModel member,
         string path,
-        SparseDescriptorDialect dialect
+        SparseDescriptorDialect dialect,
+        SparseDescriptorEmissionContext context
     )
     {
         if (
@@ -332,16 +343,16 @@ internal static class SparseObservableDescriptorEmitter
         // writes safely once the parent resolves to a different instance.
         var property = SparseNaming.EscapeIdentifier(member.Property.Name);
         var accessor = AccessorName(member.ChildModel.Value.NonNullableName);
-        return "() => { var current = this."
-            + property
+        return "() => { var current = "
+            + context.Member(property)
             + "; if ((object?)current is null) return null; var captured = current.__SparseTarget; var inner = current."
             + accessor
             + "("
             + path
             + "); return "
             + dialect.DescriptorSetType
-            + ".Guarded(inner, () => { var live = this."
-            + property
+            + ".Guarded(inner, () => { var live = "
+            + context.Member(property)
             + "; if ((object?)live is null) return false; return global::System.Object.ReferenceEquals(live.__SparseTarget, captured); }); }";
     }
 

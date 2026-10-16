@@ -110,27 +110,4 @@ public sealed class RelocatedRewriteSafetyTests
         relocated.ShouldContain("var text = \"" + legacy + "\";");
         relocated.ShouldContain("// " + legacy);
     }
-
-    [Test]
-    public void ReceiverRewriteSkipsLiteralsAndComments()
-    {
-        var source =
-            "var name = this.Note; // this.Note stays\n"
-            + "var text = \"this.Note and __model.Note stay\";\n"
-            + "__Raise(\"Note\");\n"
-            + "var target = __model.Note;\n"
-            + "__onChanged?.Invoke();\n"
-            + "__onRawModelAccess?.Invoke();\n";
-        var rewritten = SparseDescriptorFactoryEmitter.RewriteReceiver(
-            source,
-            CancellationToken.None
-        );
-        rewritten.ShouldContain("var name = observable.Note;");
-        rewritten.ShouldContain("// this.Note stays");
-        rewritten.ShouldContain("\"this.Note and __model.Note stay\"");
-        rewritten.ShouldContain("observable.__Raise(\"Note\");");
-        rewritten.ShouldContain("var target = observable.__model.Note;");
-        rewritten.ShouldContain("observable.__onChanged?.Invoke();");
-        rewritten.ShouldContain("observable.__onRawModelAccess?.Invoke();");
-    }
 }

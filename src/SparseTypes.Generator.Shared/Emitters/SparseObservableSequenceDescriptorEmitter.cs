@@ -9,7 +9,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
     internal static string ArrayAccessor(
         SparseMemberModel member,
         string path,
-        SparseDescriptorDialect dialect
+        SparseDescriptorDialect dialect,
+        SparseDescriptorEmissionContext context
     )
     {
         if (member.Property.Name == "PropertyChanged")
@@ -19,7 +20,7 @@ internal static class SparseObservableSequenceDescriptorEmitter
 
         if (SparseObservableEmitter.IsObservableList(member))
         {
-            return ListAccessor(member, path, dialect);
+            return ListAccessor(member, path, dialect, context);
         }
 
         if (
@@ -42,7 +43,7 @@ internal static class SparseObservableSequenceDescriptorEmitter
             && member.Collection.Kind == SparseCollectionKind.Array
         )
         {
-            return ReadOnlySequenceAccessor(member, path, dialect);
+            return ReadOnlySequenceAccessor(member, path, dialect, context);
         }
 
         var property = SparseNaming.EscapeIdentifier(member.Property.Name);
@@ -57,17 +58,25 @@ internal static class SparseObservableSequenceDescriptorEmitter
         var descriptors = hasProxy
             ? ", GetItemDescriptors = index => { var item = __sparse_captured[index]; if ((object?)item is null) return null; var view = new "
                 + viewType
-                + "(item, () => { __Raise("
+                + "(item, () => { "
+                + context.Member("__Raise")
+                + "("
                 + literal
-                + "); if (__onChanged is not null) __onChanged(); }, __onRawModelAccess); return view."
+                + "); if ("
+                + context.Member("__onChanged")
+                + " is not null) "
+                + context.Member("__onChanged")
+                + "(); }, "
+                + context.Member("__onRawModelAccess")
+                + "); return view."
                 + SparseObservableDescriptorEmitter.AccessorName(itemType)
                 + "("
                 + path
                 + ".At(index)); }, "
                 + "GetItemModel = index => (uint)index >= (uint)__sparse_captured.Length ? null : (object?)__sparse_captured[index]"
             : string.Empty;
-        return "() => { var current = this."
-            + property
+        return "() => { var current = "
+            + context.Member(property)
             + "; if ((object?)current is null) return null; var __sparse_captured = current; return "
             + dialect.ArrayDescriptorType
             + ".Guarded(new "
@@ -82,8 +91,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
             + descriptors
             + " }, typeof("
             + itemType
-            + ")), () => global::System.Object.ReferenceEquals(this."
-            + property
+            + ")), () => global::System.Object.ReferenceEquals("
+            + context.Member(property)
             + ", __sparse_captured)); }";
     }
 
@@ -92,7 +101,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
     internal static string ReadOnlySequenceAccessor(
         SparseMemberModel member,
         string path,
-        SparseDescriptorDialect dialect
+        SparseDescriptorDialect dialect,
+        SparseDescriptorEmissionContext context
     )
     {
         var property = SparseNaming.EscapeIdentifier(member.Property.Name);
@@ -109,13 +119,23 @@ internal static class SparseObservableSequenceDescriptorEmitter
         // Transient element proxies notify the parent property; the collection
         // itself has no notifying view, so size mutations are unsupported.
         var changed =
-            "() => { __Raise(" + literal + "); if (__onChanged is not null) __onChanged(); }";
+            "() => { "
+            + context.Member("__Raise")
+            + "("
+            + literal
+            + "); if ("
+            + context.Member("__onChanged")
+            + " is not null) "
+            + context.Member("__onChanged")
+            + "(); }";
         var wrap = hasProxy
             ? "item is null ? null : new "
                 + viewType
                 + "(item, "
                 + changed
-                + ", __onRawModelAccess)"
+                + ", "
+                + context.Member("__onRawModelAccess")
+                + ")"
             : "item";
         var descriptors = hasProxy
             ? ", GetItemDescriptors = index => { var item = items[index]; var view = (object?)("
@@ -129,8 +149,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
                 + ".At(index)); }, "
                 + "GetItemModel = index => (uint)index >= (uint)items.Count ? null : (object?)items[index]"
             : string.Empty;
-        return "() => { var current = this."
-            + property
+        return "() => { var current = "
+            + context.Member(property)
             + "; if ((object?)current is null) return null; var __sparse_captured = current; "
             + "var source = (global::System.Collections.Generic.IEnumerable<"
             + element.Name
@@ -159,15 +179,16 @@ internal static class SparseObservableSequenceDescriptorEmitter
             + descriptors
             + " }, typeof("
             + viewType
-            + ")), () => global::System.Object.ReferenceEquals(this."
-            + property
+            + ")), () => global::System.Object.ReferenceEquals("
+            + context.Member(property)
             + ", __sparse_captured)); }";
     }
 
     internal static string ListAccessor(
         SparseMemberModel member,
         string path,
-        SparseDescriptorDialect dialect
+        SparseDescriptorDialect dialect,
+        SparseDescriptorEmissionContext context
     )
     {
         var property = SparseNaming.EscapeIdentifier(member.Property.Name);
@@ -180,8 +201,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
             ? names.ViewType.TrimEnd('?')
             : member.Collection.ElementType.NonNullableName;
         var descriptorChildAccessor = names.HasElementProxy
-            ? "GetItemDescriptors = index => { var item = this."
-                + property
+            ? "GetItemDescriptors = index => { var item = "
+                + context.Member(property)
                 + "![index]; return item is null ? null : item."
                 + itemAccessorName
                 + "("
@@ -191,17 +212,17 @@ internal static class SparseObservableSequenceDescriptorEmitter
         // Identity resolver for retained item descriptors: the unwrapped model
         // at an index, or null when out of range.
         var modelResolver = names.HasElementProxy
-            ? "GetItemModel = index => { if ((uint)index >= (uint)this."
-                + property
-                + "!.Count) return null; var view = this."
-                + property
+            ? "GetItemModel = index => { if ((uint)index >= (uint)"
+                + context.Member(property)
+                + "!.Count) return null; var view = "
+                + context.Member(property)
                 + "![index]; return view is null ? null : (object?)(view is "
                 + itemViewType
                 + " proxy ? proxy.__SparseTarget : view); }"
-            : "GetItemModel = index => (uint)index >= (uint)this."
-                + property
-                + "!.Count ? null : (object?)this."
-                + property
+            : "GetItemModel = index => (uint)index >= (uint)"
+                + context.Member(property)
+                + "!.Count ? null : (object?)"
+                + context.Member(property)
                 + "![index]";
         var conversion = SparseObservableDescriptorEmitter.ValueConversion(
             "value",
@@ -211,12 +232,12 @@ internal static class SparseObservableSequenceDescriptorEmitter
             SparseObservableDescriptorEmitter.IsNullable(modelItemType),
             dialect
         );
-        var canWrite = "!this." + property + "!.IsReadOnly";
-        var canResize = canWrite + " && !this." + property + "!.IsFixedSize";
+        var canWrite = "!" + context.Member(property) + "!.IsReadOnly";
+        var canResize = canWrite + " && !" + context.Member(property) + "!.IsFixedSize";
         // Assigned-key duplicates are rejected before any mutation; unassigned
         // sentinels are exempt and proceed like direct observable mutation.
-        var duplicateAdd = DuplicateKeyGuard(member, names, property, "item", null);
-        var duplicateSet = DuplicateKeyGuard(member, names, property, "item", "index");
+        var duplicateAdd = DuplicateKeyGuard(member, names, property, "item", null, context);
+        var duplicateSet = DuplicateKeyGuard(member, names, property, "item", "index", context);
         // Provider failures surface as NotSupportedException for fixed-size or
         // custom lists; the Try contract reports false instead of propagating.
         const string unsupportedGuard =
@@ -226,13 +247,13 @@ internal static class SparseObservableSequenceDescriptorEmitter
             + modelItemType
             + " item; if (!"
             + canWrite
-            + " || (uint)index >= (uint)this."
-            + property
+            + " || (uint)index >= (uint)"
+            + context.Member(property)
             + "!.Count) return false; "
             + conversion
             + duplicateSet
-            + "try { this."
-            + property
+            + "try { "
+            + context.Member(property)
             + "!.SetModel(index, item); } "
             + unsupportedGuard
             + "return true; }, ";
@@ -244,8 +265,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
             + ") return false; "
             + conversion
             + duplicateAdd
-            + "try { this."
-            + property
+            + "try { "
+            + context.Member(property)
             + "!.AddModel(item); } "
             + unsupportedGuard
             + "return true; }, ";
@@ -254,41 +275,41 @@ internal static class SparseObservableSequenceDescriptorEmitter
             + modelItemType
             + " item; if (!"
             + canResize
-            + " || index < 0 || index > this."
-            + property
+            + " || index < 0 || index > "
+            + context.Member(property)
             + "!.Count) return false; "
             + conversion
             + duplicateAdd
-            + "try { this."
-            + property
+            + "try { "
+            + context.Member(property)
             + "!.InsertModel(index, item); } "
             + unsupportedGuard
             + "return true; }, ";
         var remove =
             "TryRemoveAt = index => { if (!"
             + canResize
-            + " || (uint)index >= (uint)this."
-            + property
-            + "!.Count) return false; try { this."
-            + property
+            + " || (uint)index >= (uint)"
+            + context.Member(property)
+            + "!.Count) return false; try { "
+            + context.Member(property)
             + "!.RemoveAt(index); } "
             + unsupportedGuard
             + "return true; }, ";
         var move =
             "TryMove = (oldIndex, newIndex) => { if (!"
             + canResize
-            + " || (uint)oldIndex >= (uint)this."
-            + property
-            + "!.Count || (uint)newIndex >= (uint)this."
-            + property
-            + "!.Count) return false; try { this."
-            + property
+            + " || (uint)oldIndex >= (uint)"
+            + context.Member(property)
+            + "!.Count || (uint)newIndex >= (uint)"
+            + context.Member(property)
+            + "!.Count) return false; try { "
+            + context.Member(property)
             + "!.Move(oldIndex, newIndex); } "
             + unsupportedGuard
             + "return true; }, ";
-        var keyed = KeyedSequenceMetadata(member, property, names, dialect);
-        return "() => this."
-            + property
+        var keyed = KeyedSequenceMetadata(member, property, names, dialect, context);
+        return "() => "
+            + context.Member(property)
             + " is null ? null : "
             + dialect.ArrayDescriptorType
             + ".Guarded(new "
@@ -301,10 +322,10 @@ internal static class SparseObservableSequenceDescriptorEmitter
             )
             + ", new "
             + dialect.ArrayDescriptorAccessType
-            + " { Count = () => this."
-            + property
-            + "!.Count, GetItem = index => this."
-            + property
+            + " { Count = () => "
+            + context.Member(property)
+            + "!.Count, GetItem = index => "
+            + context.Member(property)
             + "![index], CanSetItem = () => "
             + canWrite
             + ", CanAdd = () => "
@@ -344,7 +365,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
         SparseMemberModel member,
         string property,
         SparseObservableEmitter.CollectionProxyNames names,
-        SparseDescriptorDialect dialect
+        SparseDescriptorDialect dialect,
+        SparseDescriptorEmissionContext context
     )
     {
         var keyTypeName = member.Collection.KeyTypeName;
@@ -361,8 +383,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
         // model.
         string Unwrap(string view) => UnwrapModelExpression(names, view);
         var resolvers =
-            "GetItemKey = index => { var rawKeyedItem = this."
-            + property
+            "GetItemKey = index => { var rawKeyedItem = "
+            + context.Member(property)
             + "![index]; var keyedModel = "
             + Unwrap("rawKeyedItem")
             + "; if (keyedModel is null) return null; return (object?)("
@@ -370,8 +392,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
             + "); }, "
             + "IndexOfKey = key => { if (!"
             + keyCast
-            + "(key, out var typedKey)) return -1; var keyedList = this."
-            + property
+            + "(key, out var typedKey)) return -1; var keyedList = "
+            + context.Member(property)
             + "!; for (var keyedIndex = 0; keyedIndex < keyedList.Count; keyedIndex++) { var keyedModel = "
             + Unwrap("keyedList[keyedIndex]")
             + "; if (keyedModel is null) continue; if ("
@@ -389,8 +411,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
         {
             var temporaryProperty = SparseNaming.EscapeIdentifier(temporaryKeyProperty);
             temporaryResolver =
-                "IndexOfTemporaryKey = temporaryKey => { var temporaryList = this."
-                + property
+                "IndexOfTemporaryKey = temporaryKey => { var temporaryList = "
+                + context.Member(property)
                 + "!; for (var temporaryIndex = 0; temporaryIndex < temporaryList.Count; temporaryIndex++) { var temporaryModel = "
                 + Unwrap("temporaryList[temporaryIndex]")
                 + "; if (temporaryModel is "
@@ -450,7 +472,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
         SparseObservableEmitter.CollectionProxyNames names,
         string property,
         string modelVariable,
-        string? excludeIndex
+        string? excludeIndex,
+        SparseDescriptorEmissionContext context
     )
     {
         var keyTypeName = member.Collection.KeyTypeName;
@@ -470,8 +493,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
             + KeyOfObjectExpression(member, "__duplicateItem")
             + "; if (!"
             + SparseKeyedCollectionEmitter.IsUnassignedExpression(member, "__duplicateKey")
-            + ") { var __duplicateList = this."
-            + property
+            + ") { var __duplicateList = "
+            + context.Member(property)
             + "!; for (var __duplicateIndex = 0; __duplicateIndex < __duplicateList.Count; __duplicateIndex++) { "
             + (
                 excludeIndex is null
@@ -492,8 +515,8 @@ internal static class SparseObservableSequenceDescriptorEmitter
             guard +=
                 " else { var __duplicateTemp = "
                 + TempOfObjectExpression(member, "__duplicateItem")
-                + "; if (__duplicateTemp.HasValue && __duplicateTemp.Value != global::System.Guid.Empty) { var __duplicateTempList = this."
-                + property
+                + "; if (__duplicateTemp.HasValue && __duplicateTemp.Value != global::System.Guid.Empty) { var __duplicateTempList = "
+                + context.Member(property)
                 + "!; for (var __duplicateTempIndex = 0; __duplicateTempIndex < __duplicateTempList.Count; __duplicateTempIndex++) { "
                 + (
                     excludeIndex is null

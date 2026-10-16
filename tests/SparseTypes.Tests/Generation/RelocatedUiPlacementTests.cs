@@ -251,4 +251,45 @@ public sealed class RelocatedUiPlacementTests
             )
             .ShouldBe(1);
     }
+
+    [Test]
+    public void PrivateAttributesUseModelBridgesInTheFactory()
+    {
+        const string source = """
+            using SparseTypes;
+            namespace Reloc.Probe;
+            [SparseModel]
+            public partial class AttributedModel
+            {
+                [System.AttributeUsage(System.AttributeTargets.Property)]
+                private sealed class LabelAttribute : System.Attribute
+                {
+                    public LabelAttribute(string value) => Value = value;
+                    public string Value { get; }
+                }
+
+                [Label("escaped \" quote")]
+                public string First { get; set; } = string.Empty;
+                [Label("same")]
+                public string Second { get; set; } = string.Empty;
+                [Label("same")]
+                public string Third { get; set; } = string.Empty;
+            }
+            """;
+        var (compilation, _, all) = Generate(source);
+        compilation
+            .GetDiagnostics()
+            .Where(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
+            .ShouldBeEmpty();
+        var factory = all.Values.First(text =>
+            text.Contains("internal static class DescriptorFactory", StringComparison.Ordinal)
+        );
+        factory.ShouldContain("global::Reloc.Probe.AttributedModel.__SparseAttributes_0()");
+        factory.ShouldContain("global::Reloc.Probe.AttributedModel.__SparseAttributes_1()");
+        factory.ShouldContain("global::Reloc.Probe.AttributedModel.__SparseAttributes_2()");
+        var surface = all.Values.First(text =>
+            text.Contains("__SparseAttributes_0()", StringComparison.Ordinal)
+        );
+        surface.ShouldContain("escaped \\\" quote");
+    }
 }

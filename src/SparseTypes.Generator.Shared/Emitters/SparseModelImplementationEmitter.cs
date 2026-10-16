@@ -33,12 +33,7 @@ internal static class SparseModelImplementationEmitter
             runtimeNamespace,
             descriptorDialect
         );
-        var inner = RelocateAttributeBridges(
-            innerBuilder.ToString(),
-            model.ModelTypeName,
-            members,
-            cancellationToken
-        );
+        var inner = innerBuilder.ToString();
         if (
             descriptorDialect is null
             && config.DescriptorDialect is { } configured
@@ -116,12 +111,7 @@ internal static class SparseModelImplementationEmitter
             implementationNamespace
         );
         _ = readOnlyViewModels;
-        var inner = RelocateAttributeBridges(
-            innerBuilder.ToString(),
-            model.ModelTypeName,
-            members,
-            cancellationToken
-        );
+        var inner = innerBuilder.ToString();
         var source = WrapInModel(model, inner, cancellationToken);
         return new SparseGeneratedSource(
             SparseGeneratedPlacement.ReadOnlyViewHintName(model, cancellationToken),

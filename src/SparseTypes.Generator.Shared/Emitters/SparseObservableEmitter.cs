@@ -132,7 +132,8 @@ internal static class SparseObservableEmitter
                 modelType,
                 members,
                 runtimeNamespace,
-                descriptorDialect
+                descriptorDialect,
+                SparseDescriptorEmissionContext.Inline
             );
         }
 

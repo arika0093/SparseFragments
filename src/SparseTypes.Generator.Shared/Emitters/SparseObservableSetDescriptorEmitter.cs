@@ -7,7 +7,11 @@ internal static class SparseObservableSetDescriptorEmitter
 {
     /// <summary>Emits a set descriptor for HashSet/ISet/IReadOnlySet shapes.</summary>
     /// <remarks>Reads stay live over the backing set so membership honors its comparer.</remarks>
-    internal static string SetAccessor(SparseMemberModel member, SparseDescriptorDialect dialect)
+    internal static string SetAccessor(
+        SparseMemberModel member,
+        SparseDescriptorDialect dialect,
+        SparseDescriptorEmissionContext context
+    )
     {
         if (member.Property.Name == "PropertyChanged")
         {
@@ -49,7 +53,15 @@ internal static class SparseObservableSetDescriptorEmitter
             isNullable,
             dialect
         );
-        var notify = "__Raise(" + literal + "); if (__onChanged is not null) __onChanged();";
+        var notify =
+            context.Member("__Raise")
+            + "("
+            + literal
+            + "); if ("
+            + context.Member("__onChanged")
+            + " is not null) "
+            + context.Member("__onChanged")
+            + "();";
         string count;
         string contains;
         string readOnlyLocals;
@@ -79,8 +91,8 @@ internal static class SparseObservableSetDescriptorEmitter
                 + "return edit.Contains(typedItem); }";
         }
 
-        return "() => { var current = this."
-            + property
+        return "() => { var current = "
+            + context.Member(property)
             + "; if ((object?)current is null) return null; "
             + "var source = (global::System.Collections.Generic.IEnumerable<"
             + itemType

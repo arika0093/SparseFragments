@@ -101,6 +101,14 @@ public sealed class RelocatedAttributeBridgeTests
         return configuration with { DescriptorDialect = null };
     }
 
+    private static SparseGeneratorConfig ProductConfig() =>
+        (SparseGeneratorConfig)(
+            typeof(SparseTypesGenerator)
+                .GetField("Configuration", BindingFlags.NonPublic | BindingFlags.Static)
+                ?.GetValue(null)
+            ?? throw new InvalidOperationException("Missing generator configuration.")
+        );
+
     private static (string Surface, string? Implementation) BuildSplit(
         SparseGeneratorConfig config,
         ImmutableArray<SparseMemberModel> members
@@ -141,6 +149,46 @@ public sealed class RelocatedAttributeBridgeTests
 
         var surface = BuildSurface(config, members);
         surface.ShouldContain("internal static global::System.Attribute[] __SparseAttributes_0()");
+    }
+
+    [Test]
+    public void DescriptorFactoryEmitsItsSignatureReceiversAndAttributeBridgesDirectly()
+    {
+        var config = ProductConfig();
+        var source = SparseDescriptorFactoryEmitter.BuildSource(
+            BridgeModel(),
+            AttributedMembers(),
+            config,
+            CancellationToken.None,
+            config.RuntimeDialect!.Namespace
+        );
+
+        source.Source.ShouldContain("Create(");
+        source.Source.ShouldContain("ReadModel.__SparseAttributes_0()");
+        source.Source.ShouldContain("observable.Label");
+        source.Source.ShouldContain("observable.__model.Label");
+        source.Source.ShouldNotContain("__SparseGetDescriptors_");
+        source.Source.ShouldNotContain("this.");
+
+        var customConfig = config with
+        {
+            DescriptorDialect = config.DescriptorDialect! with
+            {
+                DescriptorSetInterface = "global::Downstream.IDescriptorSet",
+                PathType = "global::Downstream.Path",
+            },
+        };
+        var customSource = SparseDescriptorFactoryEmitter.BuildSource(
+            BridgeModel(),
+            AttributedMembers(),
+            customConfig,
+            CancellationToken.None,
+            config.RuntimeDialect!.Namespace
+        );
+        customSource.Source.ShouldContain(
+            "internal static global::Downstream.IDescriptorSet Create("
+        );
+        customSource.Source.ShouldContain("global::Downstream.Path pathPrefix");
     }
 
     [Test]

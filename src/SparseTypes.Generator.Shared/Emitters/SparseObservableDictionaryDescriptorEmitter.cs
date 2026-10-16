@@ -10,7 +10,8 @@ internal static class SparseObservableDictionaryDescriptorEmitter
     internal static string ReadOnlyDictionaryAccessor(
         SparseMemberModel member,
         string path,
-        SparseDescriptorDialect dialect
+        SparseDescriptorDialect dialect,
+        SparseDescriptorEmissionContext context
     )
     {
         if (
@@ -34,7 +35,15 @@ internal static class SparseObservableDictionaryDescriptorEmitter
             : valueTypeDecl;
         var keyCast = dialect.DescriptorValueType + ".TryGet<" + keyType + ">";
         var changed =
-            "() => { __Raise(" + literal + "); if (__onChanged is not null) __onChanged(); }";
+            "() => { "
+            + context.Member("__Raise")
+            + "("
+            + literal
+            + "); if ("
+            + context.Member("__onChanged")
+            + " is not null) "
+            + context.Member("__onChanged")
+            + "(); }";
         string WrapValue(string variable) =>
             hasProxy
                 ? variable
@@ -44,7 +53,9 @@ internal static class SparseObservableDictionaryDescriptorEmitter
                     + variable
                     + ", "
                     + changed
-                    + ", __onRawModelAccess)"
+                    + ", "
+                    + context.Member("__onRawModelAccess")
+                    + ")"
                 : variable;
         var childAccessor = hasProxy
             ? "GetValueDescriptors = key => { if (key is null || !"
@@ -59,8 +70,8 @@ internal static class SparseObservableDictionaryDescriptorEmitter
                 + path
                 + ".Key(typedKey)); }, "
             : string.Empty;
-        return "() => { var current = this."
-            + property
+        return "() => { var current = "
+            + context.Member(property)
             + "; if ((object?)current is null) return null; var __sparse_captured = current; "
             + "var source = (global::System.Collections.Generic.IReadOnlyDictionary<"
             + keyType
@@ -92,15 +103,16 @@ internal static class SparseObservableDictionaryDescriptorEmitter
             + "(key, out var typedKey) || !source.TryGetValue(typedKey, out var foundModel)) return null; return (object?)foundModel; }"
             + "}, typeof("
             + viewType
-            + ")), () => global::System.Object.ReferenceEquals(this."
-            + property
+            + ")), () => global::System.Object.ReferenceEquals("
+            + context.Member(property)
             + ", __sparse_captured)); }";
     }
 
     internal static string DictionaryAccessor(
         SparseMemberModel member,
         string path,
-        SparseDescriptorDialect dialect
+        SparseDescriptorDialect dialect,
+        SparseDescriptorEmissionContext context
     )
     {
         if (member.Property.Name == "PropertyChanged")
@@ -110,14 +122,14 @@ internal static class SparseObservableDictionaryDescriptorEmitter
 
         if (!SparseObservableEmitter.IsObservableDictionary(member))
         {
-            return ReadOnlyDictionaryAccessor(member, path, dialect);
+            return ReadOnlyDictionaryAccessor(member, path, dialect, context);
         }
 
         var property = SparseNaming.EscapeIdentifier(member.Property.Name);
         var keyType = member.Collection.ElementType.Name;
         var modelValueType = member.Collection.ValueType!.Value.Name;
         var names = SparseObservableEmitter.CollectionNames(member);
-        var mutable = "!this." + property + "!.IsReadOnly";
+        var mutable = "!" + context.Member(property) + "!.IsReadOnly";
         var keyCast = dialect.DescriptorValueType + ".TryGet<" + keyType + ">";
         var valueConversion = SparseObservableDescriptorEmitter.ValueConversion(
             "value",
@@ -130,8 +142,8 @@ internal static class SparseObservableDictionaryDescriptorEmitter
         var childAccessor = names.HasElementProxy
             ? "GetValueDescriptors = key => { if (key is null || !"
                 + keyCast
-                + "(key, out var typedKey) || !this."
-                + property
+                + "(key, out var typedKey) || !"
+                + context.Member(property)
                 + "!.TryGetValue(typedKey, out var item) || item is null) return null; return item."
                 + SparseObservableDescriptorEmitter.AccessorName(
                     member.Collection.ValueType.Value.NonNullableName
@@ -148,18 +160,18 @@ internal static class SparseObservableDictionaryDescriptorEmitter
         var valueResolver = names.HasElementProxy
             ? "GetValueModel = key => { if (key is null || !"
                 + keyCast
-                + "(key, out var typedKey) || !this."
-                + property
+                + "(key, out var typedKey) || !"
+                + context.Member(property)
                 + "!.TryGetValue(typedKey, out var view)) return null; return view is null ? null : (object?)(view is "
                 + viewTypeName
                 + " proxy ? proxy.__SparseTarget : view); }"
             : "GetValueModel = key => { if (key is null || !"
                 + keyCast
-                + "(key, out var typedKey) || !this."
-                + property
+                + "(key, out var typedKey) || !"
+                + context.Member(property)
                 + "!.TryGetValue(typedKey, out var found)) return null; return (object?)found; }";
-        return "() => this."
-            + property
+        return "() => "
+            + context.Member(property)
             + " is null ? null : "
             + dialect.DictionaryDescriptorType
             + ".Guarded(new "
@@ -172,56 +184,53 @@ internal static class SparseObservableDictionaryDescriptorEmitter
             + SparseObservableDescriptorEmitter.IsNullableExpression(modelValueType)
             + ", new "
             + dialect.DictionaryDescriptorAccessType
-            + " { Count = () => this."
-            + property
+            + " { Count = () => "
+            + context.Member(property)
             + "!.Count, CanAdd = () => "
             + mutable
             + ", CanRemove = () => "
             + mutable
             + ", CanSet = () => "
             + mutable
-            + ", Keys = () => global::System.Linq.Enumerable.Cast<object?>(this."
-            + property
+            + ", Keys = () => global::System.Linq.Enumerable.Cast<object?>("
+            + context.Member(property)
             + "!.Keys), "
             + "TryGetValue = key => { if (key is null || !"
             + keyCast
-            + "(key, out var typedKey) || !this."
-            + property
+            + "(key, out var typedKey) || !"
+            + context.Member(property)
             + "!.TryGetValue(typedKey, out var result)) return (false, (object?)null); return (true, (object?)result); }, "
             + childAccessor
             + "TryAdd = (key, value) => { if (key is null || !"
             + mutable
             + " || !"
             + keyCast
-            + "(key, out var typedKey) || this."
-            + property
+            + "(key, out var typedKey) || "
+            + context.Member(property)
             + "!.ContainsKey(typedKey)) return false; "
             + modelValueType
             + " typedValue; "
             + valueConversion
-            + "this."
-            + property
+            + context.Member(property)
             + "!.AddModel(typedKey, typedValue); return true; }, "
             + "TrySetValue = (key, value) => { if (key is null || !"
             + mutable
             + " || !"
             + keyCast
             + "(key, out var typedKey) || !"
-            + "this."
-            + property
+            + context.Member(property)
             + "!.ContainsKey(typedKey)) return false; "
             + modelValueType
             + " typedValue; "
             + valueConversion
-            + "this."
-            + property
+            + context.Member(property)
             + "!.SetModel(typedKey, typedValue); return true; }, "
             + "TryRemove = key => { if (key is null || !"
             + mutable
             + " || !"
             + keyCast
-            + "(key, out var typedKey)) return false; return this."
-            + property
+            + "(key, out var typedKey)) return false; return "
+            + context.Member(property)
             + "!.Remove(typedKey); }, "
             + valueResolver
             + " }, typeof("
