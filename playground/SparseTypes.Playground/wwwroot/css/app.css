@@ -184,6 +184,7 @@ a, .btn-link {
 
 .pg-gh svg {
     width: 1.75rem;
+    fill: currentColor;
 }
 
 .pg-theme {
@@ -1170,8 +1171,36 @@ fluent-dialog::part(dialog) {
     margin-top: 0.75rem;
 }
 
-.pg-conflict-dialog::part(dialog) {
-    width: min(88rem, calc(100vw - 2rem));
+.pg-conflict-dialog .pg-dialog-body {
+    min-width: 0;
+    max-height: calc(100vh - 10rem);
+    overflow: auto;
+}
+
+.pg-conflict-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.pg-change-table.pg-conflict-table {
+    display: table;
+    width: 100%;
+    min-width: 68rem;
+    max-width: none;
+    table-layout: fixed;
+}
+
+.pg-conflict-choice {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    margin-top: 0.35rem;
+    white-space: normal;
+}
+
+.pg-case5-server-update-notice {
+    color: var(--colorBrandForeground1, #0078d4);
+    background: rgba(0, 120, 212, 0.12);
 }
 
 .pg-catalog-review-dialog::part(dialog),

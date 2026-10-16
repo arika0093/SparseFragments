@@ -1,6 +1,7 @@
 @using SparseTypes
 
 <FluentDialog @ref="_dialog" Hidden="@(!Visible)" Modal="true" TrapFocus="true"
+    Size="full"
     Class="pg-conflict-dialog" AriaLabel="Concurrent save conflict">
     <div class="pg-dialog-heading">
         <h3>Concurrent update detected</h3>
@@ -9,10 +10,10 @@
         <p class="pg-hint">@Summary</p>
         @if (Conflicts.Count > 0)
         {
-            <div class="pg-change-table-wrap">
-                <table class="pg-change-table" aria-label="Concurrent save details">
+            <div class="pg-change-table-wrap pg-conflict-table-wrap">
+                <table class="pg-change-table pg-conflict-table" aria-label="Concurrent save details">
                     <thead>
-                        <tr><th>Path</th><th>Base</th><th>@SubmittedHeader</th><th>Current persisted value</th><th>Conflict / resolution</th></tr>
+                        <tr><th>Path</th><th>Base</th><th>@SubmittedHeader</th><th>Current persisted value</th><th>Conflict</th></tr>
                     </thead>
                     <tbody>
                         @foreach (var row in Conflicts)
@@ -20,25 +21,27 @@
                             <tr>
                                 <td><span class="pg-change-value">@row.PathText</span></td>
                                 <td><span class="pg-change-value">@row.Baseline</span></td>
-                                <td><span class="pg-change-value">@row.Submitted</span></td>
-                                <td><span class="pg-change-value">@row.Current</span></td>
                                 <td>
-                                    <span class="pg-change-value">@row.Kind</span>
+                                    <span class="pg-change-value">@row.Submitted</span>
                                     @if (row.CanResolve)
                                     {
-                                        <div class="pg-actions">
-                                            <FluentButton Appearance="ButtonAppearance.Default"
-                                                Disabled="@IsApplying"
-                                                @onclick="() => OnUseSubmitted.InvokeAsync(row.PathText)">Use captured value</FluentButton>
-                                            <FluentButton Appearance="ButtonAppearance.Default"
-                                                Disabled="@IsApplying"
-                                                @onclick="() => OnUseCurrent.InvokeAsync(row.PathText)">Use current value</FluentButton>
-                                        </div>
-                                        <span class="pg-change-value">
-                                            @(row.UseSubmitted switch { true => "Using captured value", false => "Using current value", _ => "Choose a value" })
-                                        </span>
+                                        <FluentButton Class="pg-conflict-choice"
+                                            Appearance="@(row.UseSubmitted == true ? ButtonAppearance.Primary : ButtonAppearance.Default)"
+                                            Disabled="@IsApplying" aria-pressed="@(row.UseSubmitted == true ? "true" : "false")"
+                                            @onclick="() => OnUseSubmitted.InvokeAsync(row.PathText)">Use captured value</FluentButton>
                                     }
                                 </td>
+                                <td>
+                                    <span class="pg-change-value">@row.Current</span>
+                                    @if (row.CanResolve)
+                                    {
+                                        <FluentButton Class="pg-conflict-choice"
+                                            Appearance="@(row.UseSubmitted == false ? ButtonAppearance.Primary : ButtonAppearance.Default)"
+                                            Disabled="@IsApplying" aria-pressed="@(row.UseSubmitted == false ? "true" : "false")"
+                                            @onclick="() => OnUseCurrent.InvokeAsync(row.PathText)">Use current value</FluentButton>
+                                    }
+                                </td>
+                                <td><span class="pg-change-value">@row.Kind</span></td>
                             </tr>
                         }
                     </tbody>

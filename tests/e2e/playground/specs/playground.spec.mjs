@@ -157,6 +157,123 @@ test("case 5 saves an order edit and resets a later draft", async ({ page }) => 
   await expect(notes).toHaveValue("first order");
 });
 
+test("case 5 gates and orders the real-time edit simulation", async ({ page }) => {
+  await openCase(page, "case-5", "EF Core: ChangeSet to tracked entity");
+  const options = page.locator(".pg-case5-rebase-options");
+  const checkboxes = options.locator("fluent-checkbox");
+  const simulateAnotherUser = checkboxes.nth(1);
+  const simulateRealTime = checkboxes.nth(2);
+  const optionText = await options.innerText();
+  const simulateIndex = optionText.indexOf("Simulate another user editing before save");
+  const conflictIndex = optionText.indexOf("Conflict handling");
+  const realTimeIndex = optionText.indexOf("Simulate real-time edits every 10 seconds");
+
+  expect(simulateIndex).toBeGreaterThanOrEqual(0);
+  expect(conflictIndex).toBeGreaterThan(simulateIndex);
+  expect(realTimeIndex).toBeGreaterThan(conflictIndex);
+  await expect(simulateRealTime).toHaveAttribute("disabled", "");
+  await simulateAnotherUser.click();
+  await expect(simulateRealTime).not.toHaveAttribute("disabled");
+  await simulateAnotherUser.click();
+  await expect(simulateRealTime).toHaveAttribute("disabled", "");
+
+  const githubIcon = page.locator(".pg-gh svg");
+  await expect.poll(() => githubIcon.evaluate(icon =>
+    getComputedStyle(icon).fill === getComputedStyle(icon).color,
+  )).toBe(true);
+});
+
+test("case 5 keeps the saved entity diff fixed during later real-time edits", async ({ page }) => {
+  test.setTimeout(45_000);
+  await openCase(page, "case-5", "EF Core: ChangeSet to tracked entity");
+  await page.getByText("Simulate another user editing before save", { exact: true }).click();
+  await page.getByText("Simulate real-time edits every 10 seconds", { exact: true }).click();
+
+  const notices = page.locator(".pg-case5-update-notice");
+  const initialNotice = notices.first();
+  await expect(initialNotice).toBeVisible({ timeout: 20_000 });
+  const remoteNoticeColor = await initialNotice.evaluate(notice => getComputedStyle(notice).color);
+  const total = page.locator(".pg-edit-fields .pg-row").filter({ hasText: "Total" }).locator("input").first();
+  await enterText(total, "9876.54");
+  await fluentButton(page, "Save").first().click();
+  const saveDialog = page.locator(".pg-submit-preview-dialog");
+  await fluentButton(saveDialog, "Save").click();
+  await expect(page.getByRole("table", { name: "Modified EF properties" }).getByText("9876.54")).toBeVisible();
+  const customer = page.locator(".pg-edit-fields .pg-row").filter({ hasText: "Customer" }).locator("input").first();
+  const serverCustomer = await page.evaluate(() => {
+    const entityModel = window.monaco.editor.getModels()
+      .map(model => model.getValue())
+      .find(value => value.includes('"CustomerName":') && value.includes('"Revision":'));
+    return entityModel ? JSON.parse(entityModel).CustomerName : null;
+  });
+  expect(serverCustomer).toBeTruthy();
+  await expect(customer).toHaveValue(serverCustomer);
+  const serverNotice = page.locator(".pg-case5-server-update-notice").first();
+  await expect(serverNotice).toHaveText("Updated from server value");
+  await expect.poll(() => serverNotice.evaluate(notice => getComputedStyle(notice).color)).not.toBe(remoteNoticeColor);
+
+  const savedEntity = await page.evaluate(() =>
+    window.monaco.editor.getModels()
+      .map(model => model.getValue())
+      .filter(value => value.includes('"Total": 9876.54') && value.includes('"Revision":'))
+      .at(-1),
+  );
+  expect(savedEntity).toBeTruthy();
+
+  await expect(serverNotice).toBeHidden({ timeout: 7_000 });
+  const followingPeriodicNotice = page.locator(".pg-case5-update-notice:not(.pg-case5-server-update-notice)");
+  await expect(followingPeriodicNotice.first()).toBeVisible({ timeout: 15_000 });
+  await expect.poll(() => page.evaluate(saved =>
+    window.monaco.editor.getModels().some(model => model.getValue() === saved),
+  savedEntity)).toBe(true);
+});
+
+test("case 5 refreshes conflict choices when the dialog revision becomes stale", async ({ page }) => {
+  test.setTimeout(45_000);
+  await openCase(page, "case-5", "EF Core: ChangeSet to tracked entity");
+  await page.getByText("Simulate another user editing before save", { exact: true }).click();
+  await page.getByText("Simulate real-time edits every 10 seconds", { exact: true }).click();
+
+  const notices = page.locator(".pg-case5-update-notice");
+  await expect(notices.first()).toBeVisible({ timeout: 20_000 });
+  const customer = page.locator(".pg-edit-fields .pg-row").filter({ hasText: "Customer" }).locator("input").first();
+  await enterText(customer, "e2e-local-customer");
+  await fluentButton(page, "Save").first().click();
+  const saveDialog = page.locator(".pg-submit-preview-dialog");
+  await fluentButton(saveDialog, "Save").click();
+
+  const conflictDialog = page.locator(".pg-conflict-dialog");
+  await expect(conflictDialog.locator("dialog[open]")).toBeVisible();
+  await expect(conflictDialog.locator(".pg-conflict-table thead th")).toHaveCount(5);
+  await expect(conflictDialog).toHaveAttribute("size", "full");
+  const openDialog = conflictDialog.locator("dialog[open]");
+  await expect.poll(
+    () => openDialog.evaluate(dialog => dialog.getBoundingClientRect().width - window.innerWidth),
+  ).toBeGreaterThan(-64);
+  const conflictRow = conflictDialog.locator(".pg-conflict-table tbody tr").first();
+  const capturedChoice = fluentButton(conflictRow.locator("td").nth(2), "Use captured value");
+  const currentChoice = fluentButton(conflictRow.locator("td").nth(3), "Use current value");
+  await expect(capturedChoice).toHaveCount(1);
+  await expect(currentChoice).toHaveCount(1);
+  await capturedChoice.click();
+  await expect(capturedChoice).toHaveAttribute("aria-pressed", "true");
+
+  const initialNotices = (await notices.allTextContents()).join("|");
+  await expect.poll(
+    async () => (await notices.allTextContents()).join("|"),
+    { timeout: 20_000 },
+  ).not.toBe(initialNotices);
+  await fluentButton(conflictDialog, "Apply resolutions").click();
+  await expect(conflictDialog.locator("dialog[open]")).toBeVisible();
+  await expect(fluentButton(conflictDialog, "Use captured value").first()).toHaveAttribute("aria-pressed", "false");
+  await expect(conflictDialog.getByText(/selected conflict resolution was rejected/)).toHaveCount(0);
+
+  await fluentButton(conflictDialog, "Use captured value").first().click();
+  await fluentButton(conflictDialog, "Apply resolutions").click();
+  await expect(conflictDialog.locator("dialog[open]")).toBeHidden();
+  await expect(page.getByRole("table", { name: "Modified EF properties" }).getByText("e2e-local-customer")).toBeVisible();
+});
+
 test("case 5 keeps a focused added row across key assignment", async ({ page }) => {
   await openCase(page, "case-5", "EF Core: ChangeSet to tracked entity");
   const rows = page.locator(".pg-task-row");

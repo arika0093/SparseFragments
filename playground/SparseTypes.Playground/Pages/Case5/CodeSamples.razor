@@ -1,7 +1,7 @@
 @using SparseTypes.Playground.Components
 
 <div class="pg-code-samples">
-    <p class="pg-hint">The submit action captures an immutable ChangeSet; the session baseline advances when the save is acknowledged. A progress bar tracks the 10-second delay. A separate 10-second simulation updates persisted data without changing the draft, and submitted conflicts can be resolved per path.</p>
+    <p class="pg-hint">These examples focus on mapping, saving a captured ChangeSet, and reconciling the live draft. The playground also handles revision conflicts, per-field resolution, and optional server updates.</p>
     <FluentTabs Orientation="Orientation.Vertical">
         <FluentTab Header="Mapper" Id="code-5-mapper">
             <MonacoView Content="@EfMapperCode" Language="csharp" Height="330px" />
@@ -9,8 +9,11 @@
         <FluentTab Header="Shapes" Id="code-5-shapes">
             <MonacoView Content="@EfShapesCode" Language="csharp" Height="360px" />
         </FluentTab>
-        <FluentTab Header="Apply flow" Id="code-5-flow">
-            <MonacoView Content="@EfFlowCode" Language="csharp" Height="450px" />
+        <FluentTab Header="Save" Id="code-5-save">
+            <MonacoView Content="@EfSaveCode" Language="csharp" Height="300px" />
+        </FluentTab>
+        <FluentTab Header="Reconcile" Id="code-5-reconcile">
+            <MonacoView Content="@EfReconcileCode" Language="csharp" Height="240px" />
         </FluentTab>
         <FluentTab Header="Inspect changes" Id="code-5-inspect">
             <MonacoView Content="@EfInspectCode" Language="csharp" Height="330px" />
@@ -48,132 +51,30 @@
         // types match.
         """;
 
-    private const string EfFlowCode = """
-        var draftBaseRevision = tracked.Revision; // Keep the revision paired with this draft baseline.
-        var session = draft.CreateEditSession(); // The draft is the live model; the session retains the baseline.
-        // Edit draft.
-        var submitted = session.CreateChangeSet(); // Exact immutable snapshot before the awaited save.
-        var submittedDraft = draft.DeepClone(); // Correlates temporary identities after the save.
-        // Keep editing draft while the save is in flight.
+    private const string EfSaveCode = """
+        var session = draft.CreateEditSession();
+        var submitted = session.CreateChangeSet();
+        var submittedDraft = draft.DeepClone(); // Keeps temporary-key correlation for the save.
 
         var mapper = PlaygroundOrderMapper.Create(db.Model);
-        var lines = session.EditCollection<PlaygroundOrderLineDto, int>(
-            PlaygroundOrderDto.SparsePath.Lines);
-        lines.TryAdd(newLine, out var addError);
-        lines.TryMoveByKey(assignedId, 0, out var moveError);
-        lines.TryReplaceByKey(assignedId, replacement, out var replaceError);
-        lines.TryRemoveByTemporaryKey(temporaryId, out var removeError);
-        // Add/remove/reorder/replace keep assigned and temporary identities
-        // stable.
-        var result = mapper.ApplyWithResult(db, tracked, submitted); // No query, no SaveChanges.
-        var modified = db.ChangeTracker.Entries()
-            .SelectMany(static entry => entry.Properties)
-            .Where(static property => property.IsModified);
+        var applyResult = mapper.ApplyWithResult(db, tracked, submitted);
+        tracked.Revision++;
+        await db.SaveChangesAsync();
 
-        try
+        var persisted = await db.Orders
+            .AsNoTracking()
+            .Where(order => order.Id == tracked.Id)
+            .Select(mapper.Projection)
+            .SingleAsync();
+        mapper.AssignTemporaryKeys(db, applyResult, submittedDraft, persisted);
+        """;
+
+    private const string EfReconcileCode = """
+        // Adopt persisted values and keep edits made after submission pending.
+        if (!session.TryReconcileAndApply(submitted, persisted, out var conflicts))
         {
-            if (simulateConflict) PlaygroundConcurrency.SimulateConcurrentEdit(SharedOptions, tracked.Id);
-            PlaygroundConcurrency.EnsureCurrentRevision(SharedOptions, tracked.Id, draftBaseRevision);
-            tracked.Revision++;
-            await db.SaveChangesAsync(); // The concurrency token also protects the write after the preflight check.
-            var persisted = await db.Orders
-                .AsNoTracking()
-                .Where(order => order.Id == tracked.Id)
-                .Select(mapper.Projection)
-                .SingleAsync();
-            // Generated keys land on the authoritative projection;
-            // acknowledgement routes by what the server returned, never by list
-            mapper.AssignTemporaryKeys(db, result, submittedDraft, persisted);
-            if (!session.TryReconcile(submitted, persisted, out var error))
-                throw new InvalidOperationException(error); // No partial writeback; retry or reseed.
-            var postSubmit = submittedDraft.CreateChangeSet(draft);
-            var postSubmitRebase = postSubmit.RebaseOnto(persisted);
-            var pending = postSubmitRebase.Rebased;
-            if (postSubmitRebase.HasConflicts)
-            {
-                var resolution = PlaygroundOrderDto.ChangeSet.BeginResolution(
-                    postSubmitRebase,
-                    persisted);
-                foreach (var conflict in resolution.EnumerateUnresolvedConflicts())
-                    resolution.UseIncoming(conflict.Path);
-                if (!resolution.TryBuild(out var resolved, out var failure) || resolved is null)
-                    throw new InvalidOperationException(failure?.Reason);
-                pending = resolved;
-            }
-            var targetDraft = pending.ToPatch().Apply(
-                Optional<PlaygroundOrderDto.Fragment?>.Present(
-                    PlaygroundOrderDto.Fragment.From(persisted))).Value!.ToModel();
-            var syncDraft = PlaygroundOrderDto.ChangeSet.Between(draft, targetDraft);
-            if (!syncDraft.IsEmpty && !session.TryApplyInPlace(syncDraft, out var syncConflicts))
-                throw new InvalidOperationException($"Could not merge persisted values: {syncConflicts?.Count ?? 0} conflicts.");
-            // Untouched fields adopt authoritative values; post-submit edits
-            // stay pending.
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            db.ChangeTracker.Clear();
-            var currentEntity = await ReloadOrderAsync(tracked.Id);
-            var current = await db.Orders
-                .AsNoTracking()
-                .Where(order => order.Id == currentEntity.Id)
-                .Select(mapper.Projection)
-                .SingleAsync();
-            if (selectedMode == ConflictHandlingMode.Strict)
-            {
-                session = current.CreateEditSession(draft); // Reject the save; the live draft stays pending.
-                ShowRevisionConflict(tracked.Revision, currentEntity.Revision);
-                return; // Reject every submitted field when the order revision changed.
-            }
-
-            var rebase = submitted.RebaseOnto(current);
-            var changesToApply = rebase.Rebased;
-            if (rebase.HasConflicts)
-            {
-                var resolution = PlaygroundOrderDto.ChangeSet.BeginResolution(rebase, current);
-                // The UI records UseIncoming(path) or UseCurrent(path) for each
-                // conflict.
-                if (!resolution.TryBuild(out var resolved, out var failure))
-                    throw new InvalidOperationException(failure?.Reason);
-                changesToApply = resolved!;
-            }
-            // Recheck the persisted revision immediately before applying user
-            // choices.
-            PlaygroundConcurrency.EnsureCurrentRevision(SharedOptions, tracked.Id, currentEntity.Revision);
-            var retry = mapper.ApplyWithResult(db, currentEntity, changesToApply);
-            if (db.ChangeTracker.HasChanges())
-            {
-                currentEntity.Revision++;
-                await db.SaveChangesAsync();
-            }
-
-            var mergedEntity = await ReloadOrderAsync(tracked.Id);
-            var merged = await db.Orders
-                .AsNoTracking()
-                .Where(order => order.Id == mergedEntity.Id)
-                .Select(mapper.Projection)
-                .SingleAsync();
-            mapper.AssignTemporaryKeys(db, retry, submittedDraft, merged);
-            var postSubmit = submittedDraft.CreateChangeSet(draft);
-            var postRebase = postSubmit.RebaseOnto(merged);
-            if (!session.TryReconcile(submitted, merged, out var reconcileError))
-                throw new InvalidOperationException(reconcileError); // The retry persisted; reseed to recover.
-            if (rebase.HasConflicts || postRebase.HasConflicts) ShowConflictDialog(rebase, postRebase);
-        }
-
-        // The optional periodic simulation uses a separate DbContext and never
-        // writes the session draft. Save and simulation share a gate.
-        if (await timer.WaitForNextTickAsync(cancellationToken))
-        {
-            await storeGate.WaitAsync(cancellationToken);
-            try
-            {
-                var update = PlaygroundConcurrency.SimulatePeriodicUpdate(SharedOptions, orderId);
-                ReportPersistedRevision(update.Revision, update.Property, update.Before, update.After);
-            }
-            finally
-            {
-                storeGate.Release();
-            }
+            throw new InvalidOperationException(
+                $"Reconciliation failed for {conflicts?.Count ?? 0} paths.");
         }
         """;
 

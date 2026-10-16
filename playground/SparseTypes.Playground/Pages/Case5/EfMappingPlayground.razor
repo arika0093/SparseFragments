@@ -40,7 +40,13 @@
                         <div class="pg-case5-field-control">
                             <FluentTextInput Value="@customer.Value" Disabled="@IsSaveApplying"
                                 ValueChanged="@(v => EditFieldAsync(customer, v))" />
-                            @if (_latestCustomerUpdate is { } customerUpdate)
+                            @if (_serverCustomerUpdated)
+                            {
+                                <small class="pg-case5-update-notice pg-case5-server-update-notice" aria-live="polite">
+                                    Updated from server value
+                                </small>
+                            }
+                            else if (_latestCustomerUpdate is { } customerUpdate)
                             {
                                 <small class="pg-case5-update-notice" aria-live="polite">
                                     Updated to @PlaygroundOrderJson.FormatValue(customerUpdate.After)
@@ -55,7 +61,13 @@
                         <div class="pg-case5-field-control">
                             <FluentTextInput Value="@notes.Value" Disabled="@IsSaveApplying"
                                 ValueChanged="@(v => EditFieldAsync(notes, v))" />
-                            @if (_latestNotesUpdate is { } notesUpdate)
+                            @if (_serverNotesUpdated)
+                            {
+                                <small class="pg-case5-update-notice pg-case5-server-update-notice" aria-live="polite">
+                                    Updated from server value
+                                </small>
+                            }
+                            else if (_latestNotesUpdate is { } notesUpdate)
                             {
                                 <small class="pg-case5-update-notice" aria-live="polite">
                                     Updated to @PlaygroundOrderJson.FormatValue(notesUpdate.After)
@@ -105,12 +117,8 @@
                     Wait 10 seconds before applying save
                 </FluentCheckbox>
                 <FluentCheckbox Value="@_simulateConflict"
-                    ValueChanged="@(value => _simulateConflict = value)" Disabled="@_savePending">
+                    ValueChanged="OnSimulateConflictChanged" Disabled="@_savePending">
                     Simulate another user editing before save
-                </FluentCheckbox>
-                <FluentCheckbox Value="@_periodicSimulationEnabled"
-                    ValueChanged="OnPeriodicSimulationChanged">
-                    Simulate real-time edits every 10 seconds
                 </FluentCheckbox>
                 <div class="pg-case5-rebase-select">
                     <span class="pg-name">Conflict handling</span>
@@ -123,6 +131,11 @@
                         Disabled="@(!_simulateConflict || _savePending)"
                         aria-label="Conflict handling" />
                 </div>
+                <FluentCheckbox Value="@_periodicSimulationEnabled"
+                    ValueChanged="OnPeriodicSimulationChanged"
+                    Disabled="@(!_simulateConflict)">
+                    Simulate real-time edits every 10 seconds
+                </FluentCheckbox>
                 <p class="pg-hint">The draft keeps the revision captured with its baseline. Standard rebases against the current persisted DTO and reports overlapping edits; Strict rejects the save if that revision has changed.</p>
                 @if (_simulationError is not null)
                 {
@@ -189,7 +202,7 @@
                         </table>
                     </div>
                 }
-                <MonacoDiffView Original="@_entityJsonBeforeApply" Modified="@EntityJson" Language="json" Height="240px" />
+                <MonacoDiffView Original="@_entityJsonBeforeApply" Modified="@_entityJsonAfterApply" Language="json" Height="240px" />
             }
         </FluentCard>
     </div>
@@ -269,9 +282,13 @@
     private bool _waitBeforeApply;
     private ConcurrentUpdate? _latestCustomerUpdate;
     private ConcurrentUpdate? _latestNotesUpdate;
+    private bool _serverCustomerUpdated;
+    private bool _serverNotesUpdated;
     private string? _simulationError;
     private CancellationTokenSource? _simulationCancellation;
     private Task? _simulationTask;
+    private CancellationTokenSource? _serverSyncNoticeCancellation;
+    private Task? _serverSyncNoticeTask;
     private string _entityJsonBeforeApply = string.Empty;
     private FluentDialog? _saveDialog;
     private bool _saveDialogHidden = true;
@@ -279,6 +296,7 @@
     private string _conflictSummary = string.Empty;
     private IReadOnlyList<ChangePreviewRow> _changeRows = [];
     private List<(string Entity, string State, string Property, string Before, string After)> _modifiedRows = [];
+    private string _entityJsonAfterApply = string.Empty;
     private PlaygroundSaveSnapshot? _pendingSaveSnapshot;
     private bool _pendingSimulateConflict;
     private List<(
@@ -328,6 +346,7 @@
         }
 
         await StopPeriodicSimulationAsync();
+        await StopServerSyncNoticeAsync();
         await _storeGate.WaitAsync();
         try
         {
@@ -345,6 +364,7 @@
     public async ValueTask DisposeAsync()
     {
         await StopPeriodicSimulationAsync();
+        await StopServerSyncNoticeAsync();
         await _storeGate.WaitAsync();
         try
         {
@@ -360,6 +380,12 @@
 
     private async Task OnPeriodicSimulationChanged(bool enabled)
     {
+        if (enabled && !_simulateConflict)
+        {
+            _periodicSimulationEnabled = false;
+            return;
+        }
+
         _periodicSimulationEnabled = enabled;
         _simulationError = null;
         if (enabled)
@@ -368,6 +394,16 @@
         }
         else
         {
+            await StopPeriodicSimulationAsync();
+        }
+    }
+
+    private async Task OnSimulateConflictChanged(bool enabled)
+    {
+        _simulateConflict = enabled;
+        if (!enabled && _periodicSimulationEnabled)
+        {
+            _periodicSimulationEnabled = false;
             await StopPeriodicSimulationAsync();
         }
     }
@@ -403,6 +439,66 @@
         }
 
         cancellation.Dispose();
+    }
+
+    private async Task ShowServerSyncNoticeAsync(bool customerUpdated, bool notesUpdated)
+    {
+        await StopServerSyncNoticeAsync();
+        _serverCustomerUpdated = customerUpdated;
+        _serverNotesUpdated = notesUpdated;
+        if (!customerUpdated && !notesUpdated)
+        {
+            return;
+        }
+
+        var cancellation = new CancellationTokenSource();
+        _serverSyncNoticeCancellation = cancellation;
+        _serverSyncNoticeTask = ClearServerSyncNoticeAsync(cancellation.Token);
+    }
+
+    private async Task StopServerSyncNoticeAsync()
+    {
+        var cancellation = _serverSyncNoticeCancellation;
+        var task = _serverSyncNoticeTask;
+        _serverSyncNoticeCancellation = null;
+        _serverSyncNoticeTask = null;
+        if (cancellation is null)
+        {
+            return;
+        }
+
+        cancellation.Cancel();
+        try
+        {
+            if (task is not null)
+            {
+                await task;
+            }
+        }
+        finally
+        {
+            cancellation.Dispose();
+        }
+    }
+
+    private async Task ClearServerSyncNoticeAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+            await InvokeAsync(() =>
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                _serverCustomerUpdated = false;
+                _serverNotesUpdated = false;
+                StateHasChanged();
+            });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
     }
 
     private async Task RunPeriodicSimulationAsync(CancellationToken cancellationToken)
@@ -468,6 +564,7 @@
         _pendingSaveSnapshot = null;
         _pendingConflictHandlingMode = null;
         _pendingSimulateConflict = false;
+        _entityJsonAfterApply = string.Empty;
         _db?.Dispose();
         _db = new PlaygroundEfContext(SharedOptions);
         _db.Database.EnsureDeleted();
@@ -511,6 +608,8 @@
         _waitBeforeApply = false;
         _latestCustomerUpdate = null;
         _latestNotesUpdate = null;
+        _serverCustomerUpdated = false;
+        _serverNotesUpdated = false;
         _simulationError = null;
         _conflictHandlingMode = ConflictHandlingMode.Standard;
         _modifiedRows = [];
@@ -852,6 +951,7 @@
 
                 _tracked.Revision++;
                 await _db.SaveChangesAsync();
+                _entityJsonAfterApply = EntityJson;
             },
             readBack: (_, _) =>
                 ReadPersistedOrderAsync(
@@ -863,15 +963,12 @@
                         )
                 ),
             synchronize: (_, persisted, _) =>
-            {
                 SynchronizeLiveDraft(
                     snapshot.Submitted,
                     snapshot.SubmittedDraft,
                     submittedDraftAfterSubmit,
                     persisted
-                );
-                return Task.CompletedTask;
-            }
+                )
         );
 
         if (outcome.Stage == SparseEntitySaveStage.ConcurrencyConflict)
@@ -879,7 +976,8 @@
             try
             {
                 await RecoverFromConflict(
-                    snapshot,
+                    snapshot.Submitted,
+                    snapshot.SubmittedDraft,
                     submittedDraftAfterSubmit,
                     expectedRevision,
                     conflictHandlingMode);
@@ -918,13 +1016,15 @@
         return persisted;
     }
 
-    private void SynchronizeLiveDraft(
+    private async Task SynchronizeLiveDraft(
         PlaygroundOrderDto.ChangeSet submitted,
         PlaygroundOrderDto submittedDraft,
         PlaygroundOrderDto submittedDraftAfterSubmit,
         PlaygroundOrderDto persisted
     )
     {
+        var localCustomerBeforeSync = _liveDraft.Customer;
+        var localNotesBeforeSync = _liveDraft.Notes;
         _conflictRows = CollectPostSubmitConflicts(
             submittedDraft,
             persisted,
@@ -940,12 +1040,21 @@
             );
         }
 
+        var customerUpdatedFromServer =
+            !string.Equals(localCustomerBeforeSync, persisted.Customer, StringComparison.Ordinal)
+            && string.Equals(_liveDraft.Customer, persisted.Customer, StringComparison.Ordinal);
+        var notesUpdatedFromServer =
+            !string.Equals(localNotesBeforeSync, persisted.Notes, StringComparison.Ordinal)
+            && string.Equals(_liveDraft.Notes, persisted.Notes, StringComparison.Ordinal);
+        _latestCustomerUpdate = null;
+        _latestNotesUpdate = null;
         _baselineView = persisted;
         _draftBaseRevision = _tracked?.Revision
             ?? throw new InvalidOperationException("The saved order is no longer tracked.");
         _conflictSubmittedHeader = "Later local draft";
         _conflictVisible = _conflictRows.Count > 0;
         _applyResult = null;
+        await ShowServerSyncNoticeAsync(customerUpdatedFromServer, notesUpdatedFromServer);
     }
 
     private void ApplySaveOutcome(
@@ -1050,7 +1159,8 @@
     }
 
     private async Task RecoverFromConflict(
-        PlaygroundSaveSnapshot snapshot,
+        PlaygroundOrderDto.ChangeSet submitted,
+        PlaygroundOrderDto submittedDraft,
         PlaygroundOrderDto submittedDraftAfterSubmit,
         int expectedRevision,
         ConflictHandlingMode conflictHandlingMode
@@ -1103,15 +1213,15 @@
             return;
         }
 
-        var submittedRebase = snapshot.Submitted.RebaseOnto(current);
+        var submittedRebase = submitted.RebaseOnto(current);
         if (submittedRebase.HasConflicts)
         {
             _conflictResolution = PlaygroundOrderDto.ChangeSet.BeginResolution(
                 submittedRebase,
                 current
             );
-            _resolutionSubmitted = snapshot.Submitted;
-            _resolutionSubmittedDraft = snapshot.SubmittedDraft;
+            _resolutionSubmitted = submitted;
+            _resolutionSubmittedDraft = submittedDraft;
             _resolutionExpectedRevision = _tracked.Revision;
             _resolutionOrderId = orderId;
             _resolutionStale = false;
@@ -1167,26 +1277,24 @@
                     _tracked.Revision++;
                     await _db.SaveChangesAsync();
                 }
+                _entityJsonAfterApply = EntityJson;
             },
             readBack: (_, _) =>
                 ReadPersistedOrderAsync(
                     orderId,
-                    snapshot.SubmittedDraft,
+                    submittedDraft,
                     retry
                         ?? throw new InvalidOperationException(
                             "The retry mapper result is not available."
                         )
                 ),
             synchronize: (_, persisted, _) =>
-            {
                 SynchronizeLiveDraft(
-                    snapshot.Submitted,
-                    snapshot.SubmittedDraft,
+                    submitted,
+                    submittedDraft,
                     submittedDraftAfterSubmit,
                     persisted
-                );
-                return Task.CompletedTask;
-            }
+                )
         );
 
         if (outcome.Stage == SparseEntitySaveStage.Saved)
@@ -1316,6 +1424,7 @@
                         _tracked.Revision++;
                         await _db.SaveChangesAsync();
                     }
+                    _entityJsonAfterApply = EntityJson;
                 },
                 readBack: (_, _) =>
                     ReadPersistedOrderAsync(
@@ -1327,15 +1436,12 @@
                             )
                     ),
                 synchronize: (_, persisted, _) =>
-                {
                     SynchronizeLiveDraft(
                         submitted,
                         submittedDraft,
                         submittedDraftAfterSubmit,
                         persisted
-                    );
-                    return Task.CompletedTask;
-                }
+                    )
             );
 
             if (outcome.Stage == SparseEntitySaveStage.Saved)
@@ -1351,24 +1457,21 @@
                 return;
             }
 
-            ApplySaveOutcome(outcome);
             if (outcome.Stage == SparseEntitySaveStage.ConcurrencyConflict)
             {
-                if (_db is not null)
-                {
-                    _db.ChangeTracker.Clear();
-                    _tracked = await _db.Orders
-                        .Include(static order => order.Note)
-                        .Include(static order => order.Lines)
-                        .SingleAsync(order => order.Id == orderId);
-                    _resolutionStale = _tracked.Revision != expectedRevision;
-                }
-
-                _conflictVisible = true;
-                _conflictSummary = "The persisted revision changed while the dialog was open. The selected values were not applied; continue editing and save again to review the newer state.";
-                _saveError = "The selected conflict resolution was rejected before persistence because its captured revision is stale.";
+                _applied = false;
+                _applyResult = null;
+                _modifiedRows = [];
+                await RecoverFromConflict(
+                    submitted,
+                    submittedDraft,
+                    submittedDraftAfterSubmit,
+                    expectedRevision,
+                    ConflictHandlingMode.Standard);
+                return;
             }
-            else if (
+            ApplySaveOutcome(outcome);
+            if (
                 outcome.Stage
                     is SparseEntitySaveStage.ReadBackFailed
                         or SparseEntitySaveStage.ClientSynchronizationFailed
