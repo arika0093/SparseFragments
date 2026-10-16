@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <IsTestProject>false</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>PackageSparse.Tutorial.Consumer</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Remove="TUnit;Shouldly" />
+    <Using Remove="Shouldly" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(SparseTypesPackageVersion)' == ''">
+    <ProjectReference Include="../../../../src/SparseTypes/SparseTypes.csproj" />
+    <ProjectReference
+      Include="../../../../src/SparseTypes.Generator/SparseTypes.Generator.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="false"
+    />
+  </ItemGroup>
+  <ItemGroup Condition="'$(SparseTypesPackageVersion)' != ''">
+    <PackageReference Include="SparseTypes" Version="$(SparseTypesPackageVersion)" />
+  </ItemGroup>
+</Project>

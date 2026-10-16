@@ -11,6 +11,10 @@ blazor_fixture_dir="tests/fixtures/consumers/package-sparse-blazor"
 blazor_fixture_csproj="${blazor_fixture_dir}/PackageSparse.Blazor.Consumer.csproj"
 blazor_fixture_dll="PackageSparse.Blazor.Consumer.dll"
 blazor_success_marker="SparseTypes Blazor consumer passed."
+tutorial_fixture_dir="tests/fixtures/consumers/package-sparse-tutorial"
+tutorial_fixture_csproj="${tutorial_fixture_dir}/PackageSparse.Tutorial.Consumer.csproj"
+tutorial_fixture_dll="PackageSparse.Tutorial.Consumer.dll"
+tutorial_success_marker="Rebased Theme: dark"
 
 if [[ -z "${package_directory}" ]]; then
     echo "Usage: $(basename "$0") <package-directory>" >&2
@@ -200,6 +204,20 @@ for framework in net8.0 net10.0; do
     echo "${output}"
     if [[ "${output}" != *"${blazor_success_marker}"* ]]; then
         echo "Blazor samples fixture did not reach its success marker on '${framework}'." >&2
+        exit 1
+    fi
+done
+
+for framework in net8.0 net10.0; do
+    dotnet build "${tutorial_fixture_csproj}" \
+        --configuration Release --framework "${framework}" \
+        -p:SparseTypesPackageVersion="${version}" \
+        -p:RestoreAdditionalProjectSources="${feed}"
+    assert_candidate_resolved "${tutorial_fixture_dir}/obj/project.assets.json" "SparseTypes" "sparsetypes"
+    output="$(dotnet "${tutorial_fixture_dir}/bin/Release/${framework}/${tutorial_fixture_dll}" 2>&1)"
+    echo "${output}"
+    if [[ "${output}" != *"${tutorial_success_marker}"* ]]; then
+        echo "Tutorial probe did not reach its success marker on '${framework}'." >&2
         exit 1
     fi
 done

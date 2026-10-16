@@ -6,22 +6,19 @@ for wire transport, reconciling concurrent updates with rebase, persisting to a 
 with EF Core, and composing low-level fragments and patches.
 
 Run it with a .NET 10 or .NET 8 SDK. Create a console project, add `SparseTypes`, and replace `Program.cs`.
-In C#, top-level statements must precede type declarations: place the executable steps at the top of `Program.cs` and the model at the bottom.
+Assemble `Program.cs` with the `using` directives first, the executable snippets in order, and the model declaration last. C# top-level statements must precede type declarations.
 
 ```shell
-dotnet new console -o SparseTutorial --framework net10.0
+dotnet new console -o SparseTutorial --framework net8.0
 dotnet add SparseTutorial package SparseTypes
 ```
 
 ## Define the model
 
-The model is a standard C# `partial` class decorated with `[SparseModel]`.
-Place this declaration at the bottom of `Program.cs`.
+The model is a standard C# `partial` class decorated with `[SparseModel]`. Copy it to the bottom of `Program.cs`; the first edit-session snippet supplies the imports at the top.
 
 <!-- sample: tutorial-models -->
 ```csharp
-using SparseTypes;
-
 [SparseModel]
 public partial class UserSettings
 {
@@ -44,6 +41,9 @@ Add this at the top of `Program.cs`:
 
 <!-- sample: tutorial-editsession -->
 ```csharp
+using System.Text.Json;
+using SparseTypes;
+
 var settings = new UserSettings
 {
     DisplayName = "Alice",
@@ -217,7 +217,7 @@ Underneath `EditSession` and `ChangeSet` lie two foundational primitives: `Fragm
 
 <!-- sample: tutorial-fragment-patch -->
 ```csharp
-// 5. Low-level building blocks: Fragment layering and Patch commands
+// 6. Low-level building blocks: Fragment layering and Patch commands
 var defaultLayer = new UserSettings.Fragment { Theme = "light", RefreshInterval = 30 };
 var userOverride = new UserSettings.Fragment { Theme = "dark" };
 
@@ -233,11 +233,11 @@ var updated = effective.Apply(patch);
 
 `defaultLayer.Merge(userOverride)` overlays the override: present properties take precedence, while missing properties fall through. `effective.Apply(patch)` executes the patch command and returns the resulting fragment.
 
-## Complete Program.cs
+## Complete runnable Program.cs
 
-Here is the complete runnable code assembling steps 1 through 6:
+This file combines the runnable examples from steps 1, 2, 3, 4, and 6. The EF Core code in step 5 is schematic because it needs an application's `DbContext` and provider configuration; keep it separate from this minimal console program.
 
-<!-- illustrative: complete runnable program combining tutorial steps -->
+<!-- sample: tutorial-program -->
 ```csharp
 using System.Text.Json;
 using SparseTypes;
@@ -250,22 +250,27 @@ var settings = new UserSettings
     RefreshInterval = 60,
 };
 var session = settings.CreateEditSession();
+var history = session.EnableHistory();
 session.Observable.Theme = "dark";
-
-// Opt-in undo/redo history on a separate draft (see Step 1).
-var draftSession = new UserSettings { Theme = "light" }.CreateEditSession();
-var history = draftSession.EnableHistory();
-draftSession.Observable.Theme = "dark";
+// history.CanUndo == true
 history.Undo();
+// settings.Theme == "light"
 history.Redo();
+// settings.Theme == "dark"
 
 // 2. Inspect what changed
 var changes = session.CreateChangeSet();
+// changes.Theme.IsChanged == true
+// changes.Theme.Before.Value == "light"
+// changes.Theme.After.Value == "dark"
 
 // 3. Wire transport payload
 var payload = changes.ToPayload();
 var json = JsonSerializer.Serialize(payload);
-var incomingChanges = JsonSerializer.Deserialize<UserSettings.ChangePayload>(json)!.ToChangeSet();
+var receivedPayload = JsonSerializer.Deserialize<UserSettings.ChangePayload>(json)!;
+var incomingChanges = receivedPayload.ToChangeSet();
+// incomingChanges.Theme.IsChanged == true
+// incomingChanges.Theme.After.Value == "dark"
 
 // 4. Reconcile concurrent changes
 var serverCurrent = new UserSettings
@@ -275,12 +280,19 @@ var serverCurrent = new UserSettings
     RefreshInterval = 60,
 };
 var rebaseResult = incomingChanges.RebaseOnto(serverCurrent);
+// rebaseResult.HasConflicts == false
+// rebaseResult.Rebased.Theme.After.Value == "dark"
 
-// 5. Low-level Fragment and Patch
+// 6. Low-level Fragment and Patch
 var defaultLayer = new UserSettings.Fragment { Theme = "light", RefreshInterval = 30 };
 var userOverride = new UserSettings.Fragment { Theme = "dark" };
 var effective = defaultLayer.Merge(userOverride);
 var updated = effective.Apply(new UserSettings.Patch { RefreshInterval = 120 });
+// effective.Theme.Value == "dark"
+// effective.RefreshInterval.Value == 30
+// updated.RefreshInterval.Value == 120
+
+Console.WriteLine($"Rebased Theme: {rebaseResult.Rebased.Theme.After.Value}");
 
 // Model declaration at the bottom
 [SparseModel]
@@ -291,6 +303,7 @@ public partial class UserSettings
     public int RefreshInterval { get; set; }
 }
 ```
+<!-- /sample -->
 
 ## Where to go next
 

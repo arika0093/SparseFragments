@@ -81,7 +81,7 @@ public static class TutorialFirstEditSamples
         );
 
         // sample: tutorial-fragment-patch
-        // 5. Low-level building blocks: Fragment layering and Patch commands
+        // 6. Low-level building blocks: Fragment layering and Patch commands
         var defaultLayer = new UserSettings.Fragment { Theme = "light", RefreshInterval = 30 };
         var userOverride = new UserSettings.Fragment { Theme = "dark" };
 
