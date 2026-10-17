@@ -136,7 +136,7 @@ internal static class SparseFragmentJsonEmitter
         code.AppendLineAt(
             4,
             indexedDispatch
-                ? "var propertyIndexes = BuildJsonPropertyIndexes(options);"
+                ? "var propertyIndexes = GetOrBuildJsonPropertyIndexes(options);"
                 : "ValidateJsonNames(options);"
         );
         code.AppendLineAt(
@@ -495,9 +495,76 @@ internal static class SparseFragmentJsonEmitter
         code.AppendLineAt(3, "}");
         if (indexedDispatch)
         {
+            code.AppendLineAt(3, "private readonly object _jsonPropertyIndexLock = new object();");
             code.AppendLineAt(
                 3,
-                "private static global::System.Collections.Generic.Dictionary<string, int> BuildJsonPropertyIndexes(global::System.Text.Json.JsonSerializerOptions options)"
+                "private volatile JsonPropertyIndexCache? _jsonPropertyIndexCache;"
+            );
+            code.AppendLineAt(3, "private sealed class JsonPropertyIndexCache");
+            code.AppendLineAt(3, "{");
+            // Immutable snapshot so lock-free readers observe a consistent
+            // key; staleness only causes a rebuild, never a wrong mapping.
+            code.AppendLineAt(
+                4,
+                "public JsonPropertyIndexCache(global::System.Collections.Generic.Dictionary<string, int> indexes, global::System.Text.Json.JsonNamingPolicy? namingPolicy, bool caseInsensitive)"
+            );
+            code.AppendLineAt(4, "{");
+            code.AppendLineAt(5, "Indexes = indexes;");
+            code.AppendLineAt(5, "NamingPolicy = namingPolicy;");
+            code.AppendLineAt(5, "CaseInsensitive = caseInsensitive;");
+            code.AppendLineAt(4, "}");
+            code.AppendLineAt(
+                4,
+                "public readonly global::System.Collections.Generic.Dictionary<string, int> Indexes;"
+            );
+            code.AppendLineAt(
+                4,
+                "public readonly global::System.Text.Json.JsonNamingPolicy? NamingPolicy;"
+            );
+            code.AppendLineAt(4, "public readonly bool CaseInsensitive;");
+            code.AppendLineAt(3, "}");
+            code.AppendLineAt(
+                3,
+                "private global::System.Collections.Generic.Dictionary<string, int> GetOrBuildJsonPropertyIndexes(global::System.Text.Json.JsonSerializerOptions options)"
+            );
+            code.AppendLineAt(3, "{");
+            code.AppendLineAt(4, "var namingPolicy = options.PropertyNamingPolicy;");
+            code.AppendLineAt(4, "var caseInsensitive = options.PropertyNameCaseInsensitive;");
+            // Only stateless system inputs are reusable: absent policy
+            // (identity names) and the CamelCase singleton. Custom policies
+            // may retain mutable state, so those indexes are rebuilt per
+            // read and never stored. The key also covers direct converter
+            // calls that mutate a shared options instance between reads.
+            code.AppendLineAt(
+                4,
+                "var cacheable = namingPolicy is null || global::System.Object.ReferenceEquals(namingPolicy, global::System.Text.Json.JsonNamingPolicy.CamelCase);"
+            );
+            code.AppendLineAt(4, "var cache = _jsonPropertyIndexCache;");
+            code.AppendLineAt(
+                4,
+                "if (cacheable && cache is not null && global::System.Object.ReferenceEquals(cache.NamingPolicy, namingPolicy) && cache.CaseInsensitive == caseInsensitive) { return cache.Indexes; }"
+            );
+            code.AppendLineAt(4, "var indexes = BuildJsonPropertyIndexes(options);");
+            code.AppendLineAt(4, "if (cacheable)");
+            code.AppendLineAt(4, "{");
+            code.AppendLineAt(5, "lock (_jsonPropertyIndexLock)");
+            code.AppendLineAt(5, "{");
+            code.AppendLineAt(6, "var current = _jsonPropertyIndexCache;");
+            code.AppendLineAt(
+                6,
+                "if (current is not null && global::System.Object.ReferenceEquals(current.NamingPolicy, namingPolicy) && current.CaseInsensitive == caseInsensitive) { return current.Indexes; }"
+            );
+            code.AppendLineAt(
+                6,
+                "_jsonPropertyIndexCache = new JsonPropertyIndexCache(indexes, namingPolicy, caseInsensitive);"
+            );
+            code.AppendLineAt(5, "}");
+            code.AppendLineAt(4, "}");
+            code.AppendLineAt(4, "return indexes;");
+            code.AppendLineAt(3, "}");
+            code.AppendLineAt(
+                3,
+                "private global::System.Collections.Generic.Dictionary<string, int> BuildJsonPropertyIndexes(global::System.Text.Json.JsonSerializerOptions options)"
             );
             code.AppendLineAt(3, "{");
             code.AppendLineAt(
