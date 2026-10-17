@@ -80,7 +80,13 @@ internal static class SparseTemporaryKeyOrderEmitter
             code.AppendLineAt(indent + 2, "}");
             code.AppendLineAt(
                 indent + 2,
-                "else " + lookup + ".TryAdd(__idxKey.Value, " + candidate + ");"
+                "else if (!"
+                    + lookup
+                    + ".ContainsKey(__idxKey.Value)) "
+                    + lookup
+                    + ".Add(__idxKey.Value, "
+                    + candidate
+                    + ");"
             );
         }
         else if (keyIsReferenceType)
@@ -102,12 +108,27 @@ internal static class SparseTemporaryKeyOrderEmitter
             code.AppendLineAt(indent + 2, "}");
             code.AppendLineAt(
                 indent + 2,
-                "else " + lookup + ".TryAdd(__idxKey, " + candidate + ");"
+                "else if (!"
+                    + lookup
+                    + ".ContainsKey(__idxKey)) "
+                    + lookup
+                    + ".Add(__idxKey, "
+                    + candidate
+                    + ");"
             );
         }
         else
         {
-            code.AppendLineAt(indent + 2, lookup + ".TryAdd(__idxKey, " + candidate + ");");
+            code.AppendLineAt(
+                indent + 2,
+                "if (!"
+                    + lookup
+                    + ".ContainsKey(__idxKey)) "
+                    + lookup
+                    + ".Add(__idxKey, "
+                    + candidate
+                    + ");"
+            );
         }
         code.AppendLineAt(indent + 1, "}");
         code.AppendLineAt(indent, "}");
@@ -431,19 +452,22 @@ internal static class SparseTemporaryKeyOrderEmitter
         {
             code.AppendLineAt(
                 indent + 1,
-                "if (__ok.HasValue) __orderedIndex.TryAdd(__ok.Value, __oi); else if (__orderedNullIndex < 0) __orderedNullIndex = __oi;"
+                "if (__ok.HasValue) { if (!__orderedIndex.ContainsKey(__ok.Value)) __orderedIndex.Add(__ok.Value, __oi); } else if (__orderedNullIndex < 0) __orderedNullIndex = __oi;"
             );
         }
         else if (keyIsReferenceType)
         {
             code.AppendLineAt(
                 indent + 1,
-                "if (__ok is null) { if (__orderedNullIndex < 0) __orderedNullIndex = __oi; } else __orderedIndex.TryAdd(__ok, __oi);"
+                "if (__ok is null) { if (__orderedNullIndex < 0) __orderedNullIndex = __oi; } else if (!__orderedIndex.ContainsKey(__ok)) __orderedIndex.Add(__ok, __oi);"
             );
         }
         else
         {
-            code.AppendLineAt(indent + 1, "__orderedIndex.TryAdd(__ok, __oi);");
+            code.AppendLineAt(
+                indent + 1,
+                "if (!__orderedIndex.ContainsKey(__ok)) __orderedIndex.Add(__ok, __oi);"
+            );
         }
         code.AppendLineAt(indent, "}");
         code.AppendLineAt(
