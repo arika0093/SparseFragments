@@ -122,6 +122,28 @@ public partial class GuidDirectory
 }
 
 [SparseModel]
+public partial class GuidRoster
+{
+    public List<GuidContact> Members { get; set; } = new();
+}
+
+[SparseModel]
+public partial class CountedOrder
+{
+    public string Number { get; set; } = string.Empty;
+
+    public IList<OrderLine> Lines { get; set; } = new List<OrderLine>();
+}
+
+[SparseModel]
+public partial class CountedBoard
+{
+    public string Name { get; set; } = string.Empty;
+
+    public IList<BlazorDraftLine> Drafts { get; set; } = new List<BlazorDraftLine>();
+}
+
+[SparseModel]
 public partial class ReadOnlyContactBook
 {
     public IReadOnlyDictionary<string, OrderCustomer> ByName { get; set; } =

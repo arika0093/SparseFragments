@@ -123,6 +123,7 @@ internal static class SparseFieldPathResolver
         if (collection is IList list)
         {
             return ResolveKeyedElement(
+                collection,
                 list,
                 SparseTypeMetadataCache.GetSequenceElementType(collection.GetType()),
                 key,
@@ -174,6 +175,7 @@ internal static class SparseFieldPathResolver
         )
         {
             return ResolveKeyedElement(
+                collection,
                 (IEnumerable)collection,
                 listInterface.GetGenericArguments()[0],
                 key,
@@ -326,10 +328,25 @@ internal static class SparseFieldPathResolver
             throw InvalidFieldPath(error);
         }
 
+        var access = KeyedCollectionAccess.Create(collection, elements);
+        if (
+            SparseKeyedLookupIndex.TryGetByTemporaryKey(
+                collection,
+                access,
+                reader,
+                temporaryKey.Value,
+                out var indexed
+            )
+        )
+        {
+            return indexed!;
+        }
+
         foreach (var element in elements)
         {
             if (element is not null && Equals(reader(element), temporaryKey.Value))
             {
+                SparseKeyedLookupIndex.RebuildTemporaryKeys(collection, access, elements, reader);
                 return element;
             }
         }
@@ -339,6 +356,7 @@ internal static class SparseFieldPathResolver
     }
 
     private static object ResolveKeyedElement(
+        object collection,
         IEnumerable elements,
         Type? elementType,
         object? key,
@@ -362,10 +380,31 @@ internal static class SparseFieldPathResolver
         var convertedKey = key is string text
             ? ConvertKeyTextOrInvalidPath(reader.KeyType, text, error)
             : key;
+
+        var access = KeyedCollectionAccess.Create(collection, elements);
+        if (
+            convertedKey is not null
+            && SparseKeyedLookupIndex.TryGetByKey(
+                collection,
+                access,
+                reader,
+                convertedKey,
+                out var indexed
+            )
+        )
+        {
+            return indexed!;
+        }
+
         foreach (var element in elements)
         {
             if (element is not null && Equals(reader.GetKey(element), convertedKey))
             {
+                if (convertedKey is not null)
+                {
+                    SparseKeyedLookupIndex.RebuildKeys(collection, access, elements, reader);
+                }
+
                 return element;
             }
         }
