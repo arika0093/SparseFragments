@@ -47,6 +47,8 @@ public sealed class SparseSessionScopeContext<TModel>
         Func<object?> ResolveTarget,
         Func<bool> HasChanges,
         Func<bool> IsApplyingPassThrough,
+        Func<SparseChildEditMode, string?> ValidateMode,
+        Func<bool> CanRetainWithoutRefork,
         Action<SparseChildEditMode> SetMode,
         Action Dispose
     );
@@ -55,6 +57,7 @@ public sealed class SparseSessionScopeContext<TModel>
         SparsePath Path,
         object Context,
         Func<bool> HasChanges,
+        Func<SparseChildEditMode, string?> ValidateMode,
         Action<SparseChildEditMode> SetMode,
         Action Dispose
     );
@@ -241,6 +244,16 @@ public sealed class SparseSessionScopeContext<TModel>
                 () => DetachOrDisposeChild(untypedPath),
                 NotifyChanged
             );
+            // Snapshot the retain preconditions while the fork still matches
+            // the parent: a child opened over parent dirt, or resynchronized
+            // by a later accept, can strand values across reverts, so only a
+            // still-clean fork on a still-clean subtree may skip the refork.
+            var acceptVersionAtOpen = childContext.AcceptVersion;
+            var parentDirtyAtOpen = !IsParentSubtreeClean(untypedPath);
+            bool CanRetainWithoutRefork() =>
+                childContext.AcceptVersion == acceptVersionAtOpen
+                && !parentDirtyAtOpen
+                && IsParentSubtreeClean(untypedPath);
             _children.Add(
                 untypedPath,
                 new ChildEntry(
@@ -249,6 +262,8 @@ public sealed class SparseSessionScopeContext<TModel>
                     () => ResolveChildModel(parentSession, untypedPath),
                     () => childContext.HasPendingChanges,
                     () => childContext.IsApplyingPassThrough,
+                    childContext.ValidateModeTransition,
+                    CanRetainWithoutRefork,
                     childContext.SetMode,
                     childContext.DisposeOwned
                 )
@@ -425,11 +440,13 @@ public sealed class SparseSessionScopeContext<TModel>
             return;
         }
 
-        if (HasChanges || _detached.Any(static entry => entry.HasChanges()))
+        // Two-phase transition: validate every live and detached context,
+        // including nested descendants, before mutating anything, so a later
+        // failure cannot leave mixed modes behind.
+        var rejection = ValidateModeTransition(mode);
+        if (rejection is not null)
         {
-            throw new InvalidOperationException(
-                "Cannot change child edit mode while child edits are pending."
-            );
+            throw new InvalidOperationException(rejection);
         }
 
         Mode = mode;
@@ -446,6 +463,32 @@ public sealed class SparseSessionScopeContext<TModel>
         }
 
         Changed?.Invoke();
+    }
+
+    // Checks a mode transition without mutating parent, child, or nested
+    // state. Returns the rejection message, or null when all contexts agree.
+    internal string? ValidateModeTransition(SparseChildEditMode mode)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        foreach (var entry in _children.Values)
+        {
+            var rejection = entry.ValidateMode(mode);
+            if (rejection is not null)
+            {
+                return rejection;
+            }
+        }
+
+        foreach (var entry in _detached)
+        {
+            var rejection = entry.ValidateMode(mode);
+            if (rejection is not null)
+            {
+                return rejection;
+            }
+        }
+
+        return null;
     }
 
     internal void DisposeChildren()
@@ -524,6 +567,7 @@ public sealed class SparseSessionScopeContext<TModel>
                     path,
                     entry.Context,
                     entry.HasChanges,
+                    entry.ValidateMode,
                     entry.SetMode,
                     entry.Dispose
                 )
@@ -576,7 +620,14 @@ public sealed class SparseSessionScopeContext<TModel>
                 continue;
             }
 
-            if (Mode == SparseChildEditMode.PassThrough && !entry.HasChanges())
+            // Retain clean children whose subtree is provably untouched: the
+            // fork still matches the parent, so no refork is needed. Anything
+            // else on the affected subtree still invalidates as before.
+            if (
+                Mode == SparseChildEditMode.PassThrough
+                && !entry.HasChanges()
+                && !entry.CanRetainWithoutRefork()
+            )
             {
                 _children.Remove(path);
                 entry.Dispose();
@@ -587,6 +638,21 @@ public sealed class SparseSessionScopeContext<TModel>
         if (changed)
         {
             NotifyChanged();
+        }
+    }
+
+    // Reports whether the parent owns no changes under a child path. Query
+    // failures conservatively report dirt, preserving the previous
+    // dispose-and-refork behavior for unsupported sessions.
+    private bool IsParentSubtreeClean(SparsePath path)
+    {
+        try
+        {
+            return !_passThroughStateScope.HasChanges(path);
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
         }
     }
 }

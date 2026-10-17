@@ -836,7 +836,7 @@ public sealed class SparseSessionScopeTests
     }
 
     [Test]
-    public async Task PassThroughParentChangesNotifyOnceAfterRebasingCleanChildren()
+    public async Task PassThroughUnrelatedParentEditsRetainCleanChildren()
     {
         var model = Order();
         var parent = model.CreateEditSession();
@@ -847,18 +847,25 @@ public sealed class SparseSessionScopeTests
         var scope = harness.Consumer.ScopeContext!;
         var customer = scope.OpenChildSession(parent, OrderDto.SparsePath.Customer);
         var line = scope.OpenChildSession(parent, OrderDto.SparsePath.Lines.Key("a"));
+        var customerSession = customer.Session;
+        var lineSession = line.Session;
         var notifications = 0;
         void OnChanged() => notifications++;
         scope.Changed += OnChanged;
 
+        // An unrelated root edit leaves clean children on their existing
+        // sessions instead of disposing and reforking each of them.
         parent.Observable.Number = "ORD-2";
         await harness.FlushAsync();
 
         scope.Changed -= OnChanged;
-        notifications.ShouldBe(1);
+        notifications.ShouldBe(0);
+        ReferenceEquals(customerSession, customer.Session).ShouldBeTrue();
+        ReferenceEquals(lineSession, line.Session).ShouldBeTrue();
+        customerSession.Observable.Name.ShouldBe("Ada");
+        ((OrderLine.EditSession)lineSession).Observable.Quantity.ShouldBe(1);
         parent.HasPendingChildSessions.ShouldBeFalse();
-        Should.Throw<ObjectDisposedException>(() => _ = customer.Session);
-        Should.Throw<ObjectDisposedException>(() => _ = line.Session);
+        harness.Consumer.ShownText.ShouldBe("ORD-2|Ada|a,b");
     }
 
     [Test]

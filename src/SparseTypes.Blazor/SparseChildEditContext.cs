@@ -72,6 +72,11 @@ public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
 
     internal bool IsApplyingPassThrough => _isApplyingPassThrough;
 
+    // Counts successful draft acceptances (including automatic pass-through
+    // merges). The owning scope uses it to tell a freshly opened clean child
+    // from one whose draft was resynchronized after parent drift.
+    internal int AcceptVersion { get; private set; }
+
     ISparseEditSession<TModel> ISparseChildEditContext<TModel, TConflict>.Session => Session;
 
     /// <summary>Gets the generated paths rooted at the child model.</summary>
@@ -116,6 +121,15 @@ public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
         ThrowIfDisposed();
         if (!_child.HasChanges)
         {
+            // A no-op acceptance still reports success, so stale conflicts
+            // from an earlier failed merge must not survive it. Accepted
+            // stays silent here: nothing was merged.
+            if (_conflicts is not null)
+            {
+                _conflicts = null;
+                _changed();
+            }
+
             conflicts = null;
             return true;
         }
@@ -124,6 +138,7 @@ public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
         _conflicts = accepted ? null : conflicts;
         if (accepted)
         {
+            AcceptVersion++;
             Accepted?.Invoke();
         }
         else if (conflicts is null)
@@ -213,6 +228,24 @@ public sealed class SparseChildEditContext<TModel, TPaths, TConflict, TSession>
 
         DescendantScopeContext.SetMode(mode);
         _conflicts = null;
+    }
+
+    // Validates a mode transition without mutating anything, so the owning
+    // scope can reject before any parent, child, or nested context moves.
+    internal string? ValidateModeTransition(SparseChildEditMode mode)
+    {
+        ThrowIfDisposed();
+        if (_child.HasChanges || DescendantScopeContext.HasChanges)
+        {
+            return "Cannot change child edit mode while child edits are pending.";
+        }
+
+        if (mode == SparseChildEditMode.PassThrough && _notifier is null)
+        {
+            return "Pass-through child edits require a session that reports property changes.";
+        }
+
+        return DescendantScopeContext.ValidateModeTransition(mode);
     }
 
     private object HistorySession =>
