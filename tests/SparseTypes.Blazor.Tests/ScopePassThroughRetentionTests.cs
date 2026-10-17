@@ -247,4 +247,69 @@ public sealed class ScopePassThroughRetentionTests
         customer.Mode.ShouldBe(SparseChildEditMode.Draft);
         customerSession.Observable.Name.ShouldBe("Ada");
     }
+
+    [Test]
+    public async Task KeyedReorderRetainsChildrenAndReportsNoRowEdit()
+    {
+        // A container reorder is an ancestor record for every row. It must not
+        // mark rows as edited, nor dispose clean children (which would refork
+        // the whole root on reopen).
+        var parent = Order().CreateEditSession();
+        using var host = await ScopeTestHost.CreateAsync(
+            parent,
+            mode: SparseChildEditMode.PassThrough
+        );
+        var scope = host.ScopeContext;
+        var first = scope.OpenChildSession(parent, OrderDto.SparsePath.Lines.Key("a"));
+        var second = scope.OpenChildSession(parent, OrderDto.SparsePath.Lines.Key("b"));
+        var firstSession = first.Session;
+        var secondSession = second.Session;
+
+        parent.Observable.Lines.Move(0, 1);
+        await host.FlushAsync();
+
+        scope.HasChangesFor(OrderDto.SparsePath.Lines.Key("a")).ShouldBeFalse();
+        scope.HasChangesFor(OrderDto.SparsePath.Lines.Key("b")).ShouldBeFalse();
+        ReferenceEquals(firstSession, first.Session).ShouldBeTrue();
+        ReferenceEquals(secondSession, second.Session).ShouldBeTrue();
+        ((OrderLine.EditSession)firstSession).Observable.Quantity.ShouldBe(1);
+        ((OrderLine.EditSession)secondSession).Observable.Quantity.ShouldBe(2);
+
+        // A retained row still merges onto the reordered parent without a
+        // refork, preserving the new order.
+        ((OrderLine.EditSession)firstSession)
+            .Observable
+            .Quantity = 11;
+        await host.FlushAsync();
+        parent.Observable.Lines.Select(static line => line.Sku).ShouldBe(["b", "a"]);
+        parent.Observable.Lines[1].Quantity.ShouldBe(11);
+    }
+
+    [Test]
+    public async Task KeyedInsertRetainsSiblingsAndReportsOnlyTheAddedRow()
+    {
+        var parent = Order().CreateEditSession();
+        using var host = await ScopeTestHost.CreateAsync(
+            parent,
+            mode: SparseChildEditMode.PassThrough
+        );
+        var scope = host.ScopeContext;
+        var first = scope.OpenChildSession(parent, OrderDto.SparsePath.Lines.Key("a"));
+        var firstSession = first.Session;
+
+        parent.Observable.Lines.AddModel(new OrderLine { Sku = "c", Quantity = 3 });
+        await host.FlushAsync();
+
+        scope.HasChangesFor(OrderDto.SparsePath.Lines.Key("a")).ShouldBeFalse();
+        scope.HasChangesFor(OrderDto.SparsePath.Lines.Key("c")).ShouldBeTrue();
+        ReferenceEquals(firstSession, first.Session).ShouldBeTrue();
+        ((OrderLine.EditSession)firstSession).Observable.Quantity.ShouldBe(1);
+
+        // The surviving row still merges without a refork.
+        ((OrderLine.EditSession)firstSession)
+            .Observable
+            .Quantity = 11;
+        await host.FlushAsync();
+        parent.Observable.Lines[0].Quantity.ShouldBe(11);
+    }
 }

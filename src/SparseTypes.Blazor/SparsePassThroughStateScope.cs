@@ -223,14 +223,18 @@ internal sealed class SparsePassThroughStateScope : IDisposable
     public bool TryCollectionState(SparsePath path, out SparseCollectionState? state) =>
         _source.TryCollectionState(_prefix.Append(path), out state);
 
-    public bool HasChanges(SparsePath path)
+    // Reports changes owned by the subtree at the path. Ancestor records are
+    // excluded: a container reorder or resize does not change its rows, and
+    // treating it as row dirt marked every sibling as edited and reforcked
+    // clean children.
+    public bool HasSubtreeChanges(SparsePath path)
     {
         if (!TryFieldState<object?>(path, out var state, out var error))
         {
             throw new InvalidOperationException(error);
         }
 
-        return state.HasChanges;
+        return state.IsChanged || state.HasDescendantChange;
     }
 
     public void Dispose()

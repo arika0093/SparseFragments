@@ -308,7 +308,7 @@ public sealed class SparseSessionScopeContext<TModel>
         ArgumentNullException.ThrowIfNull(path);
         if (Mode == SparseChildEditMode.PassThrough)
         {
-            return _stateScope.HasChanges(path.UntypedPath);
+            return _stateScope.HasSubtreeChanges(path.UntypedPath);
         }
 
         return _children.TryGetValue(path.UntypedPath, out var entry) && entry.HasChanges();
@@ -421,7 +421,7 @@ public sealed class SparseSessionScopeContext<TModel>
 
     internal SparsePassThroughStateScope StateScope => _stateScope;
 
-    internal bool HasChangesAtRoot => _stateScope.HasChanges(SparsePath.Root<TModel>());
+    internal bool HasChangesAtRoot => _stateScope.HasSubtreeChanges(SparsePath.Root<TModel>());
 
     internal bool TryFieldState<TValue>(
         SparsePath path,
@@ -648,7 +648,7 @@ public sealed class SparseSessionScopeContext<TModel>
     {
         try
         {
-            return !_passThroughStateScope.HasChanges(path);
+            return !_passThroughStateScope.HasSubtreeChanges(path);
         }
         catch (InvalidOperationException)
         {
