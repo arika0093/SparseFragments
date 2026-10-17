@@ -316,7 +316,9 @@ public sealed class StjOptionalGenerationTests
         stub.AppendLine("    public class JsonTypeInfo { }");
         stub.AppendLine("    public sealed class JsonTypeInfo<T> : JsonTypeInfo { }");
         stub.AppendLine("}");
-        return stub.ToString();
+        // Normalize so the tests' newline-sensitive Replace calls behave the
+        // same on Windows and Unix hosts.
+        return stub.ToString().Replace("\r\n", "\n");
     }
 
     private static void JsonFreeSourcesAreIdentical(
